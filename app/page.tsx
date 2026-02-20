@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { createInvoiceFromWorkOrder } from "../lib/invoices";
 
 type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
 
@@ -39,7 +40,19 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
   const [msgLog, setMsgLog] = useState<string[]>([]);
+  // ✅ Invoice UI message
+  const [invoiceMsg, setInvoiceMsg] = useState<string>("");
 
+  // ✅ Crear invoice desde una Work Order
+  const handleCreateInvoice = useCallback(async (workOrderId: string) => {
+    try {
+      setInvoiceMsg("Creando invoice...");
+      const invoiceId = await createInvoiceFromWorkOrder(workOrderId);
+      setInvoiceMsg(`Invoice creada ✅ ID: ${invoiceId}`);
+    } catch (e: any) {
+      setInvoiceMsg(`No se pudo crear invoice: ${e?.message ?? String(e)}`);
+    }
+  }, []);
   const pushMsg = useCallback((m: string) => {
     setMsg(m);
     setMsgLog((prev) => [m, ...prev].slice(0, 12));
@@ -1391,6 +1404,14 @@ export default function Home() {
                     >
                       {isSelected ? "Viendo historial ✅" : "Ver historial"}
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateInvoice(w.work_order_id);
+                      }}
+                    >
+                      Crear invoice
+                    </button>
                   </div>
                 </div>
               );
@@ -1402,7 +1423,11 @@ export default function Home() {
       <p style={{ marginTop: 14 }}>
         <b>Status:</b> {loadingWO ? "Cargando work orders..." : msg}
       </p>
-
+      {invoiceMsg ? (
+        <p style={{ marginTop: 8 }}>
+          <b>Invoice:</b> {invoiceMsg}
+        </p>
+      ) : null}
       <div style={{ marginTop: 10, fontSize: 12 }}>
         <b>Log:</b>
         <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
