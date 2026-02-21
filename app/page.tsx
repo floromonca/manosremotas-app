@@ -49,7 +49,18 @@ type CompanyMember = {
   role: string | null;
   full_name: string | null;
 };
-
+type WorkOrderItem = {
+  item_id: string;
+  company_id: string;
+  work_order_id: string;
+  item_type: string | null;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  taxable: boolean;
+  created_at: string;
+};
 type WOFilter = "all" | "mine" | "unassigned";
 
 const safeStatus = (s: string): WorkOrderStatus =>
@@ -229,6 +240,23 @@ export default function Home() {
     author: string;
     comment_id?: string; // ✅ solo aplica para comentarios
   };
+  // ✅ Work Order Items (Fase 5)
+  const [woItems, setWoItems] = useState<WorkOrderItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
+
+  const [newItem, setNewItem] = useState<{
+    item_type: string;
+    description: string;
+    quantity: string; // string para input
+    unit_price: string; // string para input
+    taxable: boolean;
+  }>({
+    item_type: "service",
+    description: "",
+    quantity: "1",
+    unit_price: "0",
+    taxable: true,
+  });
 
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
 
@@ -498,6 +526,33 @@ export default function Home() {
     [memberNameById, pushMsg],
   );
 
+  const refreshWorkOrderItems = useCallback(
+    async (workOrderId: string, opts?: { silent?: boolean }) => {
+      const silent = opts?.silent ?? false;
+      if (!silent) setLoadingItems(true);
+
+      try {
+        const { data, error } = await supabase
+          .from("work_order_items")
+          .select(
+            "item_id, company_id, work_order_id, item_type, description, quantity, unit_price, line_total, taxable, created_at",
+          )
+          .eq("work_order_id", workOrderId)
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          if (!silent) pushMsg(`Error cargando items: ${error.message}`);
+          setWoItems([]);
+          return;
+        }
+
+        setWoItems((data ?? []) as WorkOrderItem[]);
+      } finally {
+        if (!silent) setLoadingItems(false);
+      }
+    },
+    [pushMsg],
+  );
   const refreshMembers = useCallback(
     async (cid?: string) => {
       const company = cid ?? companyId;
@@ -689,6 +744,7 @@ export default function Home() {
     [companyId, pushMsg],
   );
 
+
   // ✅ Realtime reducer (SIN refresh masivo)
   const handleRealtimeUpdate = useCallback((payload: any) => {
     setWorkOrders((prev) => {
@@ -820,6 +876,7 @@ export default function Home() {
     setTimeline([]);
     setCommentText("");
     await refreshTimeline(created.work_order_id);
+    await refreshWorkOrderItems(created.work_order_id);
   };
 
   const saveAssignment = useCallback(
@@ -926,6 +983,7 @@ export default function Home() {
       setTimeline([]);
 
       await refreshTimeline(workOrderId);
+      await refreshWorkOrderItems(workOrderId);
     },
     [pushMsg, refreshTimeline, workOrders],
   );
@@ -955,6 +1013,48 @@ export default function Home() {
     pushMsg("Comentario agregado ✅");
 
     await refreshTimeline(wid, { silent: true });
+  };
+  const addWorkOrderItem = async () => {
+    const wid = selectedWorkOrderIdRef.current;
+    if (!wid) return pushMsg("Selecciona una work order primero.");
+    if (!companyId) return pushMsg("No hay companyId.");
+
+    if (!newItem.description.trim()) return pushMsg("Describe el item.");
+
+    const qty = Number(newItem.quantity);
+    const unit = Number(newItem.unit_price);
+
+    if (!Number.isFinite(qty) || qty <= 0) return pushMsg("Qty inválida.");
+    if (!Number.isFinite(unit) || unit < 0) return pushMsg("Unit price inválido.");
+
+    pushMsg("Agregando item...");
+
+    const payload: any = {
+      company_id: companyId,
+      work_order_id: wid,
+      item_type: newItem.item_type,
+      description: newItem.description.trim(),
+      quantity: qty,
+      unit_price: unit,
+      taxable: newItem.taxable,
+    };
+
+    const { error } = await supabase.from("work_order_items").insert([payload]);
+
+    if (error) return pushMsg(`Error item: ${error.message}`);
+
+    pushMsg("Item agregado ✅");
+
+    setNewItem((s) => ({
+      ...s,
+      description: "",
+      quantity: "1",
+      unit_price: "0",
+      taxable: true,
+      item_type: s.item_type,
+    }));
+
+    await refreshWorkOrderItems(wid, { silent: true });
   };
 
   // ✅ Realtime work_orders (robusto + reintenta hasta que haya session)
@@ -1406,6 +1506,120 @@ export default function Home() {
                   <b>Dirección:</b> {selectedWorkOrder.service_address ?? "—"}
                 </div>
               </div>
+              {/* ✅ Work Order Items */}
+              <div style={{ marginTop: 12 }}>
+                <h3 style={{ margin: "10px 0" }}>Items</h3>
+
+                {!selectedWorkOrder ? (
+                  <p style={{ opacity: 0.8 }}>Selecciona una Work Order.</p>
+                ) : (
+                  <>
+                    <div
+                      style={{
+                        padding: 10,
+                        border: "1px solid #eee",
+                        borderRadius: 8,
+                        background: "#fafafa",
+                      }}
+                    >
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <div>
+                          <label>Descripción</label>
+                          <input
+                            style={{ width: "100%" }}
+                            value={newItem.description}
+                            onChange={(e) =>
+                              setNewItem((s) => ({ ...s, description: e.target.value }))
+                            }
+                            placeholder="Ej: Instalación lámpara sala"
+                          />
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 8,
+                          }}
+                        >
+                          <div>
+                            <label>Qty</label>
+                            <input
+                              style={{ width: "100%" }}
+                              value={newItem.quantity}
+                              onChange={(e) =>
+                                setNewItem((s) => ({ ...s, quantity: e.target.value }))
+                              }
+                            />
+                          </div>
+
+                          <div>
+                            <label>Unit price</label>
+                            <input
+                              style={{ width: "100%" }}
+                              value={newItem.unit_price}
+                              onChange={(e) =>
+                                setNewItem((s) => ({ ...s, unit_price: e.target.value }))
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <input
+                            type="checkbox"
+                            checked={newItem.taxable}
+                            onChange={(e) =>
+                              setNewItem((s) => ({ ...s, taxable: e.target.checked }))
+                            }
+                          />
+                          Taxable
+                        </label>
+
+                        <button onClick={addWorkOrderItem}>+ Add item</button>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 10 }}>
+                      {loadingItems ? (
+                        <p>Cargando items...</p>
+                      ) : woItems.length === 0 ? (
+                        <p style={{ opacity: 0.8 }}>No hay items todavía.</p>
+                      ) : (
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {woItems.map((it) => (
+                            <div
+                              key={it.item_id}
+                              style={{
+                                padding: 10,
+                                border: "1px solid #eee",
+                                borderRadius: 8,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: 10,
+                                }}
+                              >
+                                <b>{it.description}</b>
+                                <b>{Number(it.line_total ?? 0).toFixed(2)}</b>
+                              </div>
+
+                              <div style={{ marginTop: 4, fontSize: 12, opacity: 0.8 }}>
+                                Qty: {it.quantity} · Unit:{" "}
+                                {Number(it.unit_price ?? 0).toFixed(2)} ·{" "}
+                                {it.taxable ? "Taxable" : "Non-taxable"}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
               <label style={{ marginTop: 10, display: "block" }}>
                 Nuevo comentario
               </label>
@@ -1669,7 +1883,17 @@ export default function Home() {
                   {w.description ? (
                     <p style={{ marginTop: 6 }}>{w.description}</p>
                   ) : null}
-
+                  {/* ✅ Paso B: Cliente + Dirección en el listado */}
+                  {(w.customer_name || w.service_address) ? (
+                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85 }}>
+                      <div>
+                        <b>Cliente:</b> {w.customer_name ?? "—"}
+                      </div>
+                      <div>
+                        <b>Dirección:</b> {w.service_address ?? "—"}
+                      </div>
+                    </div>
+                  ) : null}
                   <div
                     style={{
                       display: "flex",

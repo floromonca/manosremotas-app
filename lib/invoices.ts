@@ -1,7 +1,16 @@
 import { supabase } from "./supabaseClient";
 
-// MVP Canadá: HST ON
-const DEFAULT_TAX_RATE = 0.13;
+type TaxProfileRow = {
+  tax_profile_id: string;
+  company_id: string;
+  tax_name: string;
+  rate: number;
+  is_default: boolean;
+};
+
+// Fallbacks (si no hay tax_profile default o no se puede leer por RLS)
+const FALLBACK_TAX_RATE_CA = 0.13; // Canadá (ON HST)
+const FALLBACK_TAX_RATE_CO = 0.19; // Colombia (IVA)
 
 // Genera invoice_number con timestamp + random para evitar choques
 function makeInvoiceNumber() {
@@ -10,13 +19,35 @@ function makeInvoiceNumber() {
   return `INV-${ts}-${rnd}`;
 }
 
+async function getDefaultTaxRate(companyId: string) {
+  // Intentar leer el default (NO insertar nada para evitar RLS)
+  const { data, error } = await supabase
+    .from("tax_profiles")
+    .select("tax_profile_id, company_id, tax_name, rate, is_default")
+    .eq("company_id", companyId)
+    .eq("is_default", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.log("⚠️ No pude leer tax_profiles (RLS?):", error.message);
+    return FALLBACK_TAX_RATE_CA; // MVP
+  }
+
+  const rate = Number((data as TaxProfileRow | null)?.rate ?? NaN);
+  if (!Number.isFinite(rate)) return FALLBACK_TAX_RATE_CA;
+
+  return rate;
+}
+
 export async function createInvoiceFromWorkOrder(workOrderId: string) {
   if (!workOrderId) throw new Error("workOrderId requerido");
 
   // 1) Leer WO
   const { data: wo, error: woErr } = await supabase
     .from("work_orders")
-    .select("work_order_id, company_id, job_type")
+    .select("work_order_id, company_id, job_type, customer_name")
     .eq("work_order_id", workOrderId)
     .single();
 
@@ -37,6 +68,10 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
     return existing[0].invoice_id as string;
   }
 
+  // 1.2) Leer tax rate default (sin INSERT)
+  const defaultTaxRate = await getDefaultTaxRate(wo.company_id);
+  console.log("🧾 defaultTaxRate resolved:", defaultTaxRate);
+
   // 2) Crear invoice
   const invoiceNumber = makeInvoiceNumber();
 
@@ -46,9 +81,11 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
       company_id: wo.company_id,
       work_order_id: wo.work_order_id,
       invoice_number: invoiceNumber,
-      customer_name: (wo.job_type && wo.job_type.trim()) || "Cliente",
+      customer_name:
+        (wo.customer_name && String(wo.customer_name).trim()) ||
+        (wo.job_type && String(wo.job_type).trim()) ||
+        "Cliente",
       status: "draft",
-      // currency_code default 'CAD'
     })
     .select("invoice_id")
     .single();
@@ -60,29 +97,28 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   const { data: items, error: itemsErr } = await supabase
     .from("work_order_items")
     .select("description, quantity, unit_price, taxable")
-    .eq("work_order_id", workOrderId);
+    .eq("work_order_id", workOrderId)
+    .order("created_at", { ascending: true });
 
   if (itemsErr) throw itemsErr;
 
-  // 4) Copiar items → invoice_items (con tax_rate default)
+  // 4) Copiar items → invoice_items
   if (items && items.length > 0) {
-    const payload = items.map((it) => {
+    const payload = items.map((it: any) => {
       const taxable = it.taxable ?? true;
-
       return {
         company_id: wo.company_id,
         invoice_id: inv.invoice_id,
         description: it.description ?? "Item",
-        qty: it.quantity ?? 1,               // ✅ invoice_items usa qty
+        qty: it.quantity ?? 1,
         unit_price: it.unit_price ?? 0,
-        tax_rate: taxable ? DEFAULT_TAX_RATE : 0, // ✅ tax_rate por defecto
+        tax_rate: taxable ? defaultTaxRate : 0,
       };
     });
 
-    const { error: copyErr } = await supabase
-      .from("invoice_items")
-      .insert(payload);
+    console.log("🧾 Copy items payload (tax_rate check):", payload);
 
+    const { error: copyErr } = await supabase.from("invoice_items").insert(payload);
     if (copyErr) throw copyErr;
   }
 
