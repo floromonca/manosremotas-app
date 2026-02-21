@@ -18,9 +18,32 @@ type WorkOrder = {
   assigned_to?: string | null;
   created_by?: string | null;
   provider_id?: string | null;
+
+  // ✅ nuevos (compat + llaves)
   customer_id?: string | null;
+  location_id?: string | null;
+
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  customer_email?: string | null;
+  service_address?: string | null;
+};
+type Customer = {
+  customer_id: string;
+  name: string;
+  customer_type: "person" | "company";
+  email: string | null;
+  phone: string | null;
+  billing_address: string | null;
 };
 
+type Location = {
+  location_id: string;
+  customer_id: string | null;
+  location_type: string;
+  label: string | null;
+  address: string;
+};
 type CompanyMember = {
   user_id: string;
   role: string | null;
@@ -43,16 +66,112 @@ export default function Home() {
   // ✅ Invoice UI message
   const [invoiceMsg, setInvoiceMsg] = useState<string>("");
 
-  // ✅ Crear invoice desde una Work Order
-  const handleCreateInvoice = useCallback(async (workOrderId: string) => {
-    try {
-      setInvoiceMsg("Creando invoice...");
-      const invoiceId = await createInvoiceFromWorkOrder(workOrderId);
-      setInvoiceMsg(`Invoice creada ✅ ID: ${invoiceId}`);
-    } catch (e: any) {
-      setInvoiceMsg(`No se pudo crear invoice: ${e?.message ?? String(e)}`);
+  const [lastInvoiceId, setLastInvoiceId] = useState<string | null>(null);
+  const [invoiceItems, setInvoiceItems] = useState<any[]>([]);
+  const [invoiceSummary, setInvoiceSummary] = useState<{
+    invoice_number?: string | null;
+    subtotal?: number | null;
+    tax_total?: number | null;
+    total?: number | null;
+    balance_due?: number | null;
+  } | null>(null);
+  const loadInvoiceSummary = useCallback(async (invoiceId: string) => {
+    console.log("🧾 loadInvoiceSummary invoiceId:", invoiceId);
+
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("invoice_number, subtotal, tax_total, total, balance_due")
+      .eq("invoice_id", invoiceId)
+      .single();
+
+    console.log("🧾 loadInvoiceSummary result:", { data, error });
+
+    if (error) {
+      setInvoiceSummary(null);
+      setInvoiceMsg(
+        `Invoice creada, pero no pude cargar resumen: ${error.message}`,
+      );
+      return;
     }
+
+    if (!data) {
+      setInvoiceSummary(null);
+      setInvoiceMsg("Invoice creada, pero no llegó data del resumen.");
+      return;
+    }
+
+    setInvoiceSummary(data);
   }, []);
+  // ✅ Customers / Locations
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedLocationId, setSelectedLocationId] = useState<string>("");
+
+  // Quick create (solo owner)
+  const [showQuickCustomer, setShowQuickCustomer] = useState(false);
+  const [qc, setQc] = useState({
+    customer_type: "person" as "person" | "company",
+    name: "",
+    email: "",
+    phone: "",
+    billing_address: "",
+  });
+
+  const [showQuickLocation, setShowQuickLocation] = useState(false);
+  const [ql, setQl] = useState({
+    location_type: "house",
+    label: "",
+    address: "",
+  });
+  const loadInvoiceItems = useCallback(async (invoiceId: string) => {
+    console.log("🧾 loadInvoiceItems invoiceId:", invoiceId);
+
+    const { data, error } = await supabase
+      .from("invoice_items")
+      .select("description, qty, unit_price, tax_rate, line_total")
+      .eq("invoice_id", invoiceId)
+      .order("created_at", { ascending: true });
+
+    console.log("🧾 loadInvoiceItems result:", { data, error });
+
+    if (error) {
+      console.log("❌ loadInvoiceItems error:", error);
+      setInvoiceItems([]);
+      return;
+    }
+
+    setInvoiceItems((data ?? []) as any[]);
+  }, []);
+  /// ✅ Crear invoice desde una Work Order
+  const handleCreateInvoice = useCallback(
+    async (workOrderId: string) => {
+      try {
+        setInvoiceMsg("Creando invoice...");
+        setInvoiceSummary(null);
+        setLastInvoiceId(null);
+        setInvoiceItems([]);
+
+        const invoiceId = await createInvoiceFromWorkOrder(workOrderId);
+        console.log("✅ created invoiceId:", invoiceId);
+
+        setInvoiceMsg(`Invoice creada ✅ ID: ${invoiceId}`);
+
+        setLastInvoiceId(invoiceId);
+        await loadInvoiceSummary(invoiceId);
+        await loadInvoiceItems(invoiceId);
+      } catch (e: any) {
+        console.log("❌ handleCreateInvoice error:", e);
+        setInvoiceMsg(`No se pudo crear invoice: ${e?.message ?? String(e)}`);
+        setInvoiceSummary(null);
+        setLastInvoiceId(null);
+      }
+    },
+    [loadInvoiceSummary, loadInvoiceItems],
+  );
+
+
   const pushMsg = useCallback((m: string) => {
     setMsg(m);
     setMsgLog((prev) => [m, ...prev].slice(0, 12));
@@ -293,20 +412,38 @@ export default function Home() {
         setLoadingComments(true);
         pushMsg("Cargando historial...");
       }
+      let auditData: any[] | null = null;
 
-      const { data: auditData, error: auditError } = await supabase
-        .from("v_work_order_audit_timeline")
-        .select("changed_at, changed_at_ui, changed_by_name, message")
-        .eq("work_order_id", workOrderId);
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const { data, error } = await supabase
+          .from("v_work_order_audit_timeline")
+          .select("changed_at, changed_at_ui, changed_by_name, message")
+          .eq("work_order_id", workOrderId);
 
-      if (auditError) {
+        if (!error) {
+          auditData = data ?? [];
+          break;
+        }
+
+        const msg = (error as any)?.message ?? "";
+        const isNetwork =
+          msg.toLowerCase().includes("failed to fetch") ||
+          msg.toLowerCase().includes("network");
+
+        console.log("⚠️ audit attempt failed:", { attempt, error });
+
+        // reintento 1 vez si es error de red
+        if (attempt === 1 && isNetwork) {
+          await new Promise((r) => setTimeout(r, 350));
+          continue;
+        }
+
         if (!silent) {
           setLoadingComments(false);
-          pushMsg(`Error audit: ${auditError.message}`);
+          pushMsg(`Error audit: ${msg}`);
         }
         return;
       }
-
       const { data: commentData, error: commentError } = await supabase
         .from("work_order_comments")
         .select("comment_id, comment, created_at, user_id")
@@ -383,6 +520,119 @@ export default function Home() {
     },
     [companyId, resolveMyRole, pushMsg],
   );
+  const refreshCustomers = useCallback(
+    async (cid?: string) => {
+      const c = cid ?? companyId;
+      if (!c) return;
+
+      const { data, error } = await supabase
+        .from("customers")
+        .select("customer_id, name, customer_type, email, phone, billing_address")
+        .eq("company_id", c)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (error) {
+        console.log("❌ refreshCustomers error:", error);
+        pushMsg(`Error cargando customers: ${error.message}`);
+        return;
+      }
+
+      setCustomers((data ?? []) as Customer[]);
+    },
+    [companyId, pushMsg],
+  );
+
+  const refreshLocations = useCallback(
+    async (customerId: string, cid?: string) => {
+      const c = cid ?? companyId;
+      if (!c) return;
+
+      if (!customerId) {
+        setLocations([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("locations")
+        .select("location_id, customer_id, location_type, label, address")
+        .eq("company_id", c)
+        .eq("customer_id", customerId)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (error) {
+        console.log("❌ refreshLocations error:", error);
+        pushMsg(`Error cargando locations: ${error.message}`);
+        return;
+      }
+
+      setLocations((data ?? []) as Location[]);
+    },
+    [companyId, pushMsg],
+  );
+  const quickCreateCustomer = useCallback(async () => {
+    if (!companyId) return pushMsg("No hay companyId.");
+    if (!qc.name.trim()) return pushMsg("Customer: falta el nombre.");
+
+    const { data, error } = await supabase
+      .from("customers")
+      .insert([
+        {
+          company_id: companyId,
+          customer_type: qc.customer_type,
+          name: qc.name.trim(),
+          email: qc.email.trim() ? qc.email.trim() : null,
+          phone: qc.phone.trim() ? qc.phone.trim() : null,
+          billing_address: qc.billing_address.trim()
+            ? qc.billing_address.trim()
+            : null,
+        },
+      ])
+      .select("customer_id, name, customer_type, email, phone, billing_address")
+      .single();
+
+    if (error) return pushMsg(`No se pudo crear customer: ${error.message}`);
+    if (!data) return pushMsg("No se recibió data del customer.");
+
+    pushMsg("Customer creado ✅");
+    setShowQuickCustomer(false);
+    setQc({ customer_type: "person", name: "", email: "", phone: "", billing_address: "" });
+
+    await refreshCustomers(companyId);
+    setSelectedCustomerId(data.customer_id);
+  }, [companyId, qc, pushMsg, refreshCustomers]);
+
+  const quickCreateLocation = useCallback(async () => {
+    if (!companyId) return pushMsg("No hay companyId.");
+    if (!selectedCustomerId) return pushMsg("Primero selecciona un customer.");
+    if (!ql.address.trim()) return pushMsg("Location: falta la dirección.");
+
+    const { data, error } = await supabase
+      .from("locations")
+      .insert([
+        {
+          company_id: companyId,
+          customer_id: selectedCustomerId,
+          location_type: ql.location_type,
+          label: ql.label.trim() ? ql.label.trim() : null,
+          address: ql.address.trim(),
+        },
+      ])
+      .select("location_id, customer_id, location_type, label, address")
+      .single();
+
+    if (error) return pushMsg(`No se pudo crear location: ${error.message}`);
+    if (!data) return pushMsg("No se recibió data de location.");
+
+    pushMsg("Location creada ✅");
+    setShowQuickLocation(false);
+    setQl({ location_type: "house", label: "", address: "" });
+
+    await refreshLocations(selectedCustomerId, companyId);
+    setSelectedLocationId(data.location_id);
+  }, [companyId, selectedCustomerId, ql, pushMsg, refreshLocations]);
+
 
   // ✅ refresh solo para carga inicial / refresh manual
   const refreshWorkOrders = useCallback(
@@ -403,7 +653,7 @@ export default function Home() {
         const { data, error } = await supabase
           .from("work_orders")
           .select(
-            "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by",
+            "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address",
           )
           .eq("company_id", company)
           .order("created_at", { ascending: false })
@@ -421,12 +671,16 @@ export default function Home() {
 
         setWorkOrders((prev) => {
           const prevKey = prev
-            .map((w) => `${w.work_order_id}|${w.status}|${w.assigned_to ?? ""}`)
+            .map((w) =>
+              `${w.work_order_id}|${w.status}|${w.assigned_to ?? ""}|${w.customer_id ?? ""}|${w.location_id ?? ""}`,
+            )
             .join(",");
+
           const nextKey = rows
-            .map((w) => `${w.work_order_id}|${w.status}|${w.assigned_to ?? ""}`)
-            .join(",");
-          return prevKey === nextKey ? prev : rows;
+            .map((w) =>
+              `${w.work_order_id}|${w.status}|${w.assigned_to ?? ""}|${w.customer_id ?? ""}|${w.location_id ?? ""}`,
+            )
+            .join(","); return prevKey === nextKey ? prev : rows;
         });
       } finally {
         if (!silent) setLoadingWO(false);
@@ -515,7 +769,14 @@ export default function Home() {
 
     pushMsg("Creando work order...");
 
-    const payload = {
+    // ✅ Busca los objetos seleccionados (para compatibilidad)
+    const chosenCustomer =
+      customers.find((c) => c.customer_id === selectedCustomerId) ?? null;
+
+    const chosenLocation =
+      locations.find((l) => l.location_id === selectedLocationId) ?? null;
+
+    const payload: any = {
       company_id: companyId,
       job_type: jobType,
       description,
@@ -523,13 +784,23 @@ export default function Home() {
       priority,
       scheduled_for: scheduledFor.trim() ? scheduledFor : null,
       assigned_to: assigneeId,
+
+      // ✅ NUEVO: llaves relacionales (opcionales)
+      customer_id: selectedCustomerId ? selectedCustomerId : null,
+      location_id: selectedLocationId ? selectedLocationId : null,
+
+      // ✅ NUEVO: compatibilidad (tu modelo actual)
+      customer_name: chosenCustomer?.name ?? null,
+      customer_phone: chosenCustomer?.phone ?? null,
+      customer_email: chosenCustomer?.email ?? null,
+      service_address: chosenLocation?.address ?? null,
     };
 
     const { data, error } = await supabase
       .from("work_orders")
       .insert([payload])
       .select(
-        "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by",
+        "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address",
       )
       .single();
 
@@ -819,9 +1090,23 @@ export default function Home() {
 
     refreshMembers(activeCompanyId);
     refreshWorkOrders(activeCompanyId, false);
+    refreshCustomers(activeCompanyId);
+    // limpia selección
+    setSelectedCustomerId("");
+    setSelectedLocationId("");
+    setLocations([]);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompanyId]);
+  useEffect(() => {
+    if (!selectedCustomerId) {
+      setLocations([]);
+      setSelectedLocationId("");
+      return;
+    }
+    refreshLocations(selectedCustomerId);
+  }, [selectedCustomerId, refreshLocations]);
+
 
   // ========================= UI =========================
   return (
@@ -967,7 +1252,60 @@ export default function Home() {
               <option value="high">high</option>
               <option value="urgent">urgent</option>
             </select>
+            {/* ✅ Paso 9: Customer + Location */}
+            <label style={{ marginTop: 10 }}>Customer</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select
+                style={{ width: "100%", flex: 1, minWidth: 260 }}
+                value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+              >
+                <option value="">(selecciona customer)</option>
+                {customers.map((c) => (
+                  <option key={c.customer_id} value={c.customer_id}>
+                    {c.name} · {c.customer_type}
+                  </option>
+                ))}
+              </select>
 
+              {myRole === "owner" && (
+                <button type="button" onClick={() => setShowQuickCustomer(true)}>
+                  + Nuevo customer
+                </button>
+              )}
+            </div>
+
+            <label style={{ marginTop: 10 }}>Location</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select
+                style={{ width: "100%", flex: 1, minWidth: 260 }}
+                value={selectedLocationId}
+                onChange={(e) => setSelectedLocationId(e.target.value)}
+                disabled={!selectedCustomerId}
+              >
+                <option value="">
+                  {!selectedCustomerId
+                    ? "(selecciona customer primero)"
+                    : "(selecciona location)"}
+                </option>
+
+                {locations.map((l) => (
+                  <option key={l.location_id} value={l.location_id}>
+                    {(l.label ? `${l.label} · ` : "") + l.address}
+                  </option>
+                ))}
+              </select>
+
+              {myRole === "owner" && (
+                <button
+                  type="button"
+                  onClick={() => setShowQuickLocation(true)}
+                  disabled={!selectedCustomerId}
+                >
+                  + Nueva location
+                </button>
+              )}
+            </div>
             <label>Asignar a (opcional)</label>
             <select
               style={{ width: "100%" }}
@@ -1050,7 +1388,24 @@ export default function Home() {
                   </small>
                 </div>
               </div>
-
+              {/* ✅ Cliente + Dirección (Paso A) */}
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: 10,
+                  border: "1px solid #eee",
+                  borderRadius: 8,
+                  background: "#fafafa",
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ marginBottom: 4 }}>
+                  <b>Cliente:</b> {selectedWorkOrder.customer_name ?? "—"}
+                </div>
+                <div>
+                  <b>Dirección:</b> {selectedWorkOrder.service_address ?? "—"}
+                </div>
+              </div>
               <label style={{ marginTop: 10, display: "block" }}>
                 Nuevo comentario
               </label>
@@ -1428,6 +1783,125 @@ export default function Home() {
           <b>Invoice:</b> {invoiceMsg}
         </p>
       ) : null}
+      {invoiceSummary ? (
+        <div
+          style={{
+            marginTop: 10,
+            padding: 10,
+            border: "1px solid #eee",
+            borderRadius: 8,
+            background: "#fafafa",
+            fontSize: 13,
+          }}
+        >
+          <div style={{ marginBottom: 6 }}>
+            <b>Invoice:</b>{" "}
+            {invoiceSummary.invoice_number ?? lastInvoiceId ?? "(sin número)"}
+          </div>
+
+          <div style={{ display: "grid", gap: 4 }}>
+            <div>
+              Subtotal: <b>{Number(invoiceSummary.subtotal ?? 0).toFixed(2)}</b>
+            </div>
+            <div>
+              Tax: <b>{Number(invoiceSummary.tax_total ?? 0).toFixed(2)}</b>
+            </div>
+            <div>
+              Total: <b>{Number(invoiceSummary.total ?? 0).toFixed(2)}</b>
+            </div>
+            <div>
+              Balance due:{" "}
+              <b>{Number(invoiceSummary.balance_due ?? 0).toFixed(2)}</b>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {invoiceSummary && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: 10,
+            border: "1px dashed #ddd",
+            borderRadius: 8,
+            fontSize: 12,
+          }}
+        >
+          <b>DEBUG invoiceItems length:</b> {invoiceItems.length}
+        </div>
+      )}
+      {invoiceSummary && (
+        <div style={{ marginTop: 12 }}>
+          <h3 style={{ margin: "10px 0" }}>Items</h3>
+
+          {invoiceItems.length === 0 ? (
+            <p style={{ opacity: 0.8 }}>No hay items en esta invoice.</p>
+          ) : (
+            <div
+              style={{
+                border: "1px solid #eee",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 80px 120px 90px 120px",
+                  padding: "10px 12px",
+                  fontSize: 12,
+                  background: "#f6f6f6",
+                  borderBottom: "1px solid #eee",
+                  fontWeight: 700,
+                }}
+              >
+                <div>Descripción</div>
+                <div style={{ textAlign: "right" }}>Qty</div>
+                <div style={{ textAlign: "right" }}>Unit</div>
+                <div style={{ textAlign: "right" }}>Tax</div>
+                <div style={{ textAlign: "right" }}>Line total</div>
+              </div>
+
+              {invoiceItems.map((it, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 80px 120px 90px 120px",
+                    padding: "10px 12px",
+                    borderBottom:
+                      idx === invoiceItems.length - 1 ? "none" : "1px solid #eee",
+                    fontSize: 13,
+                  }}
+                >
+                  <div>{it.description ?? "Item"}</div>
+                  <div style={{ textAlign: "right" }}>{it.qty ?? 0}</div>
+                  <div style={{ textAlign: "right" }}>
+                    {Number(it.unit_price ?? 0).toFixed(2)}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    {(Number(it.tax_rate ?? 0) * 100).toFixed(0)}%
+                  </div>
+                  <div style={{ textAlign: "right", fontWeight: 700 }}>
+                    {Number(it.line_total ?? 0).toFixed(2)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      <div
+        style={{
+          marginTop: 8,
+          padding: 10,
+          border: "1px dashed #ddd",
+          borderRadius: 8,
+          fontSize: 12,
+          opacity: 0.9,
+        }}
+      >
+
+      </div>
       <div style={{ marginTop: 10, fontSize: 12 }}>
         <b>Log:</b>
         <div style={{ display: "grid", gap: 4, marginTop: 6 }}>
@@ -1446,6 +1920,107 @@ export default function Home() {
           ))}
         </div>
       </div>
+      {/* Quick Customer */}
+      {showQuickCustomer && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{ width: 520, background: "white", borderRadius: 12, padding: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Nuevo customer</h3>
+
+            <label>Tipo</label>
+            <select
+              style={{ width: "100%" }}
+              value={qc.customer_type}
+              onChange={(e) => setQc((s) => ({ ...s, customer_type: e.target.value as any }))}
+            >
+              <option value="person">person</option>
+              <option value="company">company</option>
+            </select>
+
+            <label>Nombre</label>
+            <input
+              style={{ width: "100%" }}
+              value={qc.name}
+              onChange={(e) => setQc((s) => ({ ...s, name: e.target.value }))}
+            />
+
+            <label>Email (opcional)</label>
+            <input
+              style={{ width: "100%" }}
+              value={qc.email}
+              onChange={(e) => setQc((s) => ({ ...s, email: e.target.value }))}
+            />
+
+            <label>Phone (opcional)</label>
+            <input
+              style={{ width: "100%" }}
+              value={qc.phone}
+              onChange={(e) => setQc((s) => ({ ...s, phone: e.target.value }))}
+            />
+
+            <label>Billing address (opcional)</label>
+            <input
+              style={{ width: "100%" }}
+              value={qc.billing_address}
+              onChange={(e) => setQc((s) => ({ ...s, billing_address: e.target.value }))}
+            />
+
+            <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowQuickCustomer(false)}>Cancelar</button>
+              <button onClick={quickCreateCustomer}>Crear</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Location */}
+      {showQuickLocation && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
+        }}>
+          <div style={{ width: 520, background: "white", borderRadius: 12, padding: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Nueva location</h3>
+
+            <label>Tipo</label>
+            <select
+              style={{ width: "100%" }}
+              value={ql.location_type}
+              onChange={(e) => setQl((s) => ({ ...s, location_type: e.target.value }))}
+            >
+              <option value="apartment">apartment</option>
+              <option value="house">house</option>
+              <option value="factory">factory</option>
+              <option value="commercial">commercial</option>
+              <option value="office">office</option>
+              <option value="warehouse">warehouse</option>
+              <option value="other">other</option>
+            </select>
+
+            <label>Label (opcional)</label>
+            <input
+              style={{ width: "100%" }}
+              placeholder="Ej: Apt 1203 / Local 5 / Planta 2"
+              value={ql.label}
+              onChange={(e) => setQl((s) => ({ ...s, label: e.target.value }))}
+            />
+
+            <label>Address</label>
+            <input
+              style={{ width: "100%" }}
+              value={ql.address}
+              onChange={(e) => setQl((s) => ({ ...s, address: e.target.value }))}
+            />
+
+            <div style={{ display: "flex", gap: 8, marginTop: 12, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowQuickLocation(false)}>Cancelar</button>
+              <button onClick={quickCreateLocation}>Crear</button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

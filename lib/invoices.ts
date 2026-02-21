@@ -1,5 +1,8 @@
 import { supabase } from "./supabaseClient";
 
+// MVP Canadá: HST ON
+const DEFAULT_TAX_RATE = 0.13;
+
 // Genera invoice_number con timestamp + random para evitar choques
 function makeInvoiceNumber() {
   const ts = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14); // YYYYMMDDHHMMSS
@@ -22,7 +25,6 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   if (!wo.company_id) throw new Error("WO sin company_id");
 
   // 1.1) Si ya existe invoice para esta WO, reúsala (evita duplicados)
-  // Nota: maybeSingle() no siempre está; usamos limit(1)
   const { data: existing, error: exErr } = await supabase
     .from("invoices")
     .select("invoice_id")
@@ -62,18 +64,25 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 
   if (itemsErr) throw itemsErr;
 
-  // 4) Copiar items → invoice_items
+  // 4) Copiar items → invoice_items (con tax_rate default)
   if (items && items.length > 0) {
-    const payload = items.map((it) => ({
-      company_id: wo.company_id,
-      invoice_id: inv.invoice_id,
-      description: it.description ?? "Item",
-      quantity: it.quantity ?? 1,
-      unit_price: it.unit_price ?? 0,
-      taxable: it.taxable ?? true,
-    }));
+    const payload = items.map((it) => {
+      const taxable = it.taxable ?? true;
 
-    const { error: copyErr } = await supabase.from("invoice_items").insert(payload);
+      return {
+        company_id: wo.company_id,
+        invoice_id: inv.invoice_id,
+        description: it.description ?? "Item",
+        qty: it.quantity ?? 1,               // ✅ invoice_items usa qty
+        unit_price: it.unit_price ?? 0,
+        tax_rate: taxable ? DEFAULT_TAX_RATE : 0, // ✅ tax_rate por defecto
+      };
+    });
+
+    const { error: copyErr } = await supabase
+      .from("invoice_items")
+      .insert(payload);
+
     if (copyErr) throw copyErr;
   }
 
