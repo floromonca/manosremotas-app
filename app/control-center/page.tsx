@@ -63,6 +63,7 @@ export default function ControlCenterPage() {
         if (!cancelled) {
           setCompanyId(null);
           setLoading(false);
+          router.replace("/work-orders");
         }
         return;
       }
@@ -101,7 +102,6 @@ export default function ControlCenterPage() {
         }
 
         cid = (cm as any)?.company_id ?? null;
-
         if (cid) localStorage.setItem("activeCompanyId", cid);
       }
 
@@ -151,7 +151,7 @@ export default function ControlCenterPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -168,7 +168,7 @@ export default function ControlCenterPage() {
         <div style={{ opacity: 0.7 }}>
           {companyId
             ? "Live overview of your field operations"
-            : "Please sign in on / to see your data"}
+            : "Please sign in to see your data"}
         </div>
 
         {errorMsg ? (
@@ -227,7 +227,10 @@ export default function ControlCenterPage() {
           <div style={{ display: "grid", gap: 14 }}>
             <ListBlock
               title={`Unassigned (${lists.unassigned.length})`}
-              onOpen={() => router.push("/?filter=unassigned")}
+              onOpen={() => {
+                if (companyId) localStorage.setItem("activeCompanyId", companyId);
+                router.replace("/work-orders?filter=unassigned");
+              }}
               items={lists.unassigned.map((x) => ({
                 title: x.job_type,
                 meta: x.work_order_id.slice(0, 8),
@@ -236,7 +239,10 @@ export default function ControlCenterPage() {
 
             <ListBlock
               title={`In progress > 3 days (${lists.inProgressOld.length})`}
-              onOpen={() => router.push("/?filter=delayed")}
+              onOpen={() => {
+                if (companyId) localStorage.setItem("activeCompanyId", companyId);
+                router.replace("/work-orders?filter=delayed");
+              }}
               items={lists.inProgressOld.map((x) => ({
                 title: x.job_type,
                 meta: x.work_order_id.slice(0, 8),
@@ -245,7 +251,10 @@ export default function ControlCenterPage() {
 
             <ListBlock
               title={`Completed, not invoiced (${lists.completedNotInvoiced.length})`}
-              onOpen={() => router.push("/?filter=ready_to_invoice")}
+              onOpen={() => {
+                if (companyId) localStorage.setItem("activeCompanyId", companyId);
+                router.replace("/work-orders?filter=ready_to_invoice");
+              }}
               items={lists.completedNotInvoiced.map((x) => ({
                 title: x.job_type,
                 meta: x.work_order_id.slice(0, 8),
@@ -256,8 +265,8 @@ export default function ControlCenterPage() {
       </div>
 
       <div style={{ opacity: 0.7, fontSize: 13 }}>
-        Nota: “Technicians Working” por ahora es un proxy (órdenes in_progress
-        asignadas). Cuando metamos “Jornada + Timer”, será 100% real.
+        Nota: “Technicians Working” por ahora es un proxy (órdenes in_progress asignadas).
+        Cuando metamos “Jornada + Timer”, será 100% real.
       </div>
     </div>
   );

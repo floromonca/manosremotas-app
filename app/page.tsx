@@ -17,7 +17,6 @@ export default function Home() {
 
       if (!alive) return;
 
-      // ✅ si hay sesión -> dashboard, si no -> work orders (login)
       router.replace(session ? "/control-center" : "/work-orders");
     })();
 
