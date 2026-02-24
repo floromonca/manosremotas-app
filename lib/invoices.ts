@@ -93,6 +93,18 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   if (invErr) throw invErr;
   if (!inv?.invoice_id) throw new Error("No se pudo crear invoice_id");
 
+  // ✅ 2.1) Marcar la WO como facturada (Modelo A+ bidireccional)
+  // Requiere que existan columnas work_orders.invoice_id y work_orders.invoiced_at
+  const { error: markErr } = await supabase
+    .from("work_orders")
+    .update({
+      invoice_id: inv.invoice_id,
+      invoiced_at: new Date().toISOString(),
+    })
+    .eq("work_order_id", workOrderId);
+
+  if (markErr) throw markErr;
+
   // 3) Leer items de la WO
   const { data: items, error: itemsErr } = await supabase
     .from("work_order_items")
@@ -118,7 +130,10 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 
     console.log("🧾 Copy items payload (tax_rate check):", payload);
 
-    const { error: copyErr } = await supabase.from("invoice_items").insert(payload);
+    const { error: copyErr } = await supabase
+      .from("invoice_items")
+      .insert(payload);
+
     if (copyErr) throw copyErr;
   }
 

@@ -20,8 +20,22 @@ function daysAgoIso(days: number) {
   return d.toISOString();
 }
 
+// ✅ Paso 7: KPI REAL de técnicos trabajando (shifts abiertos)
+async function countTechniciansWorkingFromShifts(companyId: string) {
+  const { count, error } = await supabase
+    .from("shifts")
+    .select("shift_id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .is("check_out_at", null);
+
+  if (error) throw error;
+  return count ?? 0;
+}
+
 // ✅ KPIs principales (MVP)
-export async function fetchControlCenterKpis(companyId: string): Promise<ControlCenterKpis> {
+export async function fetchControlCenterKpis(
+  companyId: string,
+): Promise<ControlCenterKpis> {
   // 1) Active WOs: new + in_progress (count exact)
   const { count: activeCount, error: e1 } = await supabase
     .from("work_orders")
@@ -31,18 +45,8 @@ export async function fetchControlCenterKpis(companyId: string): Promise<Control
 
   if (e1) throw e1;
 
-  // 2) Technicians working (proxy MVP): distintos assigned_to con WO in_progress
-  const { data: inProgRows, error: e2 } = await supabase
-    .from("work_orders")
-    .select("assigned_to")
-    .eq("company_id", companyId)
-    .eq("status", "in_progress")
-    .not("assigned_to", "is", null);
-
-  if (e2) throw e2;
-
-  const techSet = new Set((inProgRows ?? []).map((r: any) => r.assigned_to).filter(Boolean));
-  const techniciansWorking = techSet.size;
+  // ✅ 2) Technicians working (REAL): shifts abiertos
+  const techniciansWorking = await countTechniciansWorkingFromShifts(companyId);
 
   // 3) Delayed orders (MVP): in_progress y created_at > 3 días
   const { count: delayedCount, error: e3 } = await supabase
@@ -76,7 +80,9 @@ export async function fetchControlCenterKpis(companyId: string): Promise<Control
 
     if (e5) throw e5;
 
-    const invoiced = new Set((invRows ?? []).map((r: any) => r.work_order_id).filter(Boolean));
+    const invoiced = new Set(
+      (invRows ?? []).map((r: any) => r.work_order_id).filter(Boolean),
+    );
     readyToInvoice = resolvedIds.filter((id) => !invoiced.has(id)).length;
   }
 
@@ -89,7 +95,9 @@ export async function fetchControlCenterKpis(companyId: string): Promise<Control
 }
 
 // ✅ Listas cortas para “Attention Today”
-export async function fetchAttentionLists(companyId: string): Promise<AttentionLists> {
+export async function fetchAttentionLists(
+  companyId: string,
+): Promise<AttentionLists> {
   const unassignedQ = supabase
     .from("work_orders")
     .select("work_order_id, job_type, created_at")
@@ -131,14 +139,19 @@ export async function fetchAttentionLists(companyId: string): Promise<AttentionL
 
     if (eInv) throw eInv;
 
-    const invoiced = new Set((invRows ?? []).map((r: any) => r.work_order_id).filter(Boolean));
-    completedNotInvoiced = (resolvedWos ?? []).filter((r: any) => !invoiced.has(r.work_order_id)).slice(0, 10);
+    const invoiced = new Set(
+      (invRows ?? []).map((r: any) => r.work_order_id).filter(Boolean),
+    );
+
+    completedNotInvoiced = (resolvedWos ?? [])
+      .filter((r: any) => !invoiced.has(r.work_order_id))
+      .slice(0, 10);
   }
 
-  const [{ data: unassigned, error: e1 }, { data: inProgressOld, error: e2 }] = await Promise.all([
-    unassignedQ,
-    inProgressOldQ,
-  ]);
+  const [
+    { data: unassigned, error: e1 },
+    { data: inProgressOld, error: e2 },
+  ] = await Promise.all([unassignedQ, inProgressOldQ]);
 
   if (e1) throw e1;
   if (e2) throw e2;

@@ -9,6 +9,7 @@ import {
   type ControlCenterKpis,
 } from "../../lib/supabase/controlCenter";
 import { useRouter } from "next/navigation";
+import { checkIn, checkOut, getOpenShift } from "../../lib/supabase/shifts";
 
 export default function ControlCenterPage() {
   const router = useRouter();
@@ -34,6 +35,10 @@ export default function ControlCenterPage() {
   // ✅ evita hydration mismatch: solo renderizamos fecha después del mount
   const [mounted, setMounted] = useState(false);
   const [prettyDate, setPrettyDate] = useState<string>("");
+
+  // ✅ Jornada
+  const [shiftLoading, setShiftLoading] = useState(false);
+  const [openShiftId, setOpenShiftId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -116,6 +121,15 @@ export default function ControlCenterPage() {
 
       if (!cancelled) setCompanyId(cid);
 
+      // ✅ Jornada: cargar shift abierto (si existe)
+      try {
+        const { data, error } = await getOpenShift(cid);
+        if (error) throw error;
+        if (!cancelled) setOpenShiftId((data as any)?.shift_id ?? null);
+      } catch (e: any) {
+        console.log("shift load warn:", e?.message ?? e);
+      }
+
       // 4) Load company name
       const { data: cRow, error: cErr } = await supabase
         .from("companies")
@@ -153,10 +167,14 @@ export default function ControlCenterPage() {
     };
   }, [router]);
 
+  const go = (url: string) => {
+    if (companyId) localStorage.setItem("activeCompanyId", companyId);
+    router.replace(url);
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <div style={{ marginBottom: 18 }}>
-        {/* ✅ fecha solo cuando mounted=true para evitar hydration mismatch */}
         {mounted && prettyDate ? (
           <div style={{ fontSize: 13, opacity: 0.7 }}>{prettyDate}</div>
         ) : null}
@@ -215,6 +233,73 @@ export default function ControlCenterPage() {
         />
       </div>
 
+      {/* ✅ Jornada */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+        <button
+          disabled={!companyId || shiftLoading || !!openShiftId}
+          onClick={async () => {
+            if (!companyId) return;
+            setShiftLoading(true);
+            setErrorMsg("");
+            try {
+              const { data, error } = await checkIn(companyId);
+              if (error) throw error;
+              setOpenShiftId((data as any)?.shift_id ?? null);
+              // Opcional: refrescar KPIs después de check-in
+              const k = await fetchControlCenterKpis(companyId);
+              setKpis(k);
+            } catch (e: any) {
+              setErrorMsg(e?.message ?? String(e));
+            } finally {
+              setShiftLoading(false);
+            }
+          }}
+          style={{
+            border: "1px solid #ddd",
+            background: openShiftId ? "#f5f5f5" : "white",
+            borderRadius: 8,
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
+        >
+          Check-in
+        </button>
+
+        <button
+          disabled={!companyId || shiftLoading || !openShiftId}
+          onClick={async () => {
+            if (!openShiftId || !companyId) return;
+            setShiftLoading(true);
+            setErrorMsg("");
+            try {
+              const { data, error } = await checkOut(openShiftId);
+              if (error) throw error;
+              setOpenShiftId(null);
+              // Opcional: refrescar KPIs después de check-out
+              const k = await fetchControlCenterKpis(companyId);
+              setKpis(k);
+            } catch (e: any) {
+              setErrorMsg(e?.message ?? String(e));
+            } finally {
+              setShiftLoading(false);
+            }
+          }}
+          style={{
+            border: "1px solid #ddd",
+            background: !openShiftId ? "#f5f5f5" : "white",
+            borderRadius: 8,
+            padding: "8px 12px",
+            cursor: "pointer",
+          }}
+        >
+          Check-out
+        </button>
+
+        <div style={{ fontSize: 13, opacity: 0.7, alignSelf: "center" }}>
+          Jornada: <b>{openShiftId ? "ACTIVA ✅" : "cerrada"}</b>
+        </div>
+      </div>
+
       {/* Attention Today */}
       <div style={{ marginBottom: 26 }}>
         <h2 style={{ marginBottom: 10 }}>Attention Today</h2>
@@ -227,10 +312,7 @@ export default function ControlCenterPage() {
           <div style={{ display: "grid", gap: 14 }}>
             <ListBlock
               title={`Unassigned (${lists.unassigned.length})`}
-              onOpen={() => {
-                if (companyId) localStorage.setItem("activeCompanyId", companyId);
-                router.replace("/work-orders?filter=unassigned");
-              }}
+              onOpen={() => go("/work-orders?filter=unassigned")}
               items={lists.unassigned.map((x) => ({
                 title: x.job_type,
                 meta: x.work_order_id.slice(0, 8),
@@ -239,10 +321,7 @@ export default function ControlCenterPage() {
 
             <ListBlock
               title={`In progress > 3 days (${lists.inProgressOld.length})`}
-              onOpen={() => {
-                if (companyId) localStorage.setItem("activeCompanyId", companyId);
-                router.replace("/work-orders?filter=delayed");
-              }}
+              onOpen={() => go("/work-orders?filter=delayed")}
               items={lists.inProgressOld.map((x) => ({
                 title: x.job_type,
                 meta: x.work_order_id.slice(0, 8),
@@ -251,10 +330,7 @@ export default function ControlCenterPage() {
 
             <ListBlock
               title={`Completed, not invoiced (${lists.completedNotInvoiced.length})`}
-              onOpen={() => {
-                if (companyId) localStorage.setItem("activeCompanyId", companyId);
-                router.replace("/work-orders?filter=ready_to_invoice");
-              }}
+              onOpen={() => go("/work-orders?filter=ready_to_invoice")}
               items={lists.completedNotInvoiced.map((x) => ({
                 title: x.job_type,
                 meta: x.work_order_id.slice(0, 8),
@@ -265,8 +341,7 @@ export default function ControlCenterPage() {
       </div>
 
       <div style={{ opacity: 0.7, fontSize: 13 }}>
-        Nota: “Technicians Working” por ahora es un proxy (órdenes in_progress asignadas).
-        Cuando metamos “Jornada + Timer”, será 100% real.
+        Nota: “Technicians Working” debe venir de shifts abiertos (real).
       </div>
     </div>
   );
@@ -341,7 +416,7 @@ function ListBlock({
           {items.map((it, idx) => (
             <div
               key={idx}
-              onClick={onOpen}
+              onClick={onOpen ? () => onOpen() : undefined}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
