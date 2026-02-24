@@ -27,7 +27,6 @@ export type WorkOrderRow = {
   service_address?: string | null;
 };
 
-
 // 1) Listado
 export async function fetchWorkOrders(companyId: string) {
   return await supabase
@@ -72,6 +71,7 @@ export async function setWorkOrderAssignee(
     .update({ assigned_to })
     .eq("work_order_id", workOrderId);
 }
+
 export const __debug_exports = {
   fetchWorkOrders,
   insertWorkOrder,
