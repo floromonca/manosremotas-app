@@ -2,94 +2,120 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { useAuthState } from "./useAuthState";
 
-type Result = {
-  companyId: string | null;
-  companyName: string;
-  isLoadingCompany: boolean;
+type MembershipRow = {
+  company_id: string;
+  role: "owner" | "admin" | "tech" | "viewer";
 };
 
-export function useActiveCompany(): Result {
+type CompanyRow = {
+  company_id: string;
+  company_name: string;
+};
+
+export function useActiveCompany() {
+  const { user, authLoading } = useAuthState();
+
   const [companyId, setCompanyId] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState<string>("Your Business");
-  const [isLoadingCompany, setIsLoadingCompany] = useState(true);
+  const [companyName, setCompanyName] = useState<string>("");
+  const [myRole, setMyRole] = useState<MembershipRow["role"] | null>(null);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    // Si no hay usuario: limpiar estado
+    if (!user) {
+      setCompanyId(null);
+      setCompanyName("");
+      setMyRole(null);
+      setIsLoadingCompany(false);
+      return;
+    }
+
     let cancelled = false;
 
-    const run = async () => {
+    (async () => {
       setIsLoadingCompany(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (cancelled) return;
-
-      if (!session?.user) {
-        setCompanyId(null);
-        setCompanyName("Your Business");
-        setIsLoadingCompany(false);
-        return;
-      }
-
-      // 1) Preferimos la company guardada
-      const saved = localStorage.getItem("activeCompanyId");
-      let cid: string | null = saved && saved.trim() ? saved : null;
-
-      // 2) Si no hay, usamos la primera membresía
-      if (!cid) {
-        const { data: cm, error: cmErr } = await supabase
+      try {
+        // 1) Traer memberships del usuario actual
+        const { data: memberships, error: memErr } = await supabase
           .from("company_members")
-          .select("company_id")
-          .eq("user_id", session.user.id)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .single();
+          .select("company_id, role")
+          .eq("user_id", user.id);
 
-        if (cancelled) return;
+        if (memErr) throw memErr;
 
-        if (cmErr) {
-          setCompanyId(null);
-          setCompanyName("Your Business");
-          setIsLoadingCompany(false);
+        const list = (memberships ?? []) as MembershipRow[];
+
+        // Si no tiene membresías, no hay empresa activa
+        if (list.length === 0) {
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("activeCompanyId");
+          }
+          if (!cancelled) {
+            setCompanyId(null);
+            setCompanyName("");
+            setMyRole(null);
+          }
           return;
         }
 
-        cid = (cm as any)?.company_id ?? null;
-        if (cid) localStorage.setItem("activeCompanyId", cid);
+        // 2) Leer activeCompanyId guardado (si existe)
+        const stored =
+          typeof window !== "undefined"
+            ? localStorage.getItem("activeCompanyId")
+            : null;
+
+        // 3) Validar stored contra memberships
+        const chosen = (stored && list.find((m) => m.company_id === stored)) || list[0];
+
+        // 4) Persistir el correcto (sanea localStorage cuando cambias de usuario)
+        if (typeof window !== "undefined") {
+          if (stored !== chosen.company_id) {
+            localStorage.setItem("activeCompanyId", chosen.company_id);
+          }
+        }
+
+        // 5) Cargar company_name desde companies
+        const { data: c, error: cErr } = await supabase
+          .from("companies")
+          .select("company_id, company_name")
+          .eq("company_id", chosen.company_id)
+          .maybeSingle();
+
+        if (cErr) throw cErr;
+
+        const company = c as CompanyRow | null;
+
+        if (!cancelled) {
+          setCompanyId(chosen.company_id);
+          setMyRole(chosen.role);
+          setCompanyName(company?.company_name ?? "");
+        }
+      } catch (e: any) {
+        console.log("useActiveCompany error:", e?.message ?? e);
+        if (!cancelled) {
+          setCompanyId(null);
+          setCompanyName("");
+          setMyRole(null);
+        }
+      } finally {
+        if (!cancelled) setIsLoadingCompany(false);
       }
-
-      if (!cid) {
-        setCompanyId(null);
-        setCompanyName("Your Business");
-        setIsLoadingCompany(false);
-        return;
-      }
-
-      setCompanyId(cid);
-
-      // 3) Nombre de la company
-      const { data: cRow, error: cErr } = await supabase
-        .from("companies")
-        .select("company_name")
-        .eq("company_id", cid)
-        .single();
-
-      if (!cancelled) {
-        setCompanyName(
-          cErr ? "Your Business" : ((cRow as any)?.company_name ?? "Your Business"),
-        );
-        setIsLoadingCompany(false);
-      }
-    };
-
-    run();
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [authLoading, user?.id]);
 
-  return { companyId, companyName, isLoadingCompany };
+  return {
+    companyId,
+    companyName,
+    myRole,
+    isLoadingCompany,
+  };
 }

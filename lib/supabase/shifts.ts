@@ -37,6 +37,24 @@ export async function checkIn(companyId: string, note?: string) {
   const uid = u.user?.id;
   if (!uid) throw new Error("No user id (not logged in)");
 
+  // 🔎 1. Verificar si ya existe un shift abierto
+  const { data: existing, error: existingErr } = await supabase
+    .from("shifts")
+    .select("shift_id")
+    .eq("company_id", companyId)
+    .eq("user_id", uid)
+    .is("check_out_at", null)
+    .maybeSingle();
+
+  if (existingErr) throw existingErr;
+
+  if (existing) {
+    throw new Error(
+      "Ya tienes una jornada activa. Debes hacer check-out primero."
+    );
+  }
+
+  // ✅ 2. Insertar nuevo shift
   return await supabase
     .from("shifts")
     .insert({
