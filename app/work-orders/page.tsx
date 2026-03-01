@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { setWorkOrderAssignee } from "../../lib/supabase/workOrders";
 import { supabase } from "../../lib/supabaseClient";
@@ -9,6 +9,7 @@ import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 import { useUrlWoFilter, type WOFilter } from "../../hooks/useUrlWoFilter";
 import { createInvoiceFromWorkOrder } from "../../lib/invoices";
+import { CompanyGuard } from "../components/CompanyGuard";
 
 import {
     fetchWorkOrders,
@@ -46,6 +47,12 @@ export default function WorkOrdersPage() {
     const [authPassword, setAuthPassword] = useState("");
     const [authMsg, setAuthMsg] = useState<string>("");
     const [authBusy, setAuthBusy] = useState(false);
+    const auditChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+    const auditWoIdRef = useRef<string | null>(null);
+
+    // ✅ Guards para evitar re-suscripciones repetidas
+    const woRtRef = useRef<string | null>(null);
+    const auditRtRef = useRef<string | null>(null);
 
     const doAuth = useCallback(async () => {
         setAuthMsg("");
@@ -105,6 +112,7 @@ export default function WorkOrdersPage() {
         {},
     );
     const [auditByWo, setAuditByWo] = useState<Record<string, AuditItem[]>>({});
+
 
     // ✅ Crear Work Order (UI)
     const [showNewWO, setShowNewWO] = useState(false);
@@ -219,13 +227,8 @@ export default function WorkOrdersPage() {
         }
     }, []);
     const signOut = useCallback(async () => {
-        try {
-            await supabase.auth.signOut();
-            localStorage.removeItem("activeCompanyId");
-            router.replace("/work-orders"); // vuelve al login UI
-        } catch (e: any) {
-            console.log("signOut error:", e);
-        }
+        await supabase.auth.signOut();
+        router.replace("/auth");
     }, [router]);
     const allowedStatusesForRole = (
         role: string | null,
@@ -259,13 +262,17 @@ export default function WorkOrdersPage() {
         loadOrders(companyId);
     }, [companyId, loadOrders, user]);
 
-    // ✅ Realtime: Work Orders (UN SOLO canal, nombre único)
+    // ✅ Realtime: Work Orders (UN SOLO canal por companyId, con guard anti Fast Refresh)
     useEffect(() => {
         if (!user) return;
         if (!companyId) return;
 
+        // ✅ Si ya estamos suscritos a este companyId, no re-suscribir
+        if (woRtRef.current === companyId) return;
+        woRtRef.current = companyId;
+
         const channel = supabase
-            .channel(`rt:work_orders:${companyId}`) // 👈 nombre único (clave)
+            .channel(`rt:work_orders:${companyId}`)
             .on(
                 "postgres_changes",
                 {
@@ -298,9 +305,11 @@ export default function WorkOrdersPage() {
 
         return () => {
             supabase.removeChannel(channel);
-        };
-    }, [user, companyId, loadOrders]);
 
+            // ✅ libera el guard si este cleanup corresponde al companyId actual
+            if (woRtRef.current === companyId) woRtRef.current = null;
+        };
+    }, [user?.id, companyId, loadOrders]);
     // ✅ Carga jornada abierta SOLO cuando hay user + companyId
     useEffect(() => {
         if (!user) return;
@@ -382,6 +391,19 @@ export default function WorkOrdersPage() {
 
         const woId = auditOpenFor;
 
+        // ✅ si ya estamos suscritos a este woId, no recrear el canal
+        if (auditWoIdRef.current === woId && auditChannelRef.current) {
+            return;
+        }
+
+        // ✅ si había un canal previo, cerrarlo antes de abrir uno nuevo
+        if (auditChannelRef.current) {
+            supabase.removeChannel(auditChannelRef.current);
+            auditChannelRef.current = null;
+        }
+
+        auditWoIdRef.current = woId;
+
         const channel = supabase
             .channel(`audit:${woId}`)
             .on(
@@ -423,11 +445,18 @@ export default function WorkOrdersPage() {
             .subscribe((status) => {
                 console.log("[AUDIT RT] subscribe status:", status, "woId:", woId);
             });
+
+        auditChannelRef.current = channel;
+
         return () => {
-            supabase.removeChannel(channel);
+            // ✅ cleanup seguro: solo cierro si este cleanup corresponde al canal actual
+            if (auditChannelRef.current === channel) {
+                supabase.removeChannel(channel);
+                auditChannelRef.current = null;
+                auditWoIdRef.current = null;
+            }
         };
     }, [auditOpenFor, companyId, user?.id, loadAuditTimeline, loadOrders]);
-
     // ✅ Permiso para cambiar status (UI). La DB igual valida con RLS + triggers.
     const canChangeStatus = (wo: WorkOrder) => {
         if (!user?.id) return false;
@@ -572,383 +601,93 @@ export default function WorkOrdersPage() {
     );
 
     return (
-        <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-            {/* ✅ Header: cambia según si hay sesión */}
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 16px",
-                    border: "1px solid #eee",
-                    borderRadius: 12,
-                    background: "white",
-                    marginBottom: 18,
-                }}
-            >
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    <div style={{ fontSize: 13, opacity: 0.7 }}>Empresa</div>
-                    <div style={{ fontSize: 18, fontWeight: 800 }}>
-                        {user ? companyName || "—" : "—"}
-                    </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 13, opacity: 0.7 }}>Usuario</div>
-                        <div style={{ fontSize: 13, fontFamily: "monospace" }}>
-                            {user?.email ?? (user?.id ? user.id.slice(0, 8) : "—")}
-                        </div>
-                    </div>
-
-                    {user ? (
-                        <button
-                            onClick={signOut}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #ddd",
-                                background: "white",
-                                cursor: "pointer",
-                                fontWeight: 800,
-                            }}
-                        >
-                            Sign out
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-
-            {/* Estados de carga */}
-            {authLoading ? (
-                <div style={{ padding: 30, textAlign: "center", opacity: 0.75 }}>
-                    Cargando…
-                </div>
-            ) : !user ? (
-                // ✅ No logueado → Sign in / Sign up visible
-                AuthBox
-            ) : isLoadingCompany ? (
-                <div style={{ padding: 30, textAlign: "center", opacity: 0.75 }}>
-                    Cargando empresa…
-                </div>
-            ) : !companyId ? (
+        <CompanyGuard>
+            <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+                {/* ✅ Header: cambia según si hay sesión */}
                 <div
                     style={{
-                        padding: 30,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "12px 16px",
                         border: "1px solid #eee",
                         borderRadius: 12,
                         background: "white",
+                        marginBottom: 18,
                     }}
                 >
-                    <div style={{ color: "crimson", fontWeight: 800, marginBottom: 10 }}>
-                        No se encontró una empresa activa para tu usuario.
-                    </div>
-
-                    <div style={{ opacity: 0.8, marginBottom: 14 }}>
-                        Esto pasa cuando el usuario no tiene membresía (company_members) o cuando
-                        el activeCompanyId guardado no es válido.
-                    </div>
-
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <button
-                            onClick={() => {
-                                localStorage.removeItem("activeCompanyId");
-                                location.reload();
-                            }}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #ddd",
-                                background: "white",
-                                cursor: "pointer",
-                                fontWeight: 700,
-                            }}
-                        >
-                            Limpiar empresa guardada
-                        </button>
-
-                        <button
-                            onClick={async () => {
-                                try {
-                                    alert(
-                                        "Aquí va el bootstrap: crear company + company_members y set activeCompanyId.",
-                                    );
-                                } catch (e: any) {
-                                    alert(e?.message ?? "Error creando empresa");
-                                }
-                            }}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #111",
-                                background: "#111",
-                                color: "white",
-                                cursor: "pointer",
-                                fontWeight: 800,
-                            }}
-                        >
-                            Crear mi empresa
-                        </button>
-
-                        <button
-                            onClick={() => router.replace("/control-center")}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #ddd",
-                                background: "white",
-                                cursor: "pointer",
-                                fontWeight: 700,
-                            }}
-                        >
-                            Ir a Control Center →
-                        </button>
-                    </div>
-
-                    <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
-                        Debug: activeCompanyId ={" "}
-                        <b>
-                            {typeof window !== "undefined"
-                                ? localStorage.getItem("activeCompanyId") ?? "null"
-                                : "n/a"}
-                        </b>
-                    </div>
-                </div>
-            ) : (
-                <>
-                    <header style={{ marginBottom: 18 }}>
-                        <h1 style={{ margin: 0, fontSize: 28 }}>
-                            {companyName} — Work Orders
-                        </h1>
-                        <div style={{ opacity: 0.7, marginTop: 6 }}>
-                            Mostrando: <b>{filtered.length}</b> · Total: <b>{rows.length}</b> ·
-                            Filter: <b>{woFilter}</b> · myUserId:{" "}
-                            <b>{user?.id ? user.id.slice(0, 8) : "null"}</b> · myRole:{" "}
-                            <b>{myRole ?? "null"}</b> · canOperate: <b>{canOperate ? "true" : "false"}</b>{" "}
-                            · openShiftId: <b>{openShiftId ? openShiftId.slice(0, 8) : "null"}</b>
-                            · members: <b>{membersLoading ? "loading..." : members.length}</b>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ fontSize: 13, opacity: 0.7 }}>Empresa</div>
+                        <div style={{ fontSize: 18, fontWeight: 800 }}>
+                            {user ? companyName || "—" : "—"}
                         </div>
-                    </header>
+                    </div>
 
-                    {/* filtros */}
-                    <div
-                        style={{
-                            display: "flex",
-                            gap: 10,
-                            flexWrap: "wrap",
-                            marginBottom: 12,
-                        }}
-                    >
-                        <FilterBtn f="all" label="Todas" />
-                        <FilterBtn f="mine" label="Mis órdenes" />
-                        <FilterBtn f="unassigned" label="Sin asignar" />
-                        <FilterBtn f="delayed" label="Delayed" />
-                        <FilterBtn f="ready_to_invoice" label="Ready to invoice" />
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 13, opacity: 0.7 }}>Usuario</div>
+                            <div style={{ fontSize: 13, fontFamily: "monospace" }}>
+                                {user?.email ?? (user?.id ? user.id.slice(0, 8) : "—")}
+                            </div>
+                        </div>
 
-                        {/* ✅ + Nueva orden (solo owner/admin) */}
-                        {isAdminOrOwner ? (
+                        {user ? (
                             <button
-                                onClick={() => setShowNewWO((s) => !s)}
+                                onClick={signOut}
                                 style={{
-                                    marginLeft: "auto",
                                     padding: "10px 14px",
                                     borderRadius: 10,
-                                    border: "1px solid #111",
+                                    border: "1px solid #ddd",
+                                    background: "white",
                                     cursor: "pointer",
-                                    background: "#111",
-                                    color: "white",
                                     fontWeight: 800,
                                 }}
                             >
-                                {showNewWO ? "Cerrar" : "+ Nueva orden"}
+                                Sign out
                             </button>
-                        ) : (
-                            <div style={{ marginLeft: "auto" }} />
-                        )}
-
-                        <button
-                            onClick={() => companyId && loadOrders(companyId)}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #ddd",
-                                cursor: "pointer",
-                                background: "#fff",
-                                fontWeight: 650,
-                            }}
-                        >
-                            Refresh
-                        </button>
-
-                        <button
-                            onClick={() => router.replace("/control-center")}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #ddd",
-                                cursor: "pointer",
-                                background: "#fff",
-                                fontWeight: 650,
-                            }}
-                        >
-                            Control Center →
-                        </button>
+                        ) : null}
                     </div>
+                </div>
 
-                    {isAdminOrOwner && showNewWO ? (
-                        <div
-                            style={{
-                                marginBottom: 14,
-                                padding: 12,
-                                border: "1px solid #eee",
-                                borderRadius: 12,
-                                background: "white",
-                            }}
-                        >
-                            <div style={{ fontWeight: 900, marginBottom: 10 }}>Crear nueva orden</div>
-
-                            <div style={{ display: "grid", gap: 10 }}>
-                                <label style={{ display: "grid", gap: 6 }}>
-                                    <span style={{ fontSize: 12, opacity: 0.8 }}>Job type</span>
-                                    <input
-                                        value={newJobType}
-                                        onChange={(e) => setNewJobType(e.target.value)}
-                                        placeholder="Ej: Electrical troubleshooting"
-                                        style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
-                                    />
-                                </label>
-
-                                <label style={{ display: "grid", gap: 6 }}>
-                                    <span style={{ fontSize: 12, opacity: 0.8 }}>Descripción</span>
-                                    <textarea
-                                        value={newDesc}
-                                        onChange={(e) => setNewDesc(e.target.value)}
-                                        placeholder="Describe el trabajo…"
-                                        rows={3}
-                                        style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
-                                    />
-                                </label>
-
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                                    <label style={{ display: "grid", gap: 6 }}>
-                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Priority</span>
-                                        <select
-                                            value={newPriority}
-                                            onChange={(e) => setNewPriority(e.target.value)}
-                                            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
-                                        >
-                                            <option value="low">low</option>
-                                            <option value="medium">medium</option>
-                                            <option value="high">high</option>
-                                        </select>
-                                    </label>
-
-                                    <label style={{ display: "grid", gap: 6 }}>
-                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Scheduled for (opcional)</span>
-                                        <input
-                                            type="date"
-                                            value={newScheduledFor}
-                                            onChange={(e) => setNewScheduledFor(e.target.value)}
-                                            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
-                                        />
-                                    </label>
-                                </div>
-
-                                {/* ✅ por ahora solo prueba visual */}
-                                <button
-                                    type="button"
-                                    onClick={async () => {
-                                        if (!companyId) {
-                                            alert("No hay empresa activa");
-                                            return;
-                                        }
-
-                                        if (!newJobType.trim()) {
-                                            alert("El Job type es obligatorio");
-                                            return;
-                                        }
-
-                                        try {
-                                            const { error } = await insertWorkOrder({
-                                                company_id: companyId,
-                                                job_type: newJobType,
-                                                description: newDesc,
-                                                priority: newPriority,
-                                                scheduled_for: newScheduledFor || null,
-                                                status: "new",
-                                            });
-
-                                            if (error) {
-                                                alert("Error creando orden: " + error.message);
-                                                return;
-                                            }
-
-                                            // limpiar formulario
-                                            setNewJobType("");
-                                            setNewDesc("");
-                                            setNewPriority("medium");
-                                            setNewScheduledFor("");
-                                            setShowNewWO(false);
-
-                                            // refrescar lista
-                                            await loadOrders(companyId);
-
-                                        } catch (e: any) {
-                                            alert("Error inesperado: " + (e?.message ?? e));
-                                        }
-                                    }}
-                                    style={{
-                                        padding: "10px 14px",
-                                        borderRadius: 10,
-                                        border: "1px solid #111",
-                                        background: "#111",
-                                        color: "white",
-                                        cursor: "pointer",
-                                        fontWeight: 800,
-                                        width: "fit-content",
-                                    }}
-                                >
-                                    Crear orden
-                                </button>
-                            </div>
-                        </div>
-                    ) : null}
-                    {/* ✅ BLOQUEO OPERATIVO: Banner (Jornada) */}
+                {/* Estados de carga */}
+                {authLoading ? (
+                    <div style={{ padding: 30, textAlign: "center", opacity: 0.75 }}>
+                        Cargando…
+                    </div>
+                ) : !user ? (
+                    // ✅ No logueado → Sign in / Sign up visible
+                    AuthBox
+                ) : isLoadingCompany ? (
+                    <div style={{ padding: 30, textAlign: "center", opacity: 0.75 }}>
+                        Cargando empresa…
+                    </div>
+                ) : !companyId ? (
                     <div
                         style={{
-                            marginBottom: 18,
-                            padding: 10,
-                            borderRadius: 10,
+                            padding: 30,
                             border: "1px solid #eee",
-                            background: canOperate ? "#f0fff4" : "#fff7ed",
-                            fontSize: 13,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                            flexWrap: "wrap",
+                            borderRadius: 12,
+                            background: "white",
                         }}
                     >
-                        <div>
-                            <b>Operación:</b>{" "}
-                            {shiftLoading ? (
-                                <span style={{ opacity: 0.75 }}>validando jornada…</span>
-                            ) : canOperate ? (
-                                <span>Jornada activa ✅ Puedes operar órdenes.</span>
-                            ) : (
-                                <span>
-                                    Jornada cerrada ⚠️ Para cambiar estados, comentar o facturar debes hacer{" "}
-                                    <b>Check-in</b> en <b>Control Center</b>.
-                                </span>
-                            )}
+                        <div style={{ color: "crimson", fontWeight: 800, marginBottom: 10 }}>
+                            No se encontró una empresa activa para tu usuario.
                         </div>
 
-                        <div style={{ display: "flex", gap: 10 }}>
+                        <div style={{ opacity: 0.8, marginBottom: 14 }}>
+                            Esto pasa cuando el usuario no tiene membresía (company_members) o cuando
+                            el activeCompanyId guardado no es válido.
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                             <button
-                                onClick={() => companyId && refreshShift(companyId)}
+                                onClick={() => {
+                                    localStorage.removeItem("activeCompanyId");
+                                    location.reload();
+                                }}
                                 style={{
-                                    padding: "8px 10px",
+                                    padding: "10px 14px",
                                     borderRadius: 10,
                                     border: "1px solid #ddd",
                                     background: "white",
@@ -956,314 +695,606 @@ export default function WorkOrdersPage() {
                                     fontWeight: 700,
                                 }}
                             >
-                                Refresh jornada
+                                Limpiar empresa guardada
                             </button>
 
-                            {!canOperate ? (
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        alert(
+                                            "Aquí va el bootstrap: crear company + company_members y set activeCompanyId.",
+                                        );
+                                    } catch (e: any) {
+                                        alert(e?.message ?? "Error creando empresa");
+                                    }
+                                }}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #111",
+                                    background: "#111",
+                                    color: "white",
+                                    cursor: "pointer",
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Crear mi empresa
+                            </button>
+
+                            <button
+                                onClick={() => router.replace("/control-center")}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #ddd",
+                                    background: "white",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                }}
+                            >
+                                Ir a Control Center →
+                            </button>
+                        </div>
+
+                        <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
+                            Debug: activeCompanyId ={" "}
+                            <b>
+                                {typeof window !== "undefined"
+                                    ? localStorage.getItem("activeCompanyId") ?? "null"
+                                    : "n/a"}
+                            </b>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <header style={{ marginBottom: 18 }}>
+                            <h1 style={{ margin: 0, fontSize: 28 }}>
+                                {companyName} — Work Orders
+                            </h1>
+                            <div style={{ opacity: 0.7, marginTop: 6 }}>
+                                Mostrando: <b>{filtered.length}</b> · Total: <b>{rows.length}</b> ·
+                                Filter: <b>{woFilter}</b> · myUserId:{" "}
+                                <b>{user?.id ? user.id.slice(0, 8) : "null"}</b> · myRole:{" "}
+                                <b>{myRole ?? "null"}</b> · canOperate: <b>{canOperate ? "true" : "false"}</b>{" "}
+                                · openShiftId: <b>{openShiftId ? openShiftId.slice(0, 8) : "null"}</b>
+                                · members: <b>{membersLoading ? "loading..." : members.length}</b>
+                            </div>
+                        </header>
+
+                        {/* filtros */}
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 10,
+                                flexWrap: "wrap",
+                                marginBottom: 12,
+                            }}
+                        >
+                            <FilterBtn f="all" label="Todas" />
+                            <FilterBtn f="mine" label="Mis órdenes" />
+                            <FilterBtn f="unassigned" label="Sin asignar" />
+                            <FilterBtn f="delayed" label="Delayed" />
+                            <FilterBtn f="ready_to_invoice" label="Ready to invoice" />
+
+                            {/* ✅ + Nueva orden (solo owner/admin) */}
+                            {isAdminOrOwner ? (
                                 <button
-                                    onClick={() => router.replace("/control-center")}
+                                    onClick={() => setShowNewWO((s) => !s)}
                                     style={{
-                                        padding: "8px 10px",
+                                        marginLeft: "auto",
+                                        padding: "10px 14px",
                                         borderRadius: 10,
                                         border: "1px solid #111",
+                                        cursor: "pointer",
                                         background: "#111",
                                         color: "white",
-                                        cursor: "pointer",
                                         fontWeight: 800,
                                     }}
                                 >
-                                    Ir a Check-in →
+                                    {showNewWO ? "Cerrar" : "+ Nueva orden"}
                                 </button>
-                            ) : null}
-                        </div>
-                    </div>
+                            ) : (
+                                <div style={{ marginLeft: "auto" }} />
+                            )}
 
-                    {errorMessage ? (
+                            <button
+                                onClick={() => companyId && loadOrders(companyId)}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #ddd",
+                                    cursor: "pointer",
+                                    background: "#fff",
+                                    fontWeight: 650,
+                                }}
+                            >
+                                Refresh
+                            </button>
+
+                            <button
+                                onClick={() => router.replace("/control-center")}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #ddd",
+                                    cursor: "pointer",
+                                    background: "#fff",
+                                    fontWeight: 650,
+                                }}
+                            >
+                                Control Center →
+                            </button>
+                        </div>
+
+                        {isAdminOrOwner && showNewWO ? (
+                            <div
+                                style={{
+                                    marginBottom: 14,
+                                    padding: 12,
+                                    border: "1px solid #eee",
+                                    borderRadius: 12,
+                                    background: "white",
+                                }}
+                            >
+                                <div style={{ fontWeight: 900, marginBottom: 10 }}>Crear nueva orden</div>
+
+                                <div style={{ display: "grid", gap: 10 }}>
+                                    <label style={{ display: "grid", gap: 6 }}>
+                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Job type</span>
+                                        <input
+                                            value={newJobType}
+                                            onChange={(e) => setNewJobType(e.target.value)}
+                                            placeholder="Ej: Electrical troubleshooting"
+                                            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                        />
+                                    </label>
+
+                                    <label style={{ display: "grid", gap: 6 }}>
+                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Descripción</span>
+                                        <textarea
+                                            value={newDesc}
+                                            onChange={(e) => setNewDesc(e.target.value)}
+                                            placeholder="Describe el trabajo…"
+                                            rows={3}
+                                            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                        />
+                                    </label>
+
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                        <label style={{ display: "grid", gap: 6 }}>
+                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Priority</span>
+                                            <select
+                                                value={newPriority}
+                                                onChange={(e) => setNewPriority(e.target.value)}
+                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                            >
+                                                <option value="low">low</option>
+                                                <option value="medium">medium</option>
+                                                <option value="high">high</option>
+                                            </select>
+                                        </label>
+
+                                        <label style={{ display: "grid", gap: 6 }}>
+                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Scheduled for (opcional)</span>
+                                            <input
+                                                type="date"
+                                                value={newScheduledFor}
+                                                onChange={(e) => setNewScheduledFor(e.target.value)}
+                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                            />
+                                        </label>
+                                    </div>
+
+                                    {/* ✅ por ahora solo prueba visual */}
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            if (!companyId) {
+                                                alert("No hay empresa activa");
+                                                return;
+                                            }
+
+                                            if (!newJobType.trim()) {
+                                                alert("El Job type es obligatorio");
+                                                return;
+                                            }
+
+                                            try {
+                                                const { error } = await insertWorkOrder({
+                                                    company_id: companyId,
+                                                    job_type: newJobType,
+                                                    description: newDesc,
+                                                    priority: newPriority,
+                                                    scheduled_for: newScheduledFor || null,
+                                                    status: "new",
+                                                });
+
+                                                if (error) {
+                                                    alert("Error creando orden: " + error.message);
+                                                    return;
+                                                }
+
+                                                // limpiar formulario
+                                                setNewJobType("");
+                                                setNewDesc("");
+                                                setNewPriority("medium");
+                                                setNewScheduledFor("");
+                                                setShowNewWO(false);
+
+                                                // refrescar lista
+                                                await loadOrders(companyId);
+
+                                            } catch (e: any) {
+                                                alert("Error inesperado: " + (e?.message ?? e));
+                                            }
+                                        }}
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderRadius: 10,
+                                            border: "1px solid #111",
+                                            background: "#111",
+                                            color: "white",
+                                            cursor: "pointer",
+                                            fontWeight: 800,
+                                            width: "fit-content",
+                                        }}
+                                    >
+                                        Crear orden
+                                    </button>
+                                </div>
+                            </div>
+                        ) : null}
+                        {/* ✅ BLOQUEO OPERATIVO: Banner (Jornada) */}
                         <div
                             style={{
-                                background: "#fff5f5",
-                                border: "1px solid #f3caca",
-                                color: "#a40000",
-                                padding: 12,
+                                marginBottom: 18,
+                                padding: 10,
                                 borderRadius: 10,
-                                marginBottom: 14,
+                                border: "1px solid #eee",
+                                background: canOperate ? "#f0fff4" : "#fff7ed",
+                                fontSize: 13,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 12,
+                                flexWrap: "wrap",
                             }}
                         >
-                            <b>Error:</b> {errorMessage}
-                        </div>
-                    ) : null}
+                            <div>
+                                <b>Operación:</b>{" "}
+                                {shiftLoading ? (
+                                    <span style={{ opacity: 0.75 }}>validando jornada…</span>
+                                ) : canOperate ? (
+                                    <span>Jornada activa ✅ Puedes operar órdenes.</span>
+                                ) : (
+                                    <span>
+                                        Jornada cerrada ⚠️ Para cambiar estados, comentar o facturar debes hacer{" "}
+                                        <b>Check-in</b> en <b>Control Center</b>.
+                                    </span>
+                                )}
+                            </div>
 
-                    {loadingWO ? (
-                        <div style={{ opacity: 0.7 }}>Cargando órdenes…</div>
-                    ) : filtered.length === 0 ? (
-                        <div style={{ opacity: 0.6 }}>No hay órdenes que mostrar.</div>
-                    ) : (
-                        <div
-                            style={{ display: "grid", gap: 12 }}>
-                            {filtered.map((wo) => (
-                                <div
-                                    key={wo.work_order_id}
+                            <div style={{ display: "flex", gap: 10 }}>
+                                <button
+                                    onClick={() => companyId && refreshShift(companyId)}
                                     style={{
-                                        padding: 14,
-                                        border: "1px solid #eee",
-                                        borderRadius: 12,
+                                        padding: "8px 10px",
+                                        borderRadius: 10,
+                                        border: "1px solid #ddd",
                                         background: "white",
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        gap: 14,
+                                        cursor: "pointer",
+                                        fontWeight: 700,
                                     }}
                                 >
-                                    <div>
-                                        <div style={{ fontWeight: 700 }}>{wo.job_type}</div>
+                                    Refresh jornada
+                                </button>
 
-                                        <div style={{ opacity: 0.7, marginTop: 4 }}>{wo.description}</div>
+                                {!canOperate ? (
+                                    <button
+                                        onClick={() => router.replace("/control-center")}
+                                        style={{
+                                            padding: "8px 10px",
+                                            borderRadius: 10,
+                                            border: "1px solid #111",
+                                            background: "#111",
+                                            color: "white",
+                                            cursor: "pointer",
+                                            fontWeight: 800,
+                                        }}
+                                    >
+                                        Ir a Check-in →
+                                    </button>
+                                ) : null}
+                            </div>
+                        </div>
 
-                                        <div style={{ fontFamily: "monospace", opacity: 0.7, marginTop: 6 }}>
-                                            <div><b>wo_id:</b> {wo.work_order_id}</div>
-                                            <div><b>assigned_to:</b> {wo.assigned_to ?? "—"}</div>
+                        {errorMessage ? (
+                            <div
+                                style={{
+                                    background: "#fff5f5",
+                                    border: "1px solid #f3caca",
+                                    color: "#a40000",
+                                    padding: 12,
+                                    borderRadius: 10,
+                                    marginBottom: 14,
+                                }}
+                            >
+                                <b>Error:</b> {errorMessage}
+                            </div>
+                        ) : null}
+
+                        {loadingWO ? (
+                            <div style={{ opacity: 0.7 }}>Cargando órdenes…</div>
+                        ) : filtered.length === 0 ? (
+                            <div style={{ opacity: 0.6 }}>No hay órdenes que mostrar.</div>
+                        ) : (
+                            <div
+                                style={{ display: "grid", gap: 12 }}>
+                                {filtered.map((wo) => (
+                                    <div
+                                        key={wo.work_order_id}
+                                        style={{
+                                            padding: 14,
+                                            border: "1px solid #eee",
+                                            borderRadius: 12,
+                                            background: "white",
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            gap: 14,
+                                        }}
+                                    >
+                                        <div>
+                                            <div style={{ fontWeight: 700 }}>{wo.job_type}</div>
+
+                                            <div style={{ opacity: 0.7, marginTop: 4 }}>{wo.description}</div>
+
+                                            <div style={{ fontFamily: "monospace", opacity: 0.7, marginTop: 6 }}>
+                                                <div><b>wo_id:</b> {wo.work_order_id}</div>
+                                                <div><b>assigned_to:</b> {wo.assigned_to ?? "—"}</div>
+                                            </div>
+                                            {/* ✅ Botón Asignarme (solo si está sin asignar) */}
+                                            {/* ✅ Asignación v1.0: solo owner/admin puede asignar */}
+                                            {!wo.assigned_to && isAdminOrOwner && (
+                                                <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
+                                                    <label style={{ fontSize: 12, opacity: 0.7 }}>
+                                                        Asignar a técnico
+                                                    </label>
+
+                                                    <select
+                                                        defaultValue=""
+                                                        onChange={async (e) => {
+                                                            const techId = e.target.value;
+                                                            if (!techId) return;
+
+                                                            if (!companyId) {
+                                                                alert("No hay empresa activa");
+                                                                return;
+                                                            }
+
+                                                            const { error } = await setWorkOrderAssignee(
+                                                                wo.work_order_id,
+                                                                techId
+                                                            );
+
+                                                            if (error) {
+                                                                alert("No se pudo asignar: " + error.message);
+                                                                return;
+                                                            }
+
+                                                            await loadOrders(companyId);
+
+                                                            // ✅ refresh historial si está abierto
+                                                            if (auditOpenFor === wo.work_order_id) {
+                                                                await loadAuditTimeline(wo.work_order_id);
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            padding: "6px 8px",
+                                                            borderRadius: 8,
+                                                            border: "1px solid #ddd",
+                                                            fontSize: 12,
+                                                        }}
+                                                    >
+                                                        <option value="">Seleccionar tech...</option>
+                                                        {techMembers.map((m) => (
+                                                            <option key={m.user_id} value={m.user_id}>
+                                                                {m.user_id.slice(0, 8)}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
                                         </div>
-                                        {/* ✅ Botón Asignarme (solo si está sin asignar) */}
-                                        {/* ✅ Asignación v1.0: solo owner/admin puede asignar */}
-                                        {!wo.assigned_to && isAdminOrOwner && (
-                                            <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
-                                                <label style={{ fontSize: 12, opacity: 0.7 }}>
-                                                    Asignar a técnico
-                                                </label>
 
-                                                <select
-                                                    defaultValue=""
-                                                    onChange={async (e) => {
-                                                        const techId = e.target.value;
-                                                        if (!techId) return;
+                                        <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
+                                            {/* pill */}
+                                            <div
+                                                style={{
+                                                    alignSelf: "flex-start",
+                                                    padding: "4px 10px",
+                                                    borderRadius: 999,
+                                                    border: "1px solid #ddd",
+                                                    background: "#f7f7f7",
+                                                    fontSize: 12,
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                {wo.status}
+                                            </div>
 
-                                                        if (!companyId) {
-                                                            alert("No hay empresa activa");
-                                                            return;
-                                                        }
+                                            {/* selector */}
+                                            <label style={{ fontSize: 12, opacity: 0.8 }}>Cambiar status</label>
 
-                                                        const { error } = await setWorkOrderAssignee(
-                                                            wo.work_order_id,
-                                                            techId
+                                            <select
+
+                                                value={wo.status}
+                                                disabled={!canChangeStatus(wo)}
+                                                onChange={async (e) => {
+                                                    const next = e.target.value as WorkOrderStatus;
+
+                                                    if (!companyId) {
+                                                        alert("No hay companyId activo");
+                                                        return;
+                                                    }
+
+                                                    if (!canChangeStatus(wo)) {
+                                                        alert(
+                                                            isAdminOrOwner
+                                                                ? "No tienes permiso para cambiar esta orden."
+                                                                : "Para cambiar status necesitas jornada activa y la orden asignada a ti.",
                                                         );
+                                                        return;
+                                                    }
 
-                                                        if (error) {
-                                                            alert("No se pudo asignar: " + error.message);
-                                                            return;
+                                                    const { error } = await setWorkOrderStatus(wo.work_order_id, next);
+
+                                                    if (error) {
+                                                        alert("No se pudo cambiar status: " + error.message);
+                                                        return;
+                                                    }
+
+                                                    await loadOrders(companyId);
+                                                    // ✅ Si el historial está abierto para esta WO, refrescarlo sin recargar página
+                                                    if (auditOpenFor === wo.work_order_id) {
+                                                        await loadAuditTimeline(wo.work_order_id);
+                                                    }
+
+                                                }}
+                                                style={{
+                                                    padding: "8px 10px",
+                                                    borderRadius: 10,
+                                                    border: "1px solid #ddd",
+                                                    background: "white",
+                                                    fontWeight: 700,
+                                                    cursor: canChangeStatus(wo) ? "pointer" : "not-allowed",
+                                                    opacity: canChangeStatus(wo) ? 1 : 0.6,
+                                                    minWidth: 160,
+                                                }}
+                                            >
+                                                {allowedStatusesForRole(myRole ?? null, wo.status).map((s: WorkOrderStatus) => (
+                                                    <option key={s} value={s}>
+                                                        {s}
+                                                    </option>
+                                                ))}
+                                            </select>
+
+                                            {isAdminOrOwner && (wo.status === "resolved" || wo.status === "closed") ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        try {
+                                                            const invoiceId = await createInvoiceFromWorkOrder(wo.work_order_id);
+                                                            router.push(`/invoices/${invoiceId}`);
+                                                            // Paso siguiente: router.push(`/invoices/${invoiceId}`)
+                                                        } catch (e: any) {
+                                                            alert("No se pudo crear invoice: " + (e?.message ?? e));
                                                         }
+                                                    }}
+                                                    style={{
+                                                        marginTop: 8,
+                                                        padding: "8px 10px",
+                                                        borderRadius: 10,
+                                                        border: "1px solid #111",
+                                                        background: "#111",
+                                                        color: "white",
+                                                        cursor: "pointer",
+                                                        fontWeight: 800,
+                                                        minWidth: 160,
+                                                    }}
+                                                >
+                                                    Crear factura
+                                                </button>
+                                            ) : null}
+                                            <div style={{ marginTop: 10 }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
+                                                    style={{
+                                                        padding: "6px 10px",
+                                                        borderRadius: 10,
+                                                        border: "1px solid #ddd",
+                                                        background: "white",
+                                                        cursor: "pointer",
+                                                        fontSize: 12,
+                                                        fontWeight: 700,
+                                                        marginRight: 8,
+                                                    }}
+                                                >
+                                                    Abrir
+                                                </button>
 
-                                                        await loadOrders(companyId);
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        const nextOpen =
+                                                            auditOpenFor === wo.work_order_id ? null : wo.work_order_id;
 
-                                                        // ✅ refresh historial si está abierto
-                                                        if (auditOpenFor === wo.work_order_id) {
+                                                        setAuditOpenFor(nextOpen);
+
+                                                        if (nextOpen) {
                                                             await loadAuditTimeline(wo.work_order_id);
                                                         }
                                                     }}
                                                     style={{
-                                                        padding: "6px 8px",
-                                                        borderRadius: 8,
+                                                        padding: "6px 10px",
+                                                        borderRadius: 10,
                                                         border: "1px solid #ddd",
+                                                        background: "white",
+                                                        cursor: "pointer",
                                                         fontSize: 12,
+                                                        fontWeight: 700,
                                                     }}
                                                 >
-                                                    <option value="">Seleccionar tech...</option>
-                                                    {techMembers.map((m) => (
-                                                        <option key={m.user_id} value={m.user_id}>
-                                                            {m.user_id.slice(0, 8)}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
-                                    </div>
+                                                    {auditOpenFor === wo.work_order_id ? "Ocultar historial" : "Ver historial"}
+                                                </button>
 
-                                    <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
-                                        {/* pill */}
-                                        <div
-                                            style={{
-                                                alignSelf: "flex-start",
-                                                padding: "4px 10px",
-                                                borderRadius: 999,
-                                                border: "1px solid #ddd",
-                                                background: "#f7f7f7",
-                                                fontSize: 12,
-                                                fontWeight: 700,
-                                            }}
-                                        >
-                                            {wo.status}
-                                        </div>
-
-                                        {/* selector */}
-                                        <label style={{ fontSize: 12, opacity: 0.8 }}>Cambiar status</label>
-
-                                        <select
-
-                                            value={wo.status}
-                                            disabled={!canChangeStatus(wo)}
-                                            onChange={async (e) => {
-                                                const next = e.target.value as WorkOrderStatus;
-
-                                                if (!companyId) {
-                                                    alert("No hay companyId activo");
-                                                    return;
-                                                }
-
-                                                if (!canChangeStatus(wo)) {
-                                                    alert(
-                                                        isAdminOrOwner
-                                                            ? "No tienes permiso para cambiar esta orden."
-                                                            : "Para cambiar status necesitas jornada activa y la orden asignada a ti.",
-                                                    );
-                                                    return;
-                                                }
-
-                                                const { error } = await setWorkOrderStatus(wo.work_order_id, next);
-
-                                                if (error) {
-                                                    alert("No se pudo cambiar status: " + error.message);
-                                                    return;
-                                                }
-
-                                                await loadOrders(companyId);
-                                                // ✅ Si el historial está abierto para esta WO, refrescarlo sin recargar página
-                                                if (auditOpenFor === wo.work_order_id) {
-                                                    await loadAuditTimeline(wo.work_order_id);
-                                                }
-
-                                            }}
-                                            style={{
-                                                padding: "8px 10px",
-                                                borderRadius: 10,
-                                                border: "1px solid #ddd",
-                                                background: "white",
-                                                fontWeight: 700,
-                                                cursor: canChangeStatus(wo) ? "pointer" : "not-allowed",
-                                                opacity: canChangeStatus(wo) ? 1 : 0.6,
-                                                minWidth: 160,
-                                            }}
-                                        >
-                                            {allowedStatusesForRole(myRole ?? null, wo.status).map((s: WorkOrderStatus) => (
-                                                <option key={s} value={s}>
-                                                    {s}
-                                                </option>
-                                            ))}
-                                        </select>
-
-                                        {isAdminOrOwner && (wo.status === "resolved" || wo.status === "closed") ? (
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    try {
-                                                        const invoiceId = await createInvoiceFromWorkOrder(wo.work_order_id);
-                                                        router.push(`/invoices/${invoiceId}`);
-                                                        // Paso siguiente: router.push(`/invoices/${invoiceId}`)
-                                                    } catch (e: any) {
-                                                        alert("No se pudo crear invoice: " + (e?.message ?? e));
-                                                    }
-                                                }}
-                                                style={{
-                                                    marginTop: 8,
-                                                    padding: "8px 10px",
-                                                    borderRadius: 10,
-                                                    border: "1px solid #111",
-                                                    background: "#111",
-                                                    color: "white",
-                                                    cursor: "pointer",
-                                                    fontWeight: 800,
-                                                    minWidth: 160,
-                                                }}
-                                            >
-                                                Crear factura
-                                            </button>
-                                        ) : null}
-                                        <div style={{ marginTop: 10 }}>
-                                            <button
-                                                type="button"
-                                                onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
-                                                style={{
-                                                    padding: "6px 10px",
-                                                    borderRadius: 10,
-                                                    border: "1px solid #ddd",
-                                                    background: "white",
-                                                    cursor: "pointer",
-                                                    fontSize: 12,
-                                                    fontWeight: 700,
-                                                    marginRight: 8,
-                                                }}
-                                            >
-                                                Abrir
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    const nextOpen =
-                                                        auditOpenFor === wo.work_order_id ? null : wo.work_order_id;
-
-                                                    setAuditOpenFor(nextOpen);
-
-                                                    if (nextOpen) {
-                                                        await loadAuditTimeline(wo.work_order_id);
-                                                    }
-                                                }}
-                                                style={{
-                                                    padding: "6px 10px",
-                                                    borderRadius: 10,
-                                                    border: "1px solid #ddd",
-                                                    background: "white",
-                                                    cursor: "pointer",
-                                                    fontSize: 12,
-                                                    fontWeight: 700,
-                                                }}
-                                            >
-                                                {auditOpenFor === wo.work_order_id ? "Ocultar historial" : "Ver historial"}
-                                            </button>
-
-                                            {auditOpenFor === wo.work_order_id ? (
-                                                <div
-                                                    style={{
-                                                        marginTop: 10,
-                                                        padding: 10,
-                                                        border: "1px solid #eee",
-                                                        borderRadius: 12,
-                                                        background: "#fafafa",
-                                                        maxWidth: 420,
-                                                    }}
-                                                >
-                                                    {auditLoadingFor[wo.work_order_id] ? (
-                                                        <div style={{ opacity: 0.7 }}>Cargando historial…</div>
-                                                    ) : (auditByWo[wo.work_order_id]?.length ?? 0) === 0 ? (
-                                                        <div style={{ opacity: 0.7 }}>Sin eventos de auditoría.</div>
-                                                    ) : (
-                                                        <div style={{ display: "grid", gap: 8 }}>
-                                                            {auditByWo[wo.work_order_id].map((it, idx) => (
-                                                                <div
-                                                                    key={idx}
-                                                                    style={{
-                                                                        padding: 10,
-                                                                        border: "1px solid #eee",
-                                                                        borderRadius: 10,
-                                                                        background: "white",
-                                                                    }}
-                                                                >
-                                                                    <div style={{ fontSize: 12, opacity: 0.75 }}>
-                                                                        <b>{it.changed_by_name ?? "—"}</b> ·{" "}
-                                                                        {it.changed_at_ui ?? it.changed_at ?? "—"}
+                                                {auditOpenFor === wo.work_order_id ? (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 10,
+                                                            padding: 10,
+                                                            border: "1px solid #eee",
+                                                            borderRadius: 12,
+                                                            background: "#fafafa",
+                                                            maxWidth: 420,
+                                                        }}
+                                                    >
+                                                        {auditLoadingFor[wo.work_order_id] ? (
+                                                            <div style={{ opacity: 0.7 }}>Cargando historial…</div>
+                                                        ) : (auditByWo[wo.work_order_id]?.length ?? 0) === 0 ? (
+                                                            <div style={{ opacity: 0.7 }}>Sin eventos de auditoría.</div>
+                                                        ) : (
+                                                            <div style={{ display: "grid", gap: 8 }}>
+                                                                {auditByWo[wo.work_order_id].map((it, idx) => (
+                                                                    <div
+                                                                        key={idx}
+                                                                        style={{
+                                                                            padding: 10,
+                                                                            border: "1px solid #eee",
+                                                                            borderRadius: 10,
+                                                                            background: "white",
+                                                                        }}
+                                                                    >
+                                                                        <div style={{ fontSize: 12, opacity: 0.75 }}>
+                                                                            <b>{it.changed_by_name ?? "—"}</b> ·{" "}
+                                                                            {it.changed_at_ui ?? it.changed_at ?? "—"}
+                                                                        </div>
+                                                                        <div style={{ marginTop: 4 }}>{it.message ?? "—"}</div>
                                                                     </div>
-                                                                    <div style={{ marginTop: 4 }}>{it.message ?? "—"}</div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ) : null}
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </>
-            )}
-        </div>
+                                ))}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
+        </CompanyGuard>
     );
 }

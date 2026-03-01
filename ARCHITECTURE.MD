@@ -1,365 +1,360 @@
-# ManosRemotas – Architecture v1.0
-
-## 1. Propósito
+ManosRemotas – Architecture v1.2 (Auth Stabilized)
+1. Propósito
 
 ManosRemotas es un sistema multi-empresa (multi-tenant) para gestión de órdenes de trabajo, ejecución en campo y facturación básica, enfocado inicialmente en Canadá (Ontario) y Colombia.
 
-El objetivo de v1.0 es estabilidad operativa, no complejidad.
+El objetivo de v1.2 es:
 
----
+Estabilidad operativa
 
-## 2. Principios Fundamentales
+Autenticación determinista
 
-### 2.1 Tríada de Identidad
+Seguridad backend-first
+
+Arquitectura predecible
+
+No complejidad innecesaria.
+
+2. Principios Fundamentales
+2.1 Tríada de Identidad
 
 Login ≠ Jornada ≠ Orden ≠ Factura
 
-- Login: Control de identidad y permisos.
-- Jornada (Shift): Control de ingreso y salida del técnico.
-- Orden (Work Order): Ejecución operativa del trabajo.
-- Factura (Invoice): Documento financiero.
+Login: Identidad y sesión del usuario.
 
-Estos conceptos nunca se mezclan.
+Jornada (Shift): Permiso operativo del técnico.
 
----
+Orden (Work Order): Entidad operativa.
 
-## 3. Arquitectura General
+Factura (Invoice): Entidad financiera.
 
-### 3.1 Stack
+Nunca se mezclan responsabilidades.
 
-- Frontend: Next.js (App Router)
-- Backend: Supabase (Postgres + RLS)
-- Base de datos: PostgreSQL
-- Autenticación: Supabase Auth
-- Multi-tenant: Aislamiento por company_id
+3. Stack Tecnológico
 
----
+Frontend: Next.js (App Router)
 
-## 4. Multi-Tenant
+Backend: Supabase (Postgres + RLS)
 
-### 4.1 Modelo
+Base de datos: PostgreSQL
 
-- Un usuario puede pertenecer a múltiples empresas.
-- La relación se define en `company_members`.
-- Cada empresa tiene sus propios:
-  - Work Orders
-  - Invoices
-  - Técnicos
-  - Configuración fiscal
+Autenticación: Supabase Auth
 
-### 4.2 Empresa Activa
+Multi-tenant: Aislamiento por company_id
 
-- La aplicación opera siempre sobre una `activeCompanyId`.
-- Se obtiene desde:
-  - localStorage (si existe)
-  - o la primera membership del usuario
-- No existe company switcher visible en v1.0.
+4. Modelo Multi-Tenant
+4.1 Relaciones
 
----
+Un usuario puede pertenecer a múltiples empresas.
 
-## 5. Seguridad
+Relación definida en company_members.
 
-### 5.1 Row Level Security (RLS)
+Todas las tablas críticas contienen company_id.
 
-- Todas las tablas principales contienen `company_id`.
-- Las políticas RLS filtran por:
-  - membership válida
-  - rol dentro de la empresa
-  - (cuando aplica) jornada activa
-- No existe cruce de datos entre empresas.
+No existe cruce entre empresas.
 
-### 5.2 Regla anti-recursión (lección aprendida)
+4.2 Empresa Activa
 
-- Evitar policies que se auto-consultan sobre la misma tabla (ej: `company_members` consultando `company_members`)
-  porque puede causar error 500 por **infinite recursion detected**.
-- Preferir policies simples (ej: “ver mi fila”) y mover lógica compleja a vistas seguras/funciones si hace falta.
+La aplicación siempre opera sobre una activeCompanyId.
 
-### 5.3 Backend-first (DB manda)
+Resolución:
 
-- La UI nunca se considera un control de seguridad.
-- Todas las reglas críticas deben estar enforced en DB (RLS + triggers).
-- Aunque el usuario intente operar vía consola/Postman, la DB debe bloquearlo.
+Se consultan memberships del usuario.
 
----
+Se valida localStorage.activeCompanyId.
 
-## 6. Capas del Código
+Si no existe o es inválida, se toma la primera membership válida.
 
-### 6.1 app/
+Si no tiene membership → empresa no seleccionada.
 
-Contiene páginas.
-Responsabilidad: ensamblaje de componentes y hooks.
+No existe company switcher en v1.2.
 
-No debe contener lógica pesada de negocio.
+5. Seguridad
+5.1 RLS (Row Level Security)
 
----
+Todas las tablas operativas incluyen company_id.
 
-### 6.2 components/
+Las policies filtran por:
 
-Contiene componentes UI reutilizables.
+Membership válida
+
+Rol dentro de la empresa
+
+Jornada activa (cuando aplica)
+
+La UI nunca es seguridad.
+
+La base de datos manda.
+
+5.2 Backend-first
+
+Toda regla crítica debe existir en:
+
+RLS
+
+Triggers
+
+Índices únicos
+
+Constraints
+
+Aunque el usuario use consola o API directa, la DB debe bloquear.
+
+5.3 Regla Anti-Recursión
+
+Nunca crear policies que consulten la misma tabla con lógica compleja.
+
+Ejemplo prohibido:
+company_members consultando company_members.
+
+Puede generar:
+infinite recursion detected.
+
+Preferir policies simples y lógica compleja en funciones SQL si es necesario.
+
+6. Arquitectura de Autenticación (Formalizada)
+6.1 Rutas Oficiales
+Ruta	Función
+/auth	Login / Sign up
+/work-orders	Operación principal
+/control-center	Bootstrap de empresa
+/invoices	Facturación
+6.2 Flujo Determinista
+
+Reglas oficiales:
+
+Sin usuario → /auth
+
+Usuario con membership válida → /work-orders
+
+Usuario sin empresa → /control-center
+
+Nunca redirigir a /control-center si no hay usuario.
+
+6.3 CompanyGuard (Regla Oficial)
+
+El guard:
+
+Espera authLoading
+
+Espera isLoadingCompany
+
+Luego decide
+
+Lógica:
+
+if (!user) → /auth
+if (user && !companyId) → /control-center
+else → permitir acceso
+
+Reglas:
+
+Nunca usar redirecciones cruzadas.
+
+Nunca depender de window.location.
+
+Nunca envolver /auth con CompanyGuard.
+
+6.4 Logout Estable
+
+Logout debe ejecutarse así:
+
+await supabase.auth.signOut();
+router.replace("/auth");
+
+No depender del guard para salir.
+
+7. Capas del Código
+7.1 app/
+
+Páginas.
+
+Ensamblaje de componentes.
+
+Uso de hooks.
+
+No contiene lógica pesada.
+
+7.2 components/
+
+UI pura.
+
+Renderizado.
+
+Props.
+
+No hace queries directas.
+
+7.3 hooks/
+
+Orquestación de estado:
+
+useAuthState
+
+useActiveCompany
+
+useOpenShift
 
 Responsabilidad:
-- Renderizado
-- Props
-- Mostrar errores
 
-No debe:
-- Hacer queries directas
-- Manejar Supabase directamente
+Loading
 
----
+Error
 
-### 6.3 hooks/
+Estado limpio para UI
 
-Contiene lógica de estado y orquestación.
+7.4 lib/
 
-Responsabilidad:
-- Llamar funciones de lib/
-- Manejar loading y error
-- Exponer estado limpio a componentes
+Infraestructura:
 
----
+Queries a Supabase
 
-### 6.4 lib/
+CRUD
 
-Contiene acceso a datos y lógica de infraestructura.
+Helpers
 
-Responsabilidad:
-- Queries a Supabase
-- CRUD
-- Helpers
+Sin JSX.
 
-No debe contener JSX.
+8. Work Orders
+8.1 Estados Operativos
 
----
+new
 
-## 7. Work Orders (Estado + Operación)
+in_progress
 
-### 7.1 Estados operativos
+resolved
 
-Estados operativos base:
+closed
 
-- new
-- in_progress
-- resolved
-- closed
+"Invoiced" es estado derivado (invoice_id no null).
 
-Nota:
-- "Invoiced" es un estado derivado en UI, no un estado operativo.
-- Una orden se considera facturada cuando `invoice_id` no es null.
+8.2 Transiciones
 
-### 7.2 UI: Work Orders
+Controladas por trigger en DB.
 
-Ruta:
-- `/app/work-orders/page.tsx`
+Ejemplo validado:
+Tech no puede hacer resolved → in_progress.
 
-Capacidades:
-- Lista con filtros por URL:
-  - `all | mine | unassigned | delayed | ready_to_invoice`
-- Muestra empresa activa y contexto de sesión.
-- Selector de status por orden (UI), pero la DB es quien decide.
+9. Shift Gate (Bloqueo Operativo)
 
-### 7.3 State Machine (reglas de transición)
+Sin jornada activa no se puede:
 
-- La DB controla transiciones válidas (trigger).
-- Ejemplo ya validado:
-  - Tech NO puede hacer `resolved -> in_progress` (no puede “devolver” una orden).
+Cambiar status
 
----
+Comentar
 
-## 8. Facturación (Modelo A+)
+Generar factura
 
-Se mantiene relación bidireccional:
+Editar items
 
-En `invoices`:
-- work_order_id
+Login ≠ Permiso de operar.
 
-En `work_orders`:
-- invoice_id
-- invoiced_at
+Shift manda.
+
+10. Facturación (Modelo A+)
+
+Relación bidireccional:
+
+En invoices:
+
+work_order_id
+
+En work_orders:
+
+invoice_id
+
+invoiced_at
 
 No se permite facturar dos veces la misma orden.
 
----
-
-## 9. Multi-País
+11. Multi-País
 
 Cada empresa define:
 
-- country_code
-- currency_code
+country_code
 
-Impuestos:
-- Canadá (Ontario) default: 13% HST
-- Colombia default: 19% IVA
-- Personalizable vía tax_profiles
+currency_code
 
----
+Defaults:
 
-## 10. Alcance v1.0
+Ontario → 13% HST
+
+Colombia → 19% IVA
+
+Configurables vía tax_profiles.
+
+12. Asignación de Órdenes
+
+Regla v1.2:
+
+Solo owner/admin pueden cambiar assigned_to.
+
+Tech puede ver, pero no asignar.
+
+Auto-assign queda pendiente para validación futura.
+
+13. Candado de Shift
+
+Solo puede existir:
+
+1 shift abierto por (company_id, user_id).
+
+Implementado con índice único parcial.
+
+14. Estado Actual del Sistema
+
+✔ Auth estable
+✔ Routing sin loops
+✔ Multi-tenant aislado
+✔ Shift gate backend
+✔ Asignación controlada
+✔ Facturación base
+✔ Logout determinista
+
+15. Alcance v1.2
 
 Incluye:
-- Work Orders
-- Control Center
-- Jornada (Shift)
-- Facturación básica
-- Multi-tenant estructural
-- Multi-país base
+
+Auth formal /auth
+
+CompanyGuard estabilizado
+
+Work Orders
+
+Control Center
+
+Shift
+
+Facturación básica
+
+Multi-país base
 
 No incluye:
-- Company switcher
-- Offline completo
-- PDF de factura
-- Pagos online
-- Reportes financieros avanzados
-- Notificaciones push
 
----
+Company switcher
 
-## 11. Filosofía
+Offline completo
 
-ManosRemotas v1.0 busca ser:
+PDF de factura
 
-- Estable
-- Predecible
-- Seguro
-- Operativamente sólido
+Pagos online
 
-No busca ser complejo.
+Reportes financieros avanzados
 
----
+Notificaciones push
 
-## 12. Bloqueo Operativo (Shift Gate)
+16. Filosofía
 
-### 12.1 Regla de oro
-Sin **jornada activa (shift abierto)** no se permite operar.
+ManosRemotas v1.2 es:
 
-Operar = acciones que cambian estado o generan impacto operativo/financiero, por ejemplo:
-- Cambiar status de una Work Order
-- Agregar comentarios
-- Generar factura (invoice)
-- Agregar/editar/borrar items (work_order_items, invoice_items)
+Determinista
 
-Esto aplica incluso si el usuario está autenticado (Login ≠ Jornada).
+Seguro
 
-### 12.2 UX esperada
-Cuando la jornada está **cerrada**:
-- Debe mostrarse banner **⚠️ Jornada cerrada** con guía clara.
-- Debe existir un CTA para ir a **Control Center → Check-in**.
-- Se permite ver/listar, pero no operar.
+Multi-tenant real
 
-Cuando la jornada está **activa**:
-- Debe mostrarse banner **✅ Jornada activa**.
-- Se permite operar normalmente.
+Backend-driven
 
-### 12.3 Enforced en backend (no solo UI)
-El bloqueo debe existir en el backend para que:
-- No se pueda “bypassear” desde consola o llamadas directas a Supabase.
-- La seguridad sea consistente.
+Operativamente sólido
 
-### 12.4 Tests mínimos (manual)
-Pruebas de referencia (Control Center + Work Orders + Invoices):
-
-- Prueba 0: UI sin sesión muestra Sign in / Sign up.
-- Prueba 1: Login ok → carga empresa activa.
-- Prueba 2: Control Center KPIs + lists cargan.
-- Prueba 3: Botones “View →” abren /work-orders con filtro correcto.
-- Prueba 4: Filtros por URL funcionan (ej: ?filter=delayed).
-- Prueba 5: Jornada (check-in / check-out) refleja estado.
-- Prueba 6: Con jornada cerrada, intentar operar (status/comment/invoice/items) bloquea con RLS.
-
----
-
-## 13. Asignación de órdenes (Assignment Control)
-
-### 13.1 Regla (v1.0)
-La asignación `assigned_to` es controlada por **owner/admin**.
-
-- Un usuario con rol **tech** puede ver órdenes (según RLS), pero **no puede** cambiar `assigned_to`.
-- Flujo operativo v1.0:
-  “Tech ve la orden → solicita asignación → owner/admin asigna”.
-
-### 13.2 UI v1.0 (implementado)
-En Work Orders:
-
-- Si la orden está `unassigned`:
-  - Owner/Admin ve un dropdown “Asignar a técnico”.
-  - Tech NO ve opciones de asignación (ni botón ni dropdown).
-- La lista de técnicos sale desde `company_members` filtrando `role = tech`.
-
-### 13.3 Razón de negocio
-En empresas pequeñas, normalmente el administrador quiere controlar:
-- prioridades,
-- cargas de trabajo,
-- y responsabilidades.
-
-Esto reduce caos operativo en v1.0.
-
-### 13.4 Mejora futura (pendiente de validación)
-Posible feature: **auto-asignación** por tech (self-assign) bajo condiciones:
-- solo si la orden está unassigned
-- opcional por empresa (flag)
-- con auditoría
-
-**Estado:** NO implementar aún. Se valida con empresas reales primero.
-
----
-
-## 14. Implementación actual (referencia)
-
-### 14.1 Frontend (v1.0)
-- `/app/work-orders/page.tsx`
-  - Detecta `myRole` desde `company_members`.
-  - Carga lista de miembros para asignación (owner/admin).
-  - Usa `getOpenShift()` para mostrar estado de jornada.
-  - Cambia status vía `setWorkOrderStatus()` (la DB valida).
-  - Asigna vía `setWorkOrderAssignee()` solo desde UI owner/admin (la DB valida).
-
-- `/app/invoices/[invoiceId]/page.tsx`
-  - Carga invoice + items.
-  - Importante: el SELECT de `invoices` debe incluir `company_id` para poder insertar items con RLS.
-    Ejemplo: `select("invoice_id, company_id, ...")`
-  - Inserta items con `company_id` SIEMPRE (no condicional):
-    `insert({ company_id, invoice_id, ... })`
-
-### 14.2 Backend (v1.0)
-- DB gobierna:
-  - Shift Gate (RLS) para operaciones
-  - Control de asignación (RLS/triggers)
-  - Auditoría (trigger)
-  - Reglas de transición de status (trigger)
-
----
-
-## 15. Reglas específicas de Items
-
-### 15.1 work_order_items
-- Se usan para definir el alcance/costos de la orden (materiales/servicios).
-- Regla de operación:
-  - Con jornada activa: se permite operar según rol y reglas del negocio.
-  - Con jornada cerrada: bloqueado por RLS (shift gate).
-
-### 15.2 invoice_items
-- Se usan para facturación (líneas de factura).
-- Regla de operación (validada):
-  - Owner/Admin con jornada activa: puede INSERT/UPDATE/DELETE.
-  - Owner/Admin con jornada cerrada: bloqueado por RLS.
-  - Tech con jornada activa: permitido según policy actual (si el negocio decide restringirlo, se ajusta).
-  - Tech con jornada cerrada: bloqueado por RLS.
-
-### 15.3 Lección aprendida (clave)
-- Tener una policy “admin insert” sin shift gate rompe la regla de oro.
-- Se corrigió asegurando que las policies admin también exijan jornada activa.
-
----
-
-## 16. Candado: 1 Shift abierto por usuario + compañía
-
-Para evitar estados inconsistentes y pruebas “raras”:
-
-- Regla: solo puede existir **1 shift abierto** por `(company_id, user_id)`.
-- Implementación recomendada:
-  - índice único parcial sobre `shifts` donde `check_out_at is null`.
-
-Resultado esperado:
-- Si ya hay jornada activa, UI deshabilita check-in (mejor UX).
-- Si alguien intenta por API/DB: el índice bloquea.
+No improvisado.

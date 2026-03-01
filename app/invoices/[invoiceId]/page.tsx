@@ -4,6 +4,30 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 
+async function getDefaultTaxRate(companyId: string) {
+    // Fallback MVP (ON HST). Luego lo hacemos por país si hace falta.
+    const FALLBACK_TAX_RATE = 0.13;
+
+    const { data, error } = await supabase
+        .from("tax_profiles")
+        .select("rate")
+        .eq("company_id", companyId)
+        .eq("is_default", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.log("⚠️ No pude leer tax_profiles (RLS?):", error.message);
+        return FALLBACK_TAX_RATE;
+    }
+
+    const rate = Number((data as any)?.rate ?? NaN);
+    if (!Number.isFinite(rate)) return FALLBACK_TAX_RATE;
+
+    return rate;
+}
+
 type InvoiceRow = {
     invoice_id: string;
     invoice_number: string | null;
@@ -28,6 +52,24 @@ type InvoiceItemRow = {
     line_total: number | null;
     created_at: string | null;
 };
+function money(amount: any, currencyCode?: string | null) {
+    const x = Number(amount ?? 0);
+    const value = Number.isFinite(x) ? x : 0;
+
+    const currency = (currencyCode ?? "CAD").toUpperCase();
+
+    // COP casi siempre va sin decimales
+    const decimals = currency === "COP" ? 0 : 2;
+
+    const locale = currency === "COP" ? "es-CO" : "en-CA";
+
+    return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency,
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    }).format(value);
+}
 
 export default function InvoicePage() {
     const router = useRouter();
@@ -126,15 +168,24 @@ export default function InvoicePage() {
     }, [invoiceId, loadAll]);
 
     const totals = useMemo(() => {
-        return {
-            subtotal: inv?.subtotal ?? 0,
-            tax: inv?.tax_total ?? 0,
-            total: inv?.total ?? 0,
-            balance: inv?.balance_due ?? 0,
-        };
-    }, [inv]);
+        // Fuente de verdad: DB (invoices.*). Si todavía no ha cargado, hacemos fallback
+        // SOLO a columnas calculadas (line_*), sin recalcular con qty*unit_price.
+        const rows = (items as any[]) ?? [];
 
-    const addItem = useCallback(async () => {
+        const subtotalFromLines = rows.reduce((acc, it) => acc + Number(it.line_subtotal ?? 0), 0);
+        const taxFromLines = rows.reduce((acc, it) => acc + Number(it.line_tax ?? 0), 0);
+        const totalFromLines = rows.reduce((acc, it) => acc + Number(it.line_total ?? 0), 0);
+
+        const subtotal = Number(inv?.subtotal ?? subtotalFromLines);
+        const tax = Number(inv?.tax_total ?? taxFromLines);
+
+        // Preferir inv.total; si no, usamos el total de líneas; si no, subtotal+tax.
+        const total = Number(inv?.total ?? (totalFromLines || (subtotal + tax)));
+
+        const balance = Number(inv?.balance_due ?? total);
+
+        return { subtotal, tax, total, balance };
+    }, [inv, items]); const addItem = useCallback(async () => {
         if (!invoiceId) return;
         if (!desc.trim()) {
             alert("Descripción requerida");
@@ -153,14 +204,17 @@ export default function InvoicePage() {
 
             if (!companyId) throw new Error("Invoice sin company_id (no puedo agregar items)");
 
+            const taxRate = taxable ? await getDefaultTaxRate(companyId) : 0;
+
             const { error } = await supabase.from("invoice_items").insert({
                 company_id: companyId,
                 invoice_id: invoiceId,
                 description: desc,
                 qty: qty ?? 1,
                 unit_price: unitPrice ?? 0,
-                tax_rate: taxable ? 0.13 : 0,
+                tax_rate: taxRate,
             });
+
             if (error) throw error;
 
             setDesc("");
@@ -254,16 +308,16 @@ export default function InvoicePage() {
                         />
 
                         <div>
-                            <b>Subtotal:</b> {totals.subtotal}
+                            <b>Subtotal:</b> {money(inv?.subtotal ?? totals.subtotal, inv?.currency_code)}
                         </div>
                         <div>
-                            <b>Tax:</b> {totals.tax}
+                            <b>Tax:</b> {money(inv?.tax_total ?? totals.tax, inv?.currency_code)}
                         </div>
                         <div>
-                            <b>Total:</b> {totals.total}
+                            <b>Total:</b> {money(inv?.total ?? totals.total, inv?.currency_code)}
                         </div>
                         <div>
-                            <b>Balance due:</b> {totals.balance}
+                            <b>Balance due:</b> {money(inv?.balance_due ?? totals.balance, inv?.currency_code)}
                         </div>
                     </div>
                 </div>
@@ -382,10 +436,14 @@ export default function InvoicePage() {
                                     </div>
                                 </div>
                                 <div style={{ textAlign: "right", fontFamily: "monospace" }}>
-                                    <div>sub: {it.line_subtotal ?? 0}</div>
-                                    <div>tax: {it.line_tax ?? 0}</div>
+                                    <div>sub: {money(it.line_subtotal ?? (Number(it.qty ?? 0) * Number(it.unit_price ?? 0)), inv?.currency_code)}</div>
+                                    <div>tax: {money(it.line_tax ?? (Number(it.qty ?? 0) * Number(it.unit_price ?? 0) * Number(it.tax_rate ?? 0)), inv?.currency_code)}</div>
                                     <div>
-                                        <b>total: {it.line_total ?? 0}</b>
+                                        <b>total: {money(it.line_total ?? (
+                                            (Number(it.qty ?? 0) * Number(it.unit_price ?? 0)) +
+                                            (Number(it.qty ?? 0) * Number(it.unit_price ?? 0) * Number(it.tax_rate ?? 0))
+                                        ), inv?.currency_code)
+                                        }</b>
                                     </div>
                                 </div>
                             </div>
