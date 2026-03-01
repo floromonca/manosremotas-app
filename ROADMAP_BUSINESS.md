@@ -1,269 +1,171 @@
 ManosRemotas – Business Roadmap
-Phase 1 – Producto Vendible (Small Contractors Focus)
+Fase 1 (Post v1.2 Estable)
+Objetivo
 
-Base técnica: v1.2 estable
-Objetivo estratégico: Convertir ManosRemotas en un producto comercial listo para vender a contratistas pequeños (1–10 técnicos).
-Mercado inicial: Canadá (Ontario) + Colombia.
-Segmento primario: Electricistas, Handyman, HVAC pequeños, contratistas independientes.
+Convertir ManosRemotas en un producto vendible para contratistas pequeños en Canadá y Colombia.
 
-1. OBJETIVO DE FASE 1
+En esta fase no buscamos escalar.
+Buscamos que se vea profesional, usable y con valor claro.
 
-Transformar ManosRemotas de sistema funcional a:
+🎯 Prioridades Reales de Fase 1
+1️⃣ Onboarding Automático (Profesionalización inmediata)
+Qué debe pasar:
 
-Producto mínimo vendible (Sellable MVP)
+Cuando un usuario se registre:
 
-Esto significa:
+Se crea automáticamente una empresa
 
-Flujo completo orden → ejecución → facturación → pago
+Se crea membership como owner
 
-Seguridad multi-empresa sólida
+Se guarda país por defecto
 
-Experiencia simple (no técnica)
+Se redirige directo a /work-orders
 
-Mensaje comercial claro
+Eliminamos botón “bootstrap” manual
 
-Pricing definido
+Resultado esperado:
 
-Demo lista
+El usuario entra y ya tiene su sistema funcionando.
 
-2. DEFINICIÓN DE CLIENTE IDEAL (ICP)
-Perfil objetivo
+Impacto negocio:
 
-Contratista pequeño que:
+Reduce fricción.
+Evita confusión.
+Hace que el sistema parezca serio y terminado.
 
-Tiene 1–5 técnicos
+2️⃣ PDF Profesional de Factura
 
-Usa WhatsApp + Excel
+Aquí es donde el producto empieza a sentirse “real”.
 
-Pierde control de órdenes
+Debe incluir:
 
-Factura manualmente
+Logo de empresa
 
-No tiene software o usa algo muy complejo
+Nombre legal
 
-No quiere pagar $200+/mes
+Dirección
 
-Dolor principal
+Número de factura
 
-No sabe qué técnico está en qué orden
+Fecha
 
-No tiene historial claro
+Items detallados
 
-No controla horas trabajadas
+Subtotal
 
-Facturación lenta
+Impuesto correcto:
 
-Impuestos confusos (HST 13% / IVA 19%)
+Canadá → HST 13%
 
-Propuesta de valor
+Colombia → IVA 19%
 
-“Controla tus órdenes, técnicos y facturas en minutos.
-Sin Excel. Sin caos. Sin complicaciones.”
+Total final
 
-3. PRODUCTO MÍNIMO VENDIBLE (MVP NEGOCIO)
+Notas
 
-Debe incluir SOLO lo que genera valor directo:
+Función clave:
 
-3.1 Gestión de órdenes
+Botón “Descargar PDF”.
 
-Crear orden
+Impacto negocio:
 
-Asignar técnico
+El contratista puede facturar de verdad.
+Aquí empieza el valor monetizable.
 
-Cambiar status
+3️⃣ Gestión Simple de Técnicos
 
-Timeline automático
+Sistema mínimo pero funcional.
 
-Filtros (mine, unassigned, etc.)
+Owner puede:
 
-3.2 Control de ejecución
+Invitar técnico por email
 
-Check-in del técnico
+Asignar rol
 
-Registro de horas
+Ver estado (pendiente / activo)
 
-Items planificados vs ejecutados
+Técnico:
 
-Notas técnicas
+Se registra
 
-3.3 Facturación inteligente
+El sistema lo vincula automáticamente a la empresa
 
-Generar invoice desde WO
+Sin complejidad.
+Sin panel administrativo pesado.
 
-Impuestos configurables por país
+Impacto negocio:
 
-Aprobación de extras
+Permite usar el sistema en empresas reales.
+Sin esto, es solo demo.
 
-PDF descargable
+4️⃣ Landing Pública Básica
 
-3.4 Multi-país
+Página accesible sin login.
 
-Canadá (HST 13% default)
+Debe incluir:
 
-Colombia (IVA 19% default)
+Qué es ManosRemotas
 
-Tablas configurables por país
+A quién ayuda
 
-3.5 Seguridad real
+Beneficios claros
 
-RLS sólido
+Captura visual del sistema
 
-Separación multi-tenant
+Botón “Start Free”
 
-Roles (owner / tech)
+No más.
 
-4. LO QUE NO HACEMOS EN FASE 1
+Impacto negocio:
 
-No:
+Prepara monetización.
+Da imagen de producto.
+Permite mostrarlo sin explicar demasiado.
 
-App móvil nativa
+🚫 Fuera de Fase 1
 
-Integración con Stripe
+No tocamos:
 
-Pagos online
+Stripe
 
-AI automática
+Planes pagos
 
-Dashboard financiero complejo
+Suscripciones
 
-Integraciones contables
+Reportes financieros avanzados
 
-Automatización avanzada
+Offline
 
-Foco absoluto: producto simple, estable y vendible.
+Analytics complejos
 
-5. UX ENFOCADA EN NEGOCIO
+App móvil
 
-Reducir fricción.
+Enfoque: Producto funcional y vendible manualmente.
 
-Principios:
+🧠 Enfoque Estratégico
 
-3 clics máximo por acción
+Fase 1 no es “más features”.
 
-Lenguaje simple (no técnico)
+Es:
 
-Estados claros
+Reducir fricción
 
-Botones visibles
+Profesionalizar apariencia
 
-Nada escondido
+Entregar valor tangible (factura PDF)
 
-6. MODELO DE INGRESOS
+Permitir uso real por pequeña empresa
 
-Propuesta inicial:
+📊 Resultado Esperado al Final de Fase 1
 
-Plan Starter
+ManosRemotas debe poder:
 
-$29 CAD / mes
+Registrarse en menos de 1 minuto.
 
-1 empresa
+Crear orden en menos de 2 minutos.
 
-Hasta 3 técnicos
+Generar factura profesional en menos de 1 minuto.
 
-Órdenes ilimitadas
+Invitar técnico en menos de 30 segundos.
 
-Plan Pro
-
-$59 CAD / mes
-
-Hasta 10 técnicos
-
-Facturación avanzada
-
-Exportación PDF
-
-Colombia:
-
-Precio equivalente ajustado (COP)
-
-7. METAS DE FASE 1
-Meta técnica
-
-Producto estable listo para demo externa.
-
-Meta comercial
-
-Conseguir 3 usuarios reales de prueba.
-
-Meta validación
-
-Confirmar que pagarían
-
-Ajustar pricing
-
-Recoger feedback real
-
-8. PLAN DE EJECUCIÓN – 6 SEMANAS
-Semana 1
-
-Cerrar seguridad total
-
-Auditoría completa RLS
-
-Testing multi-empresa
-
-Semana 2
-
-Facturación sólida
-
-PDF profesional
-
-Cálculo impuestos estable
-
-Semana 3
-
-UX simplificación
-
-Limpieza UI
-
-Eliminación debug
-
-Semana 4
-
-Landing page simple
-
-Mensaje comercial claro
-
-Video demo básico
-
-Semana 5
-
-Pruebas con 2–3 contratistas
-
-Feedback estructurado
-
-Ajustes críticos
-
-Semana 6
-
-Definir pricing final
-
-Preparar onboarding básico
-
-Versión pública v1.3 Business
-
-9. MÉTRICAS CLAVE
-
-Tiempo promedio crear orden
-
-Tiempo generar factura
-
-Errores por usuario
-
-Feedback claridad interfaz
-
-Intención de pago
-
-10. POSICIONAMIENTO
-
-No somos:
-
-SAP
-
-QuickBooks
-
-Software empresarial pesado
-
-Somos:
-
-Sistema simple para contratistas que quieren orden sin complicarse.
+Si no cumple eso, no está listo para vender.
