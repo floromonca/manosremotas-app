@@ -1,13 +1,12 @@
 "use client";
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { safeStatus, type WorkOrderStatus } from "../../../lib/supabase/workOrders";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
-
-
-
+import { createInvoiceFromWorkOrder } from "../../../lib/invoices";
 
 type WorkOrder = {
     work_order_id: string;
@@ -19,28 +18,74 @@ type WorkOrder = {
     scheduled_for: string | null;
     created_at: string;
     assigned_to: string | null;
+    invoice_id?: string | null;
+};
+
+type WorkOrderItem = {
+    item_id: string;
+    description: string | null;
+
+    // legacy (si existe en tu DB)
+    quantity: number | null;
+
+    // mini biblia
+    qty_planned: number | null;
+    qty_done: number | null;
+
+    // pricing
+    unit_price: number | null;
+    taxable: boolean | null;
+
+    pending_pricing?: boolean | null;
+    pricing_status?: string | null; // "pending_pricing" | "priced" | ...
+    tech_note?: string | null;
 };
 
 export default function WorkOrderDetailPage() {
     const router = useRouter();
     const params = useParams();
     const workOrderId = (params as any)?.workOrderId as string;
-    const { user, authLoading } = useAuthState();
+
+    const { user } = useAuthState();
     const myUserId = user?.id ?? null;
 
-    const { companyId: activeCompanyId, isLoadingCompany } = useActiveCompany();
+    const { companyId: activeCompanyId } = useActiveCompany();
 
-    // temporal mientras cargamos rol:
+    const [roleLoading, setRoleLoading] = useState(false);
     const [myRole, setMyRole] = useState<string | null>(null);
-    const isAdmin = myRole === "owner" || myRole === "admin";
 
-    console.log("DEBUG myRole:", myRole, "isAdmin:", isAdmin);
+    const isAdmin = myRole === "owner" || myRole === "admin";
+    const isTech = myRole === "tech";
+
+    const [wo, setWo] = useState<WorkOrder | null>(null);
+    const woRef = useRef<WorkOrder | null>(null);
 
     useEffect(() => {
-        if (!activeCompanyId) return;
-        if (!myUserId) return;
+        woRef.current = wo;
+    }, [wo]);
+    const [items, setItems] = useState<WorkOrderItem[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [err, setErr] = useState("");
 
-        (async () => {
+    const [showForm, setShowForm] = useState(false);
+    const [savingItem, setSavingItem] = useState(false);
+
+    // Admin pricing draft (para pending_pricing)
+    const [priceDraft, setPriceDraft] = useState<Record<string, number>>({});
+    const [savingPrice, setSavingPrice] = useState<Record<string, boolean>>({});
+
+    // Form (lo reutilizamos, pero UI cambia según rol)
+    const [newItem, setNewItem] = useState({
+        description: "",
+        quantity: 1,
+        unit_price: 0, // admin
+        taxable: true, // admin
+    });
+
+    const loadRole = useCallback(async () => {
+        if (!activeCompanyId || !myUserId) return;
+        setRoleLoading(true);
+        try {
             const { data, error } = await supabase
                 .from("company_members")
                 .select("role")
@@ -53,33 +98,80 @@ export default function WorkOrderDetailPage() {
                 setMyRole(null);
                 return;
             }
-
             setMyRole((data as any)?.role ?? null);
-        })();
+        } finally {
+            setRoleLoading(false);
+        }
     }, [activeCompanyId, myUserId]);
 
-    const [wo, setWo] = useState<WorkOrder | null>(null);
-    type WorkOrderItem = {
-        item_id: string;
-        description: string | null;
-        pricing_status?: string | null;
-        pending_pricing?: boolean | null;
+    const loadWorkOrder = useCallback(async () => {
+        if (!workOrderId) return;
 
-        // legacy
-        quantity: number | null;
+        setLoading(true);
+        setErr("");
 
-        // mini biblia
-        qty_planned: number | null;
-        qty_done: number | null;
+        try {
+            const { data, error } = await supabase
+                .from("work_orders")
+                .select(
+                    "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, invoice_id",
+                )
+                .eq("work_order_id", workOrderId)
+                .single();
 
-        // pricing
-        unit_price: number | null;
-        taxable: boolean | null;
-    };
-    const [items, setItems] = useState<WorkOrderItem[]>([]);
+            if (error) throw error;
 
-    const [priceDraft, setPriceDraft] = useState<Record<string, number>>({});
-    const [savingPrice, setSavingPrice] = useState<Record<string, boolean>>({});
+            const mapped = {
+                ...(data as any),
+                status: safeStatus((data as any)?.status),
+            } as WorkOrder;
+
+            setWo(mapped);
+
+            const { data: itemRows, error: itemErr } = await supabase
+                .from("work_order_items")
+                .select(
+                    "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status",
+                )
+                .eq("work_order_id", workOrderId)
+                .order("created_at", { ascending: true });
+
+            if (itemErr) throw itemErr;
+            setItems((itemRows as any) ?? []);
+        } catch (e: any) {
+            setErr(e?.message ?? "Error cargando Work Order");
+            setWo(null);
+            setItems([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [workOrderId]);
+
+    useEffect(() => {
+        loadRole();
+    }, [loadRole]);
+
+    useEffect(() => {
+        loadWorkOrder();
+    }, [loadWorkOrder]);
+
+    const refreshItemsOnly = useCallback(async () => {
+        if (!workOrderId) return;
+        const { data: itemRows, error: itemErr } = await supabase
+            .from("work_order_items")
+            .select(
+                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status",
+            )
+            .eq("work_order_id", workOrderId)
+            .order("created_at", { ascending: true });
+
+        if (itemErr) {
+            alert(`No se pudieron recargar items: ${itemErr.message}`);
+            return;
+        }
+        setItems((itemRows as any) ?? []);
+    }, [workOrderId]);
+
     const updateQtyDone = useCallback(
         async (itemId: string, newQtyDone: number | null) => {
             const { error } = await supabase
@@ -92,22 +184,18 @@ export default function WorkOrderDetailPage() {
                 return;
             }
 
-            const { data: itemRows, error: loadErr } = await supabase
-                .from("work_order_items")
-                .select(
-                    "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pricing_status",
-                )
-                .eq("work_order_id", workOrderId)
-                .order("created_at", { ascending: true });
+            await refreshItemsOnly();
 
-            if (loadErr) {
-                alert(`No se pudieron recargar items: ${loadErr.message}`);
-                return;
+            // Si ya existe invoice, intentamos sync (no bloqueante)
+            if ((woRef.current as any)?.invoice_id) {
+                try {
+                    await createInvoiceFromWorkOrder(workOrderId);
+                } catch (syncErr: any) {
+                    console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+                }
             }
-
-            setItems(itemRows ?? []);
         },
-        [workOrderId],
+        [refreshItemsOnly, workOrderId],
     );
 
     const priceItem = useCallback(
@@ -120,7 +208,7 @@ export default function WorkOrderDetailPage() {
                     .from("work_order_items")
                     .update({
                         unit_price: newPrice,
-                        taxable: true, // por ahora lo dejamos true
+                        taxable: true,
                         pending_pricing: false,
                         pricing_status: "priced",
                     })
@@ -131,11 +219,21 @@ export default function WorkOrderDetailPage() {
                     return;
                 }
 
-                // recargar items
+                // ✅ Auto-sync: si esta WO ya tiene invoice, refrescar invoice_items desde WO
+                if ((woRef.current as any)?.invoice_id) {
+                    try {
+                        await createInvoiceFromWorkOrder(workOrderId);
+                    } catch (syncErr: any) {
+                        console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+                        // No bloqueamos: el price ya quedó guardado
+                    }
+                }
+
+                // ✅ Recargar items
                 const { data: itemRows, error: itemErr } = await supabase
                     .from("work_order_items")
                     .select(
-                        "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pricing_status",
+                        "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status",
                     )
                     .eq("work_order_id", workOrderId)
                     .order("created_at", { ascending: true });
@@ -152,64 +250,113 @@ export default function WorkOrderDetailPage() {
         },
         [priceDraft, workOrderId],
     );
-    const [showForm, setShowForm] = useState(false);
-    const [savingItem, setSavingItem] = useState(false);
+    const totals = useMemo(() => {
+        // Total admin: sum(qty_to_price * unit_price)
+        const sum = items.reduce((acc, it) => {
+            const qtyPlannedRaw =
+                it.qty_planned === null || it.qty_planned === undefined ? null : Number(it.qty_planned);
 
-    const [newItem, setNewItem] = useState({
-        description: "",
-        quantity: 1,
-        unit_price: 0,      // solo admin lo usa
-        taxable: true,      // solo admin lo decide
-    });
-    const [loading, setLoading] = useState(false);
-    const [err, setErr] = useState("");
+            const qtyDoneRaw =
+                it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
 
-    useEffect(() => {
-        if (!workOrderId) return;
+            // Si es planned → se factura con Done si existe, si no con Plan.
+            // Si es extra → se factura con Done (porque Plan es null).
+            const qtyToPrice = qtyPlannedRaw !== null
+                ? Number((qtyDoneRaw ?? qtyPlannedRaw) ?? 0)
+                : Number(qtyDoneRaw ?? 0);
+            const unit = Number(it.unit_price ?? 0);
+            return acc + qtyToPrice * unit;
+        }, 0);
 
-        (async () => {
-            setLoading(true);
-            setErr("");
-            try {
-                const { data, error } = await supabase
-                    .from("work_orders")
-                    .select(
-                        "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to",
-                    )
-                    .eq("work_order_id", workOrderId)
-                    .single();
+        return { sum };
+    }, [items]);
 
-                if (error) throw error;
+    const onCreateItem = useCallback(async () => {
+        setErr("");
 
-                const mapped = {
-                    ...(data as any),
-                    status: safeStatus((data as any)?.status),
-                } as WorkOrder;
+        if (roleLoading) {
+            setErr("Cargando rol… intenta de nuevo en 1 segundo.");
+            return;
+        }
+        if (!myRole) {
+            setErr("No pude determinar tu rol (owner/admin/tech). Reintenta.");
+            return;
+        }
 
-                setWo(mapped);
+        const desc = String(newItem.description ?? "").trim();
+        if (!desc) {
+            setErr("Descripción requerida");
+            return;
+        }
 
-                const { data: itemRows, error: itemErr } = await supabase
-                    .from("work_order_items")
-                    .select("item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pricing_status")
-                    .eq("work_order_id", workOrderId)
-                    .order("created_at", { ascending: true });
+        if (!wo?.company_id) {
+            setErr("WO sin company_id (no puedo crear items)");
+            return;
+        }
 
-                if (itemErr) throw itemErr;
+        const qty = Number(newItem.quantity ?? 1);
+        if (!Number.isFinite(qty) || qty <= 0) {
+            setErr("La cantidad debe ser mayor a 0.");
+            return;
+        }
 
-                setItems(itemRows ?? []);
-            } catch (e: any) {
-                setErr(e?.message ?? "Error cargando Work Order");
-                setWo(null);
-            } finally {
-                setLoading(false);
+        setSavingItem(true);
+        try {
+            const base = {
+                company_id: wo.company_id,
+                work_order_id: workOrderId,
+                item_type: "service",
+                description: desc,
+            };
+
+            // Admin -> planned (qty_planned + priced)
+            // Tech  -> extra   (qty_done + pending_pricing)
+            const payload = isAdmin
+                ? {
+                    ...base,
+                    qty_planned: qty,
+                    qty_done: null,
+                    unit_price: Number(newItem.unit_price ?? 0),
+                    taxable: Boolean(newItem.taxable ?? true),
+                    pending_pricing: false,
+                    pricing_status: "priced",
+                }
+                : {
+                    ...base,
+                    qty_planned: null,
+                    qty_done: qty,
+                    unit_price: 0,
+                    taxable: true,
+                    pending_pricing: true,
+                    pricing_status: "pending_pricing",
+                };
+
+            const { error } = await supabase.from("work_order_items").insert(payload);
+            if (error) throw error;
+
+            // Si ya existe invoice, sync (no bloqueante)
+            if ((woRef.current as any)?.invoice_id) {
+                try {
+                    await createInvoiceFromWorkOrder(workOrderId);
+                } catch (syncErr: any) {
+                    console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+                }
             }
-        })();
-    }, [workOrderId]);
+
+            await refreshItemsOnly();
+
+            setNewItem({ description: "", quantity: 1, unit_price: 0, taxable: true });
+            setShowForm(false);
+        } catch (e: any) {
+            setErr(e?.message ?? "Error creando item");
+        } finally {
+            setSavingItem(false);
+        }
+    }, [roleLoading, myRole, newItem, wo, workOrderId, isAdmin, refreshItemsOnly]);
 
     return (
         <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-
                 <button
                     onClick={() => setShowForm((s) => !s)}
                     style={{
@@ -224,10 +371,18 @@ export default function WorkOrderDetailPage() {
                 >
                     {showForm ? "Cancelar" : "+ Agregar item"}
                 </button>
-                <div>
+
+                <div style={{ textAlign: "center" }}>
                     <h1 style={{ margin: 0 }}>Work Order</h1>
-                    <div style={{ opacity: 0.7, fontFamily: "monospace" }}>
-                        {workOrderId}
+                    <div style={{ opacity: 0.7, fontFamily: "monospace" }}>{workOrderId}</div>
+                    <div style={{ opacity: 0.75, marginTop: 4, fontSize: 12 }}>
+                        Rol: <b>{myRole ?? "—"}</b>
+                        {wo?.invoice_id ? (
+                            <>
+                                {" "}
+                                · Invoice: <span style={{ fontFamily: "monospace" }}>{String(wo.invoice_id).slice(0, 8)}</span>
+                            </>
+                        ) : null}
                     </div>
                 </div>
 
@@ -259,6 +414,7 @@ export default function WorkOrderDetailPage() {
                         background: "#fff5f5",
                         color: "#a40000",
                         fontWeight: 700,
+                        whiteSpace: "pre-wrap",
                     }}
                 >
                     {err}
@@ -288,21 +444,12 @@ export default function WorkOrderDetailPage() {
                             </div>
                             <div>
                                 <b>Assigned to:</b>{" "}
-                                <span style={{ fontFamily: "monospace" }}>
-                                    {(wo.assigned_to ?? "—").slice(0, 8)}
-                                </span>
+                                <span style={{ fontFamily: "monospace" }}>{(wo.assigned_to ?? "—").slice(0, 8)}</span>
                             </div>
                         </div>
 
                         {/* Items */}
-                        {/* Items */}
-                        <div
-                            style={{
-                                marginTop: 14,
-                                paddingTop: 12,
-                                borderTop: "1px solid #eee",
-                            }}
-                        >
+                        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
                             <div
                                 style={{
                                     display: "flex",
@@ -354,44 +501,20 @@ export default function WorkOrderDetailPage() {
                                     <input
                                         placeholder="Descripción (ej: Piso laminado 20m2)"
                                         value={newItem.description}
-                                        onChange={(e) =>
-                                            setNewItem((s) => ({ ...s, description: e.target.value }))
-                                        }
+                                        onChange={(e) => setNewItem((s) => ({ ...s, description: e.target.value }))}
                                         style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
                                     />
 
                                     <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                                         <div style={{ display: "grid", gap: 6 }}>
                                             <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>
-                                                Cantidad
+                                                {isAdmin ? "Cantidad planificada" : "Cantidad realizada (extra)"}
                                             </div>
                                             <input
                                                 placeholder="Ej: 10"
                                                 type="number"
                                                 value={newItem.quantity}
-                                                onChange={(e) =>
-                                                    setNewItem((s) => ({ ...s, quantity: Number(e.target.value) }))
-                                                }
-                                                style={{
-                                                    padding: 10,
-                                                    borderRadius: 10,
-                                                    border: "1px solid #ddd",
-                                                    width: 160,
-                                                }}
-                                            />
-                                        </div>
-
-                                        <div style={{ display: "grid", gap: 6 }}>
-                                            <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>
-                                                Precio unitario
-                                            </div>
-                                            <input
-                                                placeholder="Ej: 8.00"
-                                                type="number"
-                                                value={newItem.unit_price}
-                                                onChange={(e) =>
-                                                    setNewItem((s) => ({ ...s, unit_price: Number(e.target.value) }))
-                                                }
+                                                onChange={(e) => setNewItem((s) => ({ ...s, quantity: Number(e.target.value) }))}
                                                 style={{
                                                     padding: 10,
                                                     borderRadius: 10,
@@ -400,99 +523,52 @@ export default function WorkOrderDetailPage() {
                                                 }}
                                             />
                                         </div>
+
+                                        {isAdmin ? (
+                                            <div style={{ display: "grid", gap: 6 }}>
+                                                <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>Precio unitario</div>
+                                                <input
+                                                    placeholder="Ej: 8.00"
+                                                    type="number"
+                                                    value={newItem.unit_price}
+                                                    onChange={(e) => setNewItem((s) => ({ ...s, unit_price: Number(e.target.value) }))}
+                                                    style={{
+                                                        padding: 10,
+                                                        borderRadius: 10,
+                                                        border: "1px solid #ddd",
+                                                        width: 200,
+                                                    }}
+                                                />
+                                            </div>
+                                        ) : null}
                                     </div>
 
-                                    <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={newItem.taxable}
-                                            onChange={(e) =>
-                                                setNewItem((s) => ({ ...s, taxable: e.target.checked }))
-                                            }
-                                        />
-                                        Taxable
-                                    </label>
-                                    <div style={{ fontWeight: 900, marginTop: 4, opacity: 0.9 }}>
-                                        Total item: $
-                                        {(Number(newItem.quantity ?? 0) * Number(newItem.unit_price ?? 0)).toFixed(2)}
-                                    </div>
+                                    {isAdmin ? (
+                                        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={newItem.taxable}
+                                                onChange={(e) => setNewItem((s) => ({ ...s, taxable: e.target.checked }))}
+                                            />
+                                            Taxable
+                                        </label>
+                                    ) : (
+                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
+                                            Como técnico: este item queda <b>pending_pricing</b> para que el admin lo apruebe.
+                                        </div>
+                                    )}
+
+                                    {isAdmin ? (
+                                        <div style={{ fontWeight: 900, marginTop: 4, opacity: 0.9 }}>
+                                            Total item: ${(Number(newItem.quantity ?? 0) * Number(newItem.unit_price ?? 0)).toFixed(2)}
+                                        </div>
+                                    ) : null}
 
                                     <div style={{ display: "flex", gap: 10 }}>
                                         <button
-                                            disabled={savingItem || !myRole}
-                                            onClick={async () => {
-                                                setErr("");
-                                                if (!myRole) {
-                                                    setErr("Cargando rol… intenta de nuevo en 1 segundo.");
-                                                    return;
-                                                }
-
-                                                const desc = String(newItem.description ?? "").trim();
-                                                if (!desc) {
-                                                    setErr("Descripción requerida");
-                                                    return;
-                                                }
-
-                                                try {
-                                                    setSavingItem(true);
-                                                    setErr(""); // ✅ limpia error anterior
-
-                                                    if (!wo?.company_id) {
-                                                        throw new Error("WO sin company_id (no puedo crear items)");
-                                                    }
-
-                                                    const base = {
-                                                        company_id: wo.company_id,
-                                                        work_order_id: workOrderId,
-                                                        item_type: "service",
-                                                        description: desc,
-                                                    };
-
-                                                    // Admin → planned (qty_planned + priced)
-                                                    const payload = isAdmin
-                                                        ? {
-                                                            ...base,
-                                                            qty_planned: Number(newItem.quantity ?? 1),
-                                                            qty_done: null,
-                                                            unit_price: Number(newItem.unit_price ?? 0),
-                                                            taxable: Boolean(newItem.taxable ?? true),
-                                                            pending_pricing: false,
-                                                        }
-                                                        : {
-                                                            // Tech → extra (qty_done + pending_pricing)
-                                                            ...base,
-                                                            qty_planned: null,
-                                                            qty_done: Number(newItem.quantity ?? 1),
-                                                            unit_price: 0,
-                                                            taxable: true,
-                                                            pending_pricing: true,
-                                                        };
-
-                                                    const { error } = await supabase.from("work_order_items").insert(payload);
-
-                                                    if (error) throw error; // ✅ aquí va a caer el mensaje de RLS exacto
-
-                                                    // ✅ Recargar items después de guardar
-                                                    const { data: itemRows, error: itemErr } = await supabase
-                                                        .from("work_order_items")
-                                                        .select("item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pricing_status")
-                                                        .eq("work_order_id", workOrderId)
-                                                        .order("created_at", { ascending: true });
-
-                                                    if (itemErr) throw itemErr;
-
-                                                    setItems(itemRows ?? []);
-
-                                                    // ✅ Reset form
-                                                    setNewItem({ description: "", quantity: 1, unit_price: 0, taxable: true });
-                                                    setShowForm(false);
-                                                } catch (e: any) {
-                                                    // ✅ Este es el mensaje que necesito para darte el SQL exacto de policies
-                                                    setErr(e?.message ?? "Error creando item");
-                                                } finally {
-                                                    setSavingItem(false);
-                                                }
-                                            }}
+                                            type="button"
+                                            disabled={savingItem || roleLoading || !myRole}
+                                            onClick={onCreateItem}
                                             style={{
                                                 padding: "10px 12px",
                                                 borderRadius: 10,
@@ -508,6 +584,7 @@ export default function WorkOrderDetailPage() {
                                         </button>
 
                                         <button
+                                            type="button"
                                             onClick={() => setShowForm(false)}
                                             style={{
                                                 padding: "10px 12px",
@@ -526,15 +603,14 @@ export default function WorkOrderDetailPage() {
 
                             {/* Lista / tabla */}
                             {items.length === 0 ? (
-                                <div style={{ marginTop: 10, opacity: 0.7 }}>
-                                    No hay items todavía.
-                                </div>
+                                <div style={{ marginTop: 10, opacity: 0.7 }}>No hay items todavía.</div>
                             ) : (
                                 <div style={{ marginTop: 10, overflowX: "auto" }}>
                                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                                         <thead>
                                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
                                                 <th style={{ padding: "8px 6px" }}>Descripción</th>
+                                                <th style={{ padding: "8px 6px" }}>Tipo</th>
                                                 <th style={{ padding: "8px 6px" }}>Plan</th>
                                                 <th style={{ padding: "8px 6px" }}>Done</th>
                                                 {isAdmin ? <th style={{ padding: "8px 6px" }}>Valor</th> : null}
@@ -544,34 +620,51 @@ export default function WorkOrderDetailPage() {
                                         </thead>
                                         <tbody>
                                             {items.map((it) => {
-                                                const qtyPlanned = Number(it.qty_planned ?? it.quantity ?? 0);
-                                                const qtyDone = it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
-                                                const qtyToPrice = Number((qtyDone ?? qtyPlanned) ?? 0);
+                                                const hasPlanned = it.qty_planned !== null && it.qty_planned !== undefined;
+
+                                                // Plan es SOLO qty_planned (si no existe, es extra)
+                                                const qtyPlanned = hasPlanned ? Number(it.qty_planned ?? 0) : null;
+
+                                                // Done puede existir en planned (cuando tech reporta) o en extra (porque extra = qty_done)
+                                                const qtyDone =
+                                                    it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
+
+                                                // Para pricing/total: usamos done si existe; si no, planned.
+                                                const qtyToPrice = Number((qtyDone ?? qtyPlanned ?? 0) ?? 0);
 
                                                 const unit = Number(it.unit_price ?? 0);
                                                 const lineTotal = qtyToPrice * unit;
 
+                                                const isPendingPricing =
+                                                    it.pricing_status === "pending_pricing" || it.pending_pricing === true;
+
+                                                const tipo = hasPlanned ? "Planned" : "Extra";
+
                                                 return (
                                                     <tr key={it.item_id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                                                        <td style={{ padding: "8px 6px" }}>
-                                                            {it.description}
+                                                        {/* Descripción */}
+                                                        <td style={{ padding: "8px 6px" }}>{it.description ?? "—"}</td>
+
+                                                        {/* Tipo */}
+                                                        <td style={{ padding: "8px 6px", fontWeight: 800 }}>
+                                                            {tipo}
                                                         </td>
 
                                                         {/* PLAN */}
                                                         <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
-                                                            {qtyPlanned}
+                                                            {hasPlanned ? qtyPlanned : "—"}
                                                         </td>
 
                                                         {/* DONE */}
                                                         <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
                                                             {isAdmin ? (
-                                                                <span>{qtyDone ?? ""}</span>
+                                                                <span style={{ opacity: 0.85 }}>{qtyDone ?? 0}</span>
                                                             ) : (
                                                                 <input
                                                                     type="number"
                                                                     value={qtyDone ?? ""}
                                                                     placeholder="0"
-                                                                    style={{ width: 80, padding: "6px 8px" }}
+                                                                    style={{ width: 90, padding: "6px 8px" }}
                                                                     onChange={(e) => {
                                                                         const v = e.target.value;
                                                                         const n = v === "" ? null : Number(v);
@@ -581,25 +674,30 @@ export default function WorkOrderDetailPage() {
                                                             )}
                                                         </td>
 
-                                                        {/* VALOR */}
+                                                        {/* VALOR (admin) */}
                                                         {isAdmin ? (
                                                             <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
-                                                                {isAdmin && it.pricing_status === "pending_pricing" ? (
+                                                                {isPendingPricing ? (
                                                                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                                                                         <input
                                                                             type="number"
                                                                             value={priceDraft[it.item_id] ?? ""}
                                                                             placeholder="Precio"
-                                                                            style={{ width: 90, padding: "6px 8px" }}
+                                                                            style={{ width: 100, padding: "6px 8px" }}
                                                                             onChange={(e) =>
                                                                                 setPriceDraft((s) => ({
                                                                                     ...s,
-                                                                                    [it.item_id]: e.target.value === "" ? 0 : Number(e.target.value),
+                                                                                    [it.item_id]:
+                                                                                        e.target.value === "" ? 0 : Number(e.target.value),
                                                                                 }))
                                                                             }
                                                                         />
                                                                         <button
-                                                                            disabled={savingPrice[it.item_id] || Number(priceDraft[it.item_id] ?? 0) <= 0}
+                                                                            type="button"
+                                                                            disabled={
+                                                                                savingPrice[it.item_id] ||
+                                                                                Number(priceDraft[it.item_id] ?? 0) <= 0
+                                                                            }
                                                                             onClick={() => {
                                                                                 const v = Number(priceDraft[it.item_id] ?? 0);
                                                                                 if (!Number.isFinite(v) || v <= 0) {
@@ -627,12 +725,11 @@ export default function WorkOrderDetailPage() {
                                                                 )}
                                                             </td>
                                                         ) : null}
-                                                        {/* TAXABLE */}
-                                                        <td style={{ padding: "8px 6px" }}>
-                                                            {it.taxable ? "✅" : "—"}
-                                                        </td>
 
-                                                        {/* TOTAL */}
+                                                        {/* TAXABLE */}
+                                                        <td style={{ padding: "8px 6px" }}>{it.taxable ? "✅" : "—"}</td>
+
+                                                        {/* TOTAL (admin) */}
                                                         {isAdmin ? (
                                                             <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
                                                                 ${lineTotal.toFixed(2)}
@@ -643,22 +740,25 @@ export default function WorkOrderDetailPage() {
                                             })}
                                         </tbody>
                                     </table>
+
                                     {isAdmin ? (
                                         <div style={{ marginTop: 10, textAlign: "right", fontWeight: 900 }}>
                                             Total: $
                                             {items
                                                 .reduce((acc, it) => {
-                                                    const qtyPlanned = Number(it.qty_planned ?? it.quantity ?? 0);
+                                                    const hasPlanned = it.qty_planned !== null && it.qty_planned !== undefined;
+                                                    const qtyPlanned = hasPlanned ? Number(it.qty_planned ?? 0) : null;
                                                     const qtyDone =
                                                         it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
-                                                    const qtyToPrice = Number((qtyDone ?? qtyPlanned) ?? 0);
 
+                                                    const qtyToPrice = Number((qtyDone ?? qtyPlanned ?? 0) ?? 0);
                                                     const unit = Number(it.unit_price ?? 0);
                                                     return acc + qtyToPrice * unit;
                                                 }, 0)
                                                 .toFixed(2)}
                                         </div>
-                                    ) : null}                                </div>
+                                    ) : null}
+                                </div>
                             )}
                         </div>
                     </div>
