@@ -11,6 +11,7 @@ import { useUrlWoFilter, type WOFilter } from "../../hooks/useUrlWoFilter";
 import { createInvoiceFromWorkOrder } from "../../lib/invoices";
 import { CompanyGuard } from "../components/CompanyGuard";
 
+
 import {
     fetchWorkOrders,
     safeStatus,
@@ -40,6 +41,10 @@ export default function WorkOrdersPage() {
     const router = useRouter();
 
     const { user, authLoading } = useAuthState();
+    console.log("🔥 WorkOrdersPage rendered", {
+        userId: user?.id ?? null,
+        authLoading,
+    });
 
     // ✅ Auth UI (Sign in / Sign up)
     const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
@@ -50,50 +55,22 @@ export default function WorkOrdersPage() {
     const auditChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const auditWoIdRef = useRef<string | null>(null);
 
+    const [companyNameDraft, setCompanyNameDraft] = useState("");
+    const [companyNameSaving, setCompanyNameSaving] = useState(false);
+    const [companyNameMsg, setCompanyNameMsg] = useState<string | null>(null);
+
     // ✅ Guards para evitar re-suscripciones repetidas
     const woRtRef = useRef<string | null>(null);
     const auditRtRef = useRef<string | null>(null);
 
-    const doAuth = useCallback(async () => {
-        setAuthMsg("");
-        setAuthBusy(true);
-        try {
-            if (!authEmail || !authPassword) {
-                setAuthMsg("Please enter email and password.");
-                return;
-            }
+    const doAuth = useCallback(() => {
+        router.replace("/auth");
+    }, [router]);
 
-            if (authMode === "signin") {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email: authEmail,
-                    password: authPassword,
-                });
-                if (error) {
-                    setAuthMsg(error.message);
-                    return;
-                }
-                setAuthMsg("Signed in ✅");
-                return;
-            }
+    const { companyId, companyName, isLoadingCompany, refreshCompany } = useActiveCompany();
 
-            const { error } = await supabase.auth.signUp({
-                email: authEmail,
-                password: authPassword,
-            });
-            if (error) {
-                setAuthMsg(error.message);
-                return;
-            }
 
-            setAuthMsg(
-                "Account created ✅ If email confirmation is enabled, check your inbox to verify.",
-            );
-        } finally {
-            setAuthBusy(false);
-        }
-    }, [authEmail, authPassword, authMode]);
 
-    const { companyId, companyName, isLoadingCompany } = useActiveCompany();
     const { woFilter, setWoFilterAndUrl } = useUrlWoFilter();
 
     const [rows, setRows] = useState<WorkOrder[]>([]);
@@ -230,6 +207,41 @@ export default function WorkOrdersPage() {
         await supabase.auth.signOut();
         router.replace("/auth");
     }, [router]);
+
+    const saveCompanyName = useCallback(async () => {
+        if (!companyId) return;
+
+        if (myRole !== "owner") {
+            setCompanyNameMsg("Solo el owner puede cambiar el nombre.");
+            return;
+        }
+
+        const nextName = (companyNameDraft || "").trim();
+        console.log("DEBUG saveCompanyName", { companyId, myRole, nextName });
+        if (!nextName) {
+            setCompanyNameMsg("El nombre no puede quedar vacío.");
+            return;
+        }
+
+        setCompanyNameSaving(true);
+        setCompanyNameMsg(null);
+        try {
+            const { error } = await supabase
+                .from("companies")
+                .update({ company_name: nextName })
+                .eq("company_id", companyId);
+
+            if (error) throw error;
+
+            setCompanyNameMsg("Nombre actualizado ✅");
+            refreshCompany();
+
+        } catch (e: any) {
+            setCompanyNameMsg(e?.message ?? String(e));
+        } finally {
+            setCompanyNameSaving(false);
+        }
+    }, [companyId, myRole, companyNameDraft]);
     const allowedStatusesForRole = (
         role: string | null,
         current: WorkOrderStatus,
@@ -252,12 +264,17 @@ export default function WorkOrdersPage() {
         return [current];
     };
 
-
+    useEffect(() => {
+        setCompanyNameDraft(companyName ?? "");
+    }, [companyName]);
 
     // ✅ Carga órdenes SOLO cuando hay user + companyId (evita ruido cuando no estás logueado)
     useEffect(() => {
         if (!user) return;
-        if (!companyId) return;
+        if (!companyId) {
+
+            return;
+        }
 
         loadOrders(companyId);
     }, [companyId, loadOrders, user]);
@@ -619,9 +636,52 @@ export default function WorkOrdersPage() {
                 >
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                         <div style={{ fontSize: 13, opacity: 0.7 }}>Empresa</div>
+
                         <div style={{ fontSize: 18, fontWeight: 800 }}>
-                            {user ? companyName || "—" : "—"}
+                            {user ? (
+                                myRole === "owner" ? (
+                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                        <input
+                                            value={companyNameDraft}
+                                            onChange={(e) => setCompanyNameDraft(e.target.value)}
+                                            style={{
+                                                fontSize: 18,
+                                                fontWeight: 800,
+                                                padding: "6px 10px",
+                                                borderRadius: 10,
+                                                border: "1px solid #ddd",
+                                                width: 280,
+                                            }}
+                                        />
+                                        <button
+                                            onClick={saveCompanyName}
+                                            disabled={companyNameSaving}
+                                            style={{
+                                                padding: "8px 12px",
+                                                borderRadius: 10,
+                                                border: "1px solid #ddd",
+                                                background: "white",
+                                                cursor: "pointer",
+                                                fontWeight: 900,
+                                                opacity: companyNameSaving ? 0.6 : 1,
+                                            }}
+                                        >
+                                            {companyNameSaving ? "Guardando…" : "Save"}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    companyName || "—"
+                                )
+                            ) : (
+                                "—"
+                            )}
                         </div>
+
+                        {companyNameMsg ? (
+                            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
+                                {companyNameMsg}
+                            </div>
+                        ) : null}
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

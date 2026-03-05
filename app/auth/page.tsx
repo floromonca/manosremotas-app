@@ -12,34 +12,143 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string>("");
 
+  // helper: crea company + owner membership SOLO si no hay invite y no hay memberships
+  const ensureOwnerOnboarding = async (userId: string) => {
+    // 1) ¿ya tiene membership?
+    const { data: mem, error: memErr } = await supabase
+      .from("company_members")
+      .select("company_id, role")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (memErr) throw memErr;
+    if (mem?.company_id) return mem.company_id as string;
+
+    // 2) crear empresa
+    const { data: co, error: coErr } = await supabase
+      .from("companies")
+      .insert({
+        company_name: "My Company",
+        status: "active",
+        created_by: userId,
+      })
+      .select("company_id")
+      .single();
+
+    if (coErr) throw coErr;
+
+    const companyId = co.company_id as string;
+
+    // 3) crear membership owner
+    const { error: cmErr } = await supabase.from("company_members").insert({
+      company_id: companyId,
+      user_id: userId,
+      role: "owner",
+    });
+
+    if (cmErr) throw cmErr;
+
+    return companyId;
+  };
+
   const submit = async () => {
     setMsg("");
 
-    if (!email || !password) {
-      setMsg("Falta email o password.");
-      return;
-    }
-
     try {
+      // 0) sign in / sign up
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        router.replace("/work-orders");
-      } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
 
-        // Nota: si tienes email confirmation ON, el usuario debe confirmar.
-        // Si está OFF, entra directo.
-        setMsg("Usuario creado ✅ Ahora intenta Sign in.");
-        setMode("signin");
+        const userId = data.user?.id;
+        if (!userId) throw new Error("No se pudo obtener userId.");
+
+        // 1) Primero: intentar aceptar invite pending (si existe)
+        const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
+          "accept_my_pending_invites"
+        );
+        if (invErr) throw invErr;
+
+        const cidFromInvite = (invitedCompanyId as string | null) ?? null;
+
+        if (cidFromInvite) {
+          localStorage.setItem("activeCompanyId", cidFromInvite);
+          router.replace("/work-orders");
+          return;
+        }
+
+        // 2) Si no hubo invite: onboarding owner (si aplica)
+        const companyId = await ensureOwnerOnboarding(userId);
+        localStorage.setItem("activeCompanyId", companyId);
+        router.replace("/work-orders");
+        return;
       }
+
+      // SIGN UP
+      const { data: su, error: suErr } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      if (suErr) throw suErr;
+
+      // Si devolvió sesión, seguimos con user actual
+      if (su.session) {
+        const userId = su.user?.id;
+        if (!userId) throw new Error("No se pudo obtener userId.");
+
+        // 1) Intentar aceptar invite
+        const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
+          "accept_my_pending_invites"
+        );
+        if (invErr) throw invErr;
+
+        const cidFromInvite = (invitedCompanyId as string | null) ?? null;
+
+        if (cidFromInvite) {
+          localStorage.setItem("activeCompanyId", cidFromInvite);
+          router.replace("/work-orders");
+          return;
+        }
+
+        // 2) Si no hubo invite: onboarding owner
+        const companyId = await ensureOwnerOnboarding(userId);
+        localStorage.setItem("activeCompanyId", companyId);
+        router.replace("/work-orders");
+        return;
+      }
+
+      // Si no devolvió sesión (email confirmation), hacemos login inmediato (tu fallback)
+      const { data: si, error: siErr } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (siErr) throw siErr;
+
+      const userId = si.user?.id;
+      if (!userId) throw new Error("No se pudo obtener userId.");
+
+      // 1) Intentar aceptar invite
+      const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
+        "accept_my_pending_invites"
+      );
+      if (invErr) throw invErr;
+
+      const cidFromInvite = (invitedCompanyId as string | null) ?? null;
+
+      if (cidFromInvite) {
+        localStorage.setItem("activeCompanyId", cidFromInvite);
+        router.replace("/work-orders");
+        return;
+      }
+
+      // 2) Si no hubo invite: onboarding owner
+      const companyId = await ensureOwnerOnboarding(userId);
+      localStorage.setItem("activeCompanyId", companyId);
+      router.replace("/work-orders");
     } catch (e: any) {
       setMsg(e?.message ?? String(e));
     }
@@ -137,7 +246,7 @@ export default function AuthPage() {
       ) : null}
 
       <div style={{ marginTop: 16, fontSize: 12, opacity: 0.7 }}>
-        Tip: después de Sign in te mando a <b>/work-orders</b>.
+        Después de autenticar, te mando a <b>/work-orders</b>.
       </div>
     </div>
   );

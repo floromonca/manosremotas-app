@@ -19,30 +19,32 @@ function makeInvoiceNumber() {
   return `INV-${ts}-${rnd}`;
 }
 
-async function getDefaultTaxRate(companyId: string) {
-  // Intentar leer el default (NO insertar nada para evitar RLS)
+export async function getDefaultTaxRate(companyId: string): Promise<number> {
+  // Fuente oficial ahora: public.companies.tax_rate_default
   const { data, error } = await supabase
-    .from("tax_profiles")
-    .select("tax_profile_id, company_id, tax_name, rate, is_default")
+    .from("companies")
+    .select("tax_rate_default")
     .eq("company_id", companyId)
-    .eq("is_default", true)
-    .order("created_at", { ascending: false })
-    .limit(1)
     .maybeSingle();
 
   if (error) {
-    console.log("⚠️ No pude leer tax_profiles (RLS?):", error.message);
-    return FALLBACK_TAX_RATE_CA; // MVP
+    console.log("⚠️ No pude leer companies.tax_rate_default (RLS?):", error.message);
+    return 0.13; // fallback CA
   }
 
-  const rate = Number((data as TaxProfileRow | null)?.rate ?? NaN);
-  if (!Number.isFinite(rate)) return FALLBACK_TAX_RATE_CA;
+  const rate = Number((data as any)?.tax_rate_default ?? 0.13);
+  if (Number.isFinite(rate) && rate >= 0 && rate <= 1) return rate;
 
-  return rate;
+  return 0.13;
 }
-
 export async function createInvoiceFromWorkOrder(workOrderId: string) {
   if (!workOrderId) throw new Error("workOrderId requerido");
+
+  const withExtraTag = (it: any) => {
+    const base = (it?.description ?? "").trim() || "Item";
+    const isExtra = it?.qty_planned === null || it?.qty_planned === undefined;
+    return isExtra ? `${base} (Extra)` : base;
+  };
 
   // 1) Leer WO
   const { data: wo, error: woErr } = await supabase
@@ -116,40 +118,43 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   // 3) Leer items de la WO
   const { data: items, error: itemsErr } = await supabase
     .from("work_order_items")
-    .select("description, quantity, qty_planned, qty_done, unit_price, taxable, pricing_status")
+    .select("description, quantity, qty_planned, qty_done, unit_price, taxable, pending_pricing, pricing_status")
     .eq("work_order_id", workOrderId)
     .order("created_at", { ascending: true });
   if (itemsErr) throw itemsErr;
 
   // 4) Copiar items → invoice_items
   if (items && items.length > 0) {
-    // MVP sync: borrar items anteriores y re-copiar desde la WO
+    // ✅ Sync seguro: solo borrar lo que fue copiado desde WO (no toca manual/extras/tech)
     const { error: delErr } = await supabase
       .from("invoice_items")
       .delete()
-      .eq("invoice_id", invoiceId);
+      .eq("invoice_id", invoiceId)
+      .eq("synced_from_wo", true);
 
     if (delErr) throw delErr;
     const payload = items
       // 1) No facturar pendientes de precio
-      .filter((it: any) => (it.pricing_status ?? "priced") === "priced")
+      .filter((it: any) => {
+        const isPending = it.pending_pricing === true || it.pricing_status === "pending_pricing";
+        return !isPending; // solo facturar priced
+      })
       // 2) Mapear con qty_to_invoice
       .map((it: any) => {
         const taxable = it.taxable ?? true;
-
-        const qtyToInvoice =
-          it.qty_done ?? it.qty_planned ?? it.quantity ?? 1;
-
+        const qtyToInvoice = it.qty_done ?? it.qty_planned ?? it.quantity ?? 1;
 
         return {
           company_id: wo.company_id,
           invoice_id: invoiceId,
-          description: it.description ?? "Item",
+          description: withExtraTag(it),
           qty: qtyToInvoice,
           unit_price: it.unit_price ?? 0,
           tax_rate: taxable ? defaultTaxRate : 0,
+          synced_from_wo: true,
         };
       });
+
     console.log("🧾 Copy items payload (tax_rate check):", payload);
 
     const { error: copyErr } = await supabase

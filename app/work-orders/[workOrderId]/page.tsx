@@ -8,6 +8,8 @@ import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { createInvoiceFromWorkOrder } from "../../../lib/invoices";
 
+
+
 type WorkOrder = {
     work_order_id: string;
     company_id: string | null;
@@ -64,11 +66,16 @@ export default function WorkOrderDetailPage() {
         woRef.current = wo;
     }, [wo]);
     const [items, setItems] = useState<WorkOrderItem[]>([]);
+    // Detectar si hay items pendientes de pricing (bloquea Sync)
+    const anyPendingPricing = items.some(
+        (it) => it.pending_pricing === true || it.pricing_status === "pending_pricing"
+    );
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState("");
 
     const [showForm, setShowForm] = useState(false);
     const [savingItem, setSavingItem] = useState(false);
+    const [syncingInvoice, setSyncingInvoice] = useState(false);
 
     // Admin pricing draft (para pending_pricing)
     const [priceDraft, setPriceDraft] = useState<Record<string, number>>({});
@@ -103,6 +110,25 @@ export default function WorkOrderDetailPage() {
             setRoleLoading(false);
         }
     }, [activeCompanyId, myUserId]);
+    const onSyncInvoice = useCallback(async () => {
+        if (!workOrderId) return;
+
+        if (anyPendingPricing) {
+            alert("Hay items en Pending pricing. Apruébalos primero antes de Sync.");
+            return;
+        }
+
+        setSyncingInvoice(true);
+        try {
+            const invoiceId = await createInvoiceFromWorkOrder(workOrderId);
+            router.push(`/invoices/${invoiceId}`);
+        } catch (e: any) {
+            console.log("❌ Sync Invoice failed:", e?.message ?? e);
+            alert(`Sync Invoice failed: ${e?.message ?? e}`);
+        } finally {
+            setSyncingInvoice(false);
+        }
+    }, [workOrderId, anyPendingPricing, router]);
 
     const loadWorkOrder = useCallback(async () => {
         if (!workOrderId) return;
@@ -174,6 +200,27 @@ export default function WorkOrderDetailPage() {
 
     const updateQtyDone = useCallback(
         async (itemId: string, newQtyDone: number | null) => {
+            // 0) Buscar el item actual para saber si es Planned y cuál es su Plan
+            const current = items.find((x) => x.item_id === itemId);
+
+            const hasPlanned =
+                current?.qty_planned !== null && current?.qty_planned !== undefined;
+
+            const plan = hasPlanned ? Number(current?.qty_planned ?? 0) : null;
+
+            // 1) Regla Opción A: si es Planned, Done no puede ser > Plan
+            if (!isAdmin && hasPlanned) {
+                const n = newQtyDone === null ? 0 : Number(newQtyDone);
+
+                if (Number.isFinite(n) && plan !== null && n > plan) {
+                    alert(
+                        `Este item es Planned (Plan=${plan}). Si hiciste más, crea un Extra para el excedente.`,
+                    );
+                    return; // ⛔ bloquea el update
+                }
+            }
+
+            // 2) Guardar qty_done
             const { error } = await supabase
                 .from("work_order_items")
                 .update({ qty_done: newQtyDone })
@@ -184,9 +231,10 @@ export default function WorkOrderDetailPage() {
                 return;
             }
 
+            // 3) Refrescar items
             await refreshItemsOnly();
 
-            // Si ya existe invoice, intentamos sync (no bloqueante)
+            // 4) Sync invoice si existe
             if ((woRef.current as any)?.invoice_id) {
                 try {
                     await createInvoiceFromWorkOrder(workOrderId);
@@ -195,7 +243,7 @@ export default function WorkOrderDetailPage() {
                 }
             }
         },
-        [refreshItemsOnly, workOrderId],
+        [items, isAdmin, refreshItemsOnly, workOrderId],
     );
 
     const priceItem = useCallback(
@@ -377,11 +425,54 @@ export default function WorkOrderDetailPage() {
                     <div style={{ opacity: 0.7, fontFamily: "monospace" }}>{workOrderId}</div>
                     <div style={{ opacity: 0.75, marginTop: 4, fontSize: 12 }}>
                         Rol: <b>{myRole ?? "—"}</b>
+
                         {wo?.invoice_id ? (
                             <>
                                 {" "}
                                 · Invoice: <span style={{ fontFamily: "monospace" }}>{String(wo.invoice_id).slice(0, 8)}</span>
                             </>
+                        ) : null}
+
+                        {isAdmin ? (
+                            <span style={{ marginLeft: 10, display: "inline-flex", gap: 8, alignItems: "center" }}>
+                                {wo?.invoice_id ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push(`/invoices/${wo.invoice_id}`)}
+                                        style={{
+                                            padding: "4px 8px",
+                                            borderRadius: 8,
+                                            border: "1px solid #ddd",
+                                            background: "white",
+                                            cursor: "pointer",
+                                            fontWeight: 900,
+                                            fontSize: 12,
+                                        }}
+                                    >
+                                        Open
+                                    </button>
+                                ) : null}
+
+                                <button
+                                    type="button"
+                                    onClick={onSyncInvoice}
+                                    disabled={syncingInvoice || anyPendingPricing}
+                                    title={anyPendingPricing ? "Aprueba los Pending pricing primero" : "Sincroniza items priced hacia la invoice"}
+                                    style={{
+                                        padding: "4px 8px",
+                                        borderRadius: 8,
+                                        border: "1px solid #111",
+                                        background: "#111",
+                                        color: "white",
+                                        cursor: syncingInvoice || anyPendingPricing ? "not-allowed" : "pointer",
+                                        fontWeight: 900,
+                                        fontSize: 12,
+                                        opacity: syncingInvoice || anyPendingPricing ? 0.6 : 1,
+                                    }}
+                                >
+                                    {syncingInvoice ? "Syncing..." : "Sync"}
+                                </button>
+                            </span>
                         ) : null}
                     </div>
                 </div>
@@ -611,6 +702,7 @@ export default function WorkOrderDetailPage() {
                                             <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
                                                 <th style={{ padding: "8px 6px" }}>Descripción</th>
                                                 <th style={{ padding: "8px 6px" }}>Tipo</th>
+                                                <th style={{ padding: "8px 6px" }}>Estado</th>
                                                 <th style={{ padding: "8px 6px" }}>Plan</th>
                                                 <th style={{ padding: "8px 6px" }}>Done</th>
                                                 {isAdmin ? <th style={{ padding: "8px 6px" }}>Valor</th> : null}
@@ -646,10 +738,43 @@ export default function WorkOrderDetailPage() {
                                                         <td style={{ padding: "8px 6px" }}>{it.description ?? "—"}</td>
 
                                                         {/* Tipo */}
-                                                        <td style={{ padding: "8px 6px", fontWeight: 800 }}>
-                                                            {tipo}
+                                                        <td style={{ padding: "8px 6px" }}>
+                                                            <span
+                                                                style={{
+                                                                    display: "inline-block",
+                                                                    padding: "4px 8px",
+                                                                    borderRadius: 999,
+                                                                    fontSize: 12,
+                                                                    fontWeight: 900,
+                                                                    border: "1px solid #ddd",
+                                                                    background: tipo === "Extra" ? "#f0f9ff" : "#fafafa",
+                                                                    color: "#111",
+                                                                    whiteSpace: "nowrap",
+                                                                }}
+                                                            >
+                                                                {tipo}
+                                                            </span>
                                                         </td>
-
+                                                        {/* Estado */}
+                                                        <td style={{ padding: "8px 6px" }}>
+                                                            <span
+                                                                style={{
+                                                                    display: "inline-block",
+                                                                    padding: "4px 8px",
+                                                                    borderRadius: 999,
+                                                                    fontSize: 12,
+                                                                    fontWeight: 900,
+                                                                    border: "1px solid",
+                                                                    borderColor: isPendingPricing ? "#f5c542" : "#22c55e",
+                                                                    background: isPendingPricing ? "#fff7e6" : "#ecfdf5",
+                                                                    color: isPendingPricing ? "#8a5a00" : "#065f46",
+                                                                    whiteSpace: "nowrap",
+                                                                }}
+                                                                title={isPendingPricing ? "Este item necesita aprobación de precio" : "Precio aprobado"}
+                                                            >
+                                                                {isPendingPricing ? "Pending pricing" : "Approved"}
+                                                            </span>
+                                                        </td>
                                                         {/* PLAN */}
                                                         <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
                                                             {hasPlanned ? qtyPlanned : "—"}

@@ -39,6 +39,7 @@ type InvoiceRow = {
     total: number | null;
     balance_due: number | null;
     created_at: string | null;
+    company_id?: string | null; // viene en select
 };
 
 type InvoiceItemRow = {
@@ -52,6 +53,7 @@ type InvoiceItemRow = {
     line_total: number | null;
     created_at: string | null;
 };
+
 function money(amount: any, currencyCode?: string | null) {
     const x = Number(amount ?? 0);
     const value = Number.isFinite(x) ? x : 0;
@@ -97,7 +99,7 @@ export default function InvoicePage() {
             const { data: invData, error: invErr } = await supabase
                 .from("invoices")
                 .select(
-                    "invoice_id, company_id, invoice_number, status, customer_name, currency_code, subtotal, tax_total, total, balance_due, created_at",
+                    "invoice_id, company_id, invoice_number, status, customer_name, currency_code, subtotal, tax_total, total, balance_due, created_at"
                 )
                 .eq("invoice_id", invoiceId)
                 .single();
@@ -106,9 +108,7 @@ export default function InvoicePage() {
 
             const { data: itemData, error: itemErr } = await supabase
                 .from("invoice_items")
-                .select(
-                    "invoice_item_id, description, qty, unit_price, tax_rate, line_subtotal, line_tax, line_total, created_at",
-                )
+                .select("invoice_item_id, description, qty, unit_price, tax_rate, line_subtotal, line_tax, line_total, synced_from_wo, created_at")
                 .eq("invoice_id", invoiceId)
                 .order("created_at", { ascending: true });
 
@@ -146,7 +146,7 @@ export default function InvoicePage() {
                 },
                 async () => {
                     await loadAll();
-                },
+                }
             )
             .on(
                 "postgres_changes",
@@ -158,7 +158,7 @@ export default function InvoicePage() {
                 },
                 async () => {
                     await loadAll();
-                },
+                }
             )
             .subscribe();
 
@@ -167,9 +167,14 @@ export default function InvoicePage() {
         };
     }, [invoiceId, loadAll]);
 
+    const isDraft = useMemo(() => {
+        const s = String(inv?.status ?? "").toLowerCase();
+        return s === "draft";
+    }, [inv?.status]);
+
     const totals = useMemo(() => {
         // Fuente de verdad: DB (invoices.*). Si todavía no ha cargado, hacemos fallback
-        // SOLO a columnas calculadas (line_*), sin recalcular con qty*unit_price.
+        // SOLO a columnas calculadas (line_*), sin recalcular con qty*unit_price (excepto display fallback).
         const rows = (items as any[]) ?? [];
 
         const subtotalFromLines = rows.reduce((acc, it) => acc + Number(it.line_subtotal ?? 0), 0);
@@ -180,13 +185,22 @@ export default function InvoicePage() {
         const tax = Number(inv?.tax_total ?? taxFromLines);
 
         // Preferir inv.total; si no, usamos el total de líneas; si no, subtotal+tax.
-        const total = Number(inv?.total ?? (totalFromLines || (subtotal + tax)));
+        const total = Number(inv?.total ?? (totalFromLines || subtotal + tax));
 
         const balance = Number(inv?.balance_due ?? total);
 
         return { subtotal, tax, total, balance };
-    }, [inv, items]); const addItem = useCallback(async () => {
+    }, [inv, items]);
+
+    const addItem = useCallback(async () => {
         if (!invoiceId) return;
+
+        const status = String((inv as any)?.status ?? "").toLowerCase();
+        if (status !== "draft") {
+            alert("Esta invoice no está en draft. No se pueden agregar items.");
+            return;
+        }
+
         if (!desc.trim()) {
             alert("Descripción requerida");
             return;
@@ -194,14 +208,11 @@ export default function InvoicePage() {
 
         setSaving(true);
         try {
-            // usamos tax_rate de la invoice si taxable, si no 0
-            // si tu invoice_items necesita company_id, lo tomamos de la invoice
             const companyId = (inv as any)?.company_id as string | undefined;
 
             if (!(inv as any)?.company_id) {
                 throw new Error("Invoice sin company_id (no puedo agregar items)");
             }
-
             if (!companyId) throw new Error("Invoice sin company_id (no puedo agregar items)");
 
             const taxRate = taxable ? await getDefaultTaxRate(companyId) : 0;
@@ -213,6 +224,7 @@ export default function InvoicePage() {
                 qty: qty ?? 1,
                 unit_price: unitPrice ?? 0,
                 tax_rate: taxRate,
+                // NOTA: no seteamos synced_from_wo aquí => queda como item manual
             });
 
             if (error) throw error;
@@ -231,30 +243,74 @@ export default function InvoicePage() {
         }
     }, [invoiceId, desc, qty, unitPrice, taxable, inv, loadAll]);
 
+    const finalizeInvoice = useCallback(async () => {
+        if (!inv?.invoice_id) return;
+
+        const status = String(inv?.status ?? "").toLowerCase();
+        if (status !== "draft") return;
+
+        const ok = confirm("¿Finalizar esta factura? Luego quedará en modo solo lectura.");
+        if (!ok) return;
+
+        const { error } = await supabase
+            .from("invoices")
+            .update({ status: "final" })
+            .eq("invoice_id", inv.invoice_id);
+
+        if (error) {
+            alert("No se pudo finalizar: " + error.message);
+            return;
+        }
+
+        await loadAll();
+    }, [inv, loadAll]);
+
     return (
         <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                 <div>
                     <h1 style={{ margin: 0 }}>Invoice</h1>
-                    <div style={{ opacity: 0.7, fontFamily: "monospace" }}>
-                        {invoiceId}
-                    </div>
+                    <div style={{ opacity: 0.7, fontFamily: "monospace" }}>{invoiceId}</div>
                 </div>
 
-                <button
-                    onClick={() => router.back()}
-                    style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        height: "fit-content",
-                    }}
-                >
-                    ← Volver
-                </button>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    {inv ? (
+                        <button
+                            type="button"
+                            onClick={finalizeInvoice}
+                            disabled={!isDraft}
+                            style={{
+                                padding: "10px 14px",
+                                borderRadius: 10,
+                                border: "1px solid #111",
+                                background: isDraft ? "#111" : "#999",
+                                color: "white",
+                                cursor: isDraft ? "pointer" : "not-allowed",
+                                fontWeight: 900,
+                                height: "fit-content",
+                                opacity: isDraft ? 1 : 0.7,
+                            }}
+                            title={isDraft ? "Finalizar y bloquear edición" : "Factura en solo lectura"}
+                        >
+                            Finalize
+                        </button>
+                    ) : null}
+
+                    <button
+                        onClick={() => router.back()}
+                        style={{
+                            padding: "10px 14px",
+                            borderRadius: 10,
+                            border: "1px solid #ddd",
+                            background: "white",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                            height: "fit-content",
+                        }}
+                    >
+                        ← Volver
+                    </button>
+                </div>
             </div>
 
             {loading ? <div style={{ marginTop: 16 }}>Cargando…</div> : null}
@@ -299,13 +355,22 @@ export default function InvoicePage() {
                             <b>Moneda:</b> {inv.currency_code ?? "—"}
                         </div>
 
-                        <hr
-                            style={{
-                                margin: "10px 0",
-                                border: "none",
-                                borderTop: "1px solid #eee",
-                            }}
-                        />
+                        {!isDraft ? (
+                            <div
+                                style={{
+                                    marginTop: 10,
+                                    padding: 10,
+                                    borderRadius: 10,
+                                    background: "#fff7e6",
+                                    border: "1px solid #ffe1a8",
+                                    fontWeight: 700,
+                                }}
+                            >
+                                Esta factura está en estado <b>{inv.status}</b>. Está en modo solo lectura.
+                            </div>
+                        ) : null}
+
+                        <hr style={{ margin: "10px 0", border: "none", borderTop: "1px solid #eee" }} />
 
                         <div>
                             <b>Subtotal:</b> {money(inv?.subtotal ?? totals.subtotal, inv?.currency_code)}
@@ -336,17 +401,19 @@ export default function InvoicePage() {
                 <div style={{ fontWeight: 900, marginBottom: 10 }}>Items</div>
 
                 {/* Add item */}
-                <div style={{ display: "grid", gap: 10, marginBottom: 12 }}>
+                <div style={{ display: "grid", gap: 10, marginBottom: 12, opacity: isDraft ? 1 : 0.75 }}>
                     <label style={{ display: "grid", gap: 6 }}>
                         <span style={{ fontSize: 12, opacity: 0.8 }}>Descripción</span>
                         <input
                             value={desc}
                             onChange={(e) => setDesc(e.target.value)}
                             placeholder="Ej: Mano de obra / Material"
+                            disabled={!isDraft}
                             style={{
                                 padding: 10,
                                 border: "1px solid #ddd",
                                 borderRadius: 8,
+                                background: !isDraft ? "#f6f6f6" : "white",
                             }}
                         />
                     </label>
@@ -358,10 +425,12 @@ export default function InvoicePage() {
                                 type="number"
                                 value={qty}
                                 onChange={(e) => setQty(Number(e.target.value))}
+                                disabled={!isDraft}
                                 style={{
                                     padding: 10,
                                     border: "1px solid #ddd",
                                     borderRadius: 8,
+                                    background: !isDraft ? "#f6f6f6" : "white",
                                 }}
                             />
                         </label>
@@ -372,10 +441,12 @@ export default function InvoicePage() {
                                 type="number"
                                 value={unitPrice}
                                 onChange={(e) => setUnitPrice(Number(e.target.value))}
+                                disabled={!isDraft}
                                 style={{
                                     padding: 10,
                                     border: "1px solid #ddd",
                                     borderRadius: 8,
+                                    background: !isDraft ? "#f6f6f6" : "white",
                                 }}
                             />
                         </label>
@@ -385,6 +456,7 @@ export default function InvoicePage() {
                                 type="checkbox"
                                 checked={taxable}
                                 onChange={(e) => setTaxable(e.target.checked)}
+                                disabled={!isDraft}
                             />
                             <span style={{ fontSize: 13 }}>Taxable</span>
                         </label>
@@ -393,20 +465,20 @@ export default function InvoicePage() {
                     <button
                         type="button"
                         onClick={addItem}
-                        disabled={saving}
+                        disabled={saving || !isDraft}
                         style={{
                             padding: "10px 14px",
                             borderRadius: 10,
                             border: "1px solid #111",
-                            background: "#111",
+                            background: isDraft ? "#111" : "#999",
                             color: "white",
-                            cursor: "pointer",
+                            cursor: saving || !isDraft ? "not-allowed" : "pointer",
                             fontWeight: 900,
                             width: "fit-content",
-                            opacity: saving ? 0.7 : 1,
+                            opacity: saving || !isDraft ? 0.7 : 1,
                         }}
                     >
-                        {saving ? "Agregando..." : "+ Add item"}
+                        {!isDraft ? "Invoice final (read-only)" : saving ? "Agregando..." : "+ Add item"}
                     </button>
                 </div>
 
@@ -415,39 +487,151 @@ export default function InvoicePage() {
                     <div style={{ opacity: 0.7 }}>No hay items aún.</div>
                 ) : (
                     <div style={{ display: "grid", gap: 10 }}>
-                        {items.map((it) => (
-                            <div
-                                key={it.invoice_item_id}
-                                style={{
-                                    padding: 12,
-                                    border: "1px solid #eee",
-                                    borderRadius: 10,
-                                    background: "#fafafa",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    gap: 12,
-                                }}
-                            >
-                                <div>
-                                    <div style={{ fontWeight: 800 }}>{it.description ?? "Item"}</div>
-                                    <div style={{ opacity: 0.75, fontSize: 12 }}>
-                                        qty: {it.qty ?? 0} · unit: {it.unit_price ?? 0} · tax_rate:{" "}
-                                        {it.tax_rate ?? 0}
+                        {items.map((it: any) => {
+                            const qtyN = Number(it.qty ?? 0);
+                            const unitN = Number(it.unit_price ?? 0);
+                            const taxN = Number(it.tax_rate ?? 0);
+
+                            const fallbackSub = qtyN * unitN;
+                            const fallbackTax = fallbackSub * taxN;
+                            const fallbackTotal = fallbackSub + fallbackTax;
+
+                            // ✅ Regla: solo editamos items MANUALES y solo si invoice está en draft
+                            const isManual = it.synced_from_wo !== true;
+                            const canEdit = isDraft && isManual;
+
+                            const updateItem = async (fields: any) => {
+                                if (!canEdit) return;
+
+                                const { error } = await supabase
+                                    .from("invoice_items")
+                                    .update(fields)
+                                    .eq("invoice_item_id", it.invoice_item_id);
+
+                                if (error) {
+                                    alert("Error actualizando item: " + error.message);
+                                    return;
+                                }
+
+                                await loadAll();
+                            };
+
+                            const deleteItem = async () => {
+                                if (!canEdit) return;
+
+                                const ok = confirm("¿Eliminar este item?");
+                                if (!ok) return;
+
+                                const { error } = await supabase
+                                    .from("invoice_items")
+                                    .delete()
+                                    .eq("invoice_item_id", it.invoice_item_id);
+
+                                if (error) {
+                                    alert("Error eliminando item: " + error.message);
+                                    return;
+                                }
+
+                                await loadAll();
+                            };
+
+                            return (
+                                <div
+                                    key={it.invoice_item_id}
+                                    style={{
+                                        padding: 12,
+                                        border: "1px solid #eee",
+                                        borderRadius: 10,
+                                        background: "#fafafa",
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        gap: 12,
+                                    }}
+                                >
+                                    <div style={{ flex: 1 }}>
+                                        {/* ✅ Descripción editable solo si canEdit */}
+                                        {canEdit ? (
+                                            <input
+                                                defaultValue={it.description ?? ""}
+                                                onBlur={(e) => updateItem({ description: e.target.value })}
+                                                style={{
+                                                    fontWeight: 800,
+                                                    padding: "6px 8px",
+                                                    borderRadius: 8,
+                                                    border: "1px solid #ddd",
+                                                    width: "100%",
+                                                    marginBottom: 6,
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{ fontWeight: 800 }}>{it.description ?? "Item"}</div>
+                                        )}
+
+                                        {/* ✅ Qty y Unit editable solo si canEdit */}
+                                        {canEdit ? (
+                                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                                                <div style={{ fontSize: 12, opacity: 0.8 }}>qty:</div>
+                                                <input
+                                                    type="number"
+                                                    defaultValue={qtyN}
+                                                    onBlur={(e) => updateItem({ qty: Number(e.target.value) })}
+                                                    style={{
+                                                        width: 90,
+                                                        padding: "6px 8px",
+                                                        borderRadius: 8,
+                                                        border: "1px solid #ddd",
+                                                    }}
+                                                />
+                                                <div style={{ fontSize: 12, opacity: 0.8 }}>unit:</div>
+                                                <input
+                                                    type="number"
+                                                    defaultValue={unitN}
+                                                    onBlur={(e) => updateItem({ unit_price: Number(e.target.value) })}
+                                                    style={{
+                                                        width: 110,
+                                                        padding: "6px 8px",
+                                                        borderRadius: 8,
+                                                        border: "1px solid #ddd",
+                                                    }}
+                                                />
+                                                <div style={{ fontSize: 12, opacity: 0.8 }}>tax_rate: {taxN}</div>
+
+                                                {/* ✅ Delete solo si canEdit */}
+                                                <button
+                                                    type="button"
+                                                    onClick={deleteItem}
+                                                    style={{
+                                                        marginLeft: "auto",
+                                                        padding: "6px 10px",
+                                                        borderRadius: 8,
+                                                        border: "1px solid #ff4d4f",
+                                                        background: "#ff4d4f",
+                                                        color: "white",
+                                                        cursor: "pointer",
+                                                        fontWeight: 800,
+                                                    }}
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div style={{ opacity: 0.75, fontSize: 12 }}>
+                                                qty: {qtyN} · unit: {unitN} · tax_rate: {taxN}
+                                                {!isManual ? " · synced" : ""}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div style={{ textAlign: "right", fontFamily: "monospace", minWidth: 170 }}>
+                                        <div>sub: {money(it.line_subtotal ?? fallbackSub, inv?.currency_code)}</div>
+                                        <div>tax: {money(it.line_tax ?? fallbackTax, inv?.currency_code)}</div>
+                                        <div>
+                                            <b>total: {money(it.line_total ?? fallbackTotal, inv?.currency_code)}</b>
+                                        </div>
                                     </div>
                                 </div>
-                                <div style={{ textAlign: "right", fontFamily: "monospace" }}>
-                                    <div>sub: {money(it.line_subtotal ?? (Number(it.qty ?? 0) * Number(it.unit_price ?? 0)), inv?.currency_code)}</div>
-                                    <div>tax: {money(it.line_tax ?? (Number(it.qty ?? 0) * Number(it.unit_price ?? 0) * Number(it.tax_rate ?? 0)), inv?.currency_code)}</div>
-                                    <div>
-                                        <b>total: {money(it.line_total ?? (
-                                            (Number(it.qty ?? 0) * Number(it.unit_price ?? 0)) +
-                                            (Number(it.qty ?? 0) * Number(it.unit_price ?? 0) * Number(it.tax_rate ?? 0))
-                                        ), inv?.currency_code)
-                                        }</b>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
