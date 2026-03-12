@@ -35,6 +35,26 @@ type WorkOrder = {
     created_at: string;
     assigned_to?: string | null;
     created_by?: string | null;
+    customer_name?: string | null;
+    service_address?: string | null;
+    invoice_id?: string | null;
+    invoiced_at?: string | null;
+};
+
+type CustomerRow = {
+    customer_id: string;
+    company_id?: string | null;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+};
+
+type LocationRow = {
+    location_id: string;
+    company_id?: string | null;
+    customer_id: string;
+    label?: string | null;
+    address: string;
 };
 
 export default function WorkOrdersPage() {
@@ -58,6 +78,8 @@ export default function WorkOrdersPage() {
     const [companyNameDraft, setCompanyNameDraft] = useState("");
     const [companyNameSaving, setCompanyNameSaving] = useState(false);
     const [companyNameMsg, setCompanyNameMsg] = useState<string | null>(null);
+
+
 
     // ✅ Guards para evitar re-suscripciones repetidas
     const woRtRef = useRef<string | null>(null);
@@ -97,6 +119,22 @@ export default function WorkOrdersPage() {
     const [newDesc, setNewDesc] = useState("");
     const [newPriority, setNewPriority] = useState("medium");
     const [newScheduledFor, setNewScheduledFor] = useState<string>("");
+
+
+    const [customers, setCustomers] = useState<CustomerRow[]>([]);
+    const [locations, setLocations] = useState<LocationRow[]>([]);
+    const [customersLoading, setCustomersLoading] = useState(false);
+    const [locationsLoading, setLocationsLoading] = useState(false);
+
+    const [newCustomerId, setNewCustomerId] = useState<string>("");
+    const [newLocationId, setNewLocationId] = useState<string>("");
+
+    const filteredLocations = useMemo<LocationRow[]>(() => {
+        if (!newCustomerId) return [];
+        return locations.filter((loc: LocationRow) => loc.customer_id === newCustomerId);
+    }, [locations, newCustomerId]);
+
+
 
 
     // ✅ Rol del usuario en la compañía (owner/admin/tech/viewer)
@@ -156,6 +194,49 @@ export default function WorkOrdersPage() {
             setRows([]);
         } finally {
             setLoadingWO(false);
+        }
+    }, []);
+
+
+    const loadCustomers = useCallback(async (cid: string) => {
+        setCustomersLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("customers")
+                .select("customer_id, company_id, name, email, phone")
+                .eq("company_id", cid)
+                .order("name", { ascending: true });
+
+            console.log("loadCustomers", { cid, data, error });
+
+            if (error) throw error;
+            setCustomers((data ?? []) as CustomerRow[]);
+        } catch (e) {
+            console.error("Error cargando customers:", e);
+            setCustomers([]);
+        } finally {
+            setCustomersLoading(false);
+        }
+    }, []);
+
+    const loadLocations = useCallback(async (cid: string) => {
+        setLocationsLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("locations")
+                .select("location_id, company_id, customer_id, label, address")
+                .eq("company_id", cid)
+                .order("created_at", { ascending: false });
+
+            console.log("loadLocations", { cid, data, error });
+
+            if (error) throw error;
+            setLocations((data ?? []) as LocationRow[]);
+        } catch (e) {
+            console.error("Error cargando locations:", e);
+            setLocations([]);
+        } finally {
+            setLocationsLoading(false);
         }
     }, []);
 
@@ -272,12 +353,13 @@ export default function WorkOrdersPage() {
     useEffect(() => {
         if (!user) return;
         if (!companyId) {
-
             return;
         }
 
         loadOrders(companyId);
-    }, [companyId, loadOrders, user]);
+        loadCustomers(companyId);
+        loadLocations(companyId);
+    }, [companyId, loadOrders, loadCustomers, loadLocations, user]);
 
     // ✅ Realtime: Work Orders (UN SOLO canal por companyId, con guard anti Fast Refresh)
     useEffect(() => {
@@ -352,6 +434,8 @@ export default function WorkOrdersPage() {
     const filtered = useMemo(() => {
         const now = Date.now();
         const myUserId = user?.id ?? null;
+
+
 
         const isDelayed = (w: WorkOrder) => {
             if (w.status !== "in_progress") return false;
@@ -945,6 +1029,54 @@ export default function WorkOrdersPage() {
                                         </label>
                                     </div>
 
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                        <label style={{ display: "grid", gap: 6 }}>
+                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Customer</span>
+                                            <select
+                                                value={newCustomerId}
+                                                onChange={(e) => {
+                                                    const nextCustomerId = e.target.value;
+                                                    setNewCustomerId(nextCustomerId);
+                                                    setNewLocationId("");
+                                                }}
+                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                            >
+                                                <option value="">
+                                                    {customersLoading ? "Cargando customers..." : "Seleccione customer"}
+                                                </option>
+                                                {customers.map((c) => (
+                                                    <option key={c.customer_id} value={c.customer_id}>
+                                                        {c.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+
+                                        <label style={{ display: "grid", gap: 6 }}>
+                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Location</span>
+                                            <select
+                                                value={newLocationId}
+                                                onChange={(e) => setNewLocationId(e.target.value)}
+                                                disabled={!newCustomerId}
+                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                            >
+                                                <option value="">
+                                                    {!newCustomerId
+                                                        ? "Primero seleccione customer"
+                                                        : locationsLoading
+                                                            ? "Cargando locations..."
+                                                            : "Seleccione location"}
+                                                </option>
+                                                {filteredLocations.map((loc) => (
+                                                    <option key={loc.location_id} value={loc.location_id}>
+                                                        {loc.label?.trim()
+                                                            ? `${loc.label} — ${loc.address}`
+                                                            : loc.address}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
                                     {/* ✅ por ahora solo prueba visual */}
                                     <button
                                         type="button"
@@ -958,10 +1090,27 @@ export default function WorkOrdersPage() {
                                                 alert("El Job type es obligatorio");
                                                 return;
                                             }
+                                            if (!newCustomerId) {
+                                                alert("Debe seleccionar un customer");
+                                                return;
+                                            }
 
+                                            if (!newLocationId) {
+                                                alert("Debe seleccionar una location");
+                                                return;
+                                            }
                                             try {
+                                                const customer = customers.find((c) => c.customer_id === newCustomerId);
+                                                const location = locations.find((l) => l.location_id === newLocationId);
+
                                                 const { error } = await insertWorkOrder({
                                                     company_id: companyId,
+                                                    customer_id: newCustomerId || null,
+                                                    location_id: newLocationId || null,
+                                                    customer_name: customer?.name ?? null,
+                                                    customer_phone: customer?.phone ?? null,
+                                                    customer_email: customer?.email ?? null,
+                                                    service_address: location?.address ?? null,
                                                     job_type: newJobType,
                                                     description: newDesc,
                                                     priority: newPriority,
@@ -979,6 +1128,8 @@ export default function WorkOrdersPage() {
                                                 setNewDesc("");
                                                 setNewPriority("medium");
                                                 setNewScheduledFor("");
+                                                setNewCustomerId("");
+                                                setNewLocationId("");
                                                 setShowNewWO(false);
 
                                                 // refrescar lista
@@ -1104,9 +1255,41 @@ export default function WorkOrdersPage() {
                                         }}
                                     >
                                         <div>
-                                            <div style={{ fontWeight: 700 }}>{wo.job_type}</div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                                <div style={{ fontWeight: 700 }}>{wo.job_type}</div>
+
+                                                {wo.invoice_id ? (
+                                                    <span
+                                                        style={{
+                                                            display: "inline-block",
+                                                            padding: "4px 8px",
+                                                            borderRadius: 999,
+                                                            fontSize: 12,
+                                                            fontWeight: 900,
+                                                            border: "1px solid #22c55e",
+                                                            background: "#ecfdf5",
+                                                            color: "#065f46",
+                                                            whiteSpace: "nowrap",
+                                                        }}
+                                                        title="Esta orden ya tiene factura"
+                                                    >
+                                                        Invoiced
+                                                    </span>
+                                                ) : null}
+                                            </div>
 
                                             <div style={{ opacity: 0.7, marginTop: 4 }}>{wo.description}</div>
+                                            {wo.customer_name ? (
+                                                <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
+                                                    <b>Customer:</b> {wo.customer_name}
+                                                </div>
+                                            ) : null}
+
+                                            {wo.service_address ? (
+                                                <div style={{ fontSize: 12, opacity: 0.7 }}>
+                                                    <b>Location:</b> {wo.service_address}
+                                                </div>
+                                            ) : null}
 
                                             <div style={{ fontFamily: "monospace", opacity: 0.7, marginTop: 6 }}>
                                                 <div><b>wo_id:</b> {wo.work_order_id}</div>
@@ -1237,34 +1420,6 @@ export default function WorkOrdersPage() {
                                                     </option>
                                                 ))}
                                             </select>
-
-                                            {isAdminOrOwner && (wo.status === "resolved" || wo.status === "closed") ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        try {
-                                                            const invoiceId = await createInvoiceFromWorkOrder(wo.work_order_id);
-                                                            router.push(`/invoices/${invoiceId}`);
-                                                            // Paso siguiente: router.push(`/invoices/${invoiceId}`)
-                                                        } catch (e: any) {
-                                                            alert("No se pudo crear invoice: " + (e?.message ?? e));
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        marginTop: 8,
-                                                        padding: "8px 10px",
-                                                        borderRadius: 10,
-                                                        border: "1px solid #111",
-                                                        background: "#111",
-                                                        color: "white",
-                                                        cursor: "pointer",
-                                                        fontWeight: 800,
-                                                        minWidth: 160,
-                                                    }}
-                                                >
-                                                    Crear factura
-                                                </button>
-                                            ) : null}
                                             <div style={{ marginTop: 10 }}>
                                                 <button
                                                     type="button"
@@ -1307,6 +1462,51 @@ export default function WorkOrdersPage() {
                                                 >
                                                     {auditOpenFor === wo.work_order_id ? "Ocultar historial" : "Ver historial"}
                                                 </button>
+                                                {wo.invoice_id ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => router.push(`/invoices/${wo.invoice_id}`)}
+                                                        style={{
+                                                            padding: "6px 10px",
+                                                            borderRadius: 10,
+                                                            border: "1px solid #ddd",
+                                                            background: "white",
+                                                            cursor: "pointer",
+                                                            fontSize: 12,
+                                                            fontWeight: 800,
+                                                            marginLeft: 8,
+                                                        }}
+                                                        title="Abrir la factura existente"
+                                                    >
+                                                        Abrir factura
+                                                    </button>
+                                                ) : isAdminOrOwner && (wo.status === "resolved" || wo.status === "closed") ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const invoiceId = await createInvoiceFromWorkOrder(wo.work_order_id);
+                                                                router.push(`/invoices/${invoiceId}`);
+                                                            } catch (e: any) {
+                                                                alert("Error creando factura: " + (e?.message ?? e));
+                                                            }
+                                                        }}
+                                                        style={{
+                                                            padding: "6px 10px",
+                                                            borderRadius: 10,
+                                                            border: "1px solid #111",
+                                                            background: "#111",
+                                                            color: "white",
+                                                            cursor: "pointer",
+                                                            fontSize: 12,
+                                                            fontWeight: 800,
+                                                            marginLeft: 8,
+                                                        }}
+                                                        title="Crear factura desde esta orden"
+                                                    >
+                                                        Crear factura
+                                                    </button>
+                                                ) : null}
 
                                                 {auditOpenFor === wo.work_order_id ? (
                                                     <div

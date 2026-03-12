@@ -27,12 +27,16 @@ async function getDefaultTaxRate(companyId: string) {
 
     return rate;
 }
-
 type InvoiceRow = {
     invoice_id: string;
     invoice_number: string | null;
     status: string | null;
     customer_name: string | null;
+    customer_phone?: string | null;
+    customer_email?: string | null;
+    billing_address?: string | null;
+    invoice_date?: string | null;
+    due_date?: string | null;
     currency_code: string | null;
     subtotal: number | null;
     tax_total: number | null;
@@ -99,7 +103,7 @@ export default function InvoicePage() {
             const { data: invData, error: invErr } = await supabase
                 .from("invoices")
                 .select(
-                    "invoice_id, company_id, invoice_number, status, customer_name, currency_code, subtotal, tax_total, total, balance_due, created_at"
+                    "invoice_id, company_id, invoice_number, status, customer_name, customer_phone, customer_email, billing_address, invoice_date, due_date, currency_code, subtotal, tax_total, total, balance_due, created_at"
                 )
                 .eq("invoice_id", invoiceId)
                 .single();
@@ -295,6 +299,52 @@ export default function InvoicePage() {
                             Finalize
                         </button>
                     ) : null}
+                    {inv ? (
+                        <a
+                            href={`/api/invoices/${invoiceId}/html`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                padding: "10px 14px",
+                                borderRadius: 10,
+                                border: "1px solid #2563eb",
+                                background: "#2563eb",
+                                color: "white",
+                                textDecoration: "none",
+                                cursor: "pointer",
+                                fontWeight: 900,
+                                height: "fit-content",
+                                display: "inline-flex",
+                                alignItems: "center",
+                            }}
+                            title="Abrir vista HTML de la factura"
+                        >
+                            View HTML
+                        </a>
+                    ) : null}
+                    {inv ? (
+                        <a
+                            href={`/api/invoices/${invoiceId}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                                padding: "10px 14px",
+                                borderRadius: 10,
+                                border: "1px solid #0f172a",
+                                background: "#0f172a",
+                                color: "white",
+                                textDecoration: "none",
+                                cursor: "pointer",
+                                fontWeight: 900,
+                                height: "fit-content",
+                                display: "inline-flex",
+                                alignItems: "center",
+                            }}
+                            title="Abrir PDF de la factura"
+                        >
+                            Download PDF
+                        </a>
+                    ) : null}
 
                     <button
                         onClick={() => router.back()}
@@ -345,9 +395,32 @@ export default function InvoicePage() {
                         <div>
                             <b>Invoice #:</b> {inv.invoice_number ?? "—"}
                         </div>
+                        {inv.invoice_date ? (
+                            <div>
+                                <b>Invoice Date:</b> {inv.invoice_date}
+                            </div>
+                        ) : null}
+
+                        {inv.due_date ? (
+                            <div>
+                                <b>Due Date:</b> {inv.due_date}
+                            </div>
+                        ) : null}
                         <div>
                             <b>Cliente:</b> {inv.customer_name ?? "—"}
                         </div>
+                        {inv.customer_phone ? (
+                            <div><b>Tel:</b> {inv.customer_phone}</div>
+                        ) : null}
+
+                        {inv.customer_email ? (
+                            <div><b>Email:</b> {inv.customer_email}</div>
+                        ) : null}
+
+                        {inv.billing_address ? (
+                            <div><b>Dirección:</b> {inv.billing_address}</div>
+                        ) : null}
+
                         <div>
                             <b>Status:</b> {inv.status ?? "—"}
                         </div>

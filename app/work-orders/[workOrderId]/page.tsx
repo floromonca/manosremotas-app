@@ -20,6 +20,8 @@ type WorkOrder = {
     scheduled_for: string | null;
     created_at: string;
     assigned_to: string | null;
+    customer_name?: string | null;
+    service_address?: string | null;
     invoice_id?: string | null;
 };
 
@@ -42,6 +44,8 @@ type WorkOrderItem = {
     pricing_status?: string | null; // "pending_pricing" | "priced" | ...
     tech_note?: string | null;
 };
+
+
 
 export default function WorkOrderDetailPage() {
     const router = useRouter();
@@ -112,6 +116,7 @@ export default function WorkOrderDetailPage() {
     }, [activeCompanyId, myUserId]);
     const onSyncInvoice = useCallback(async () => {
         if (!workOrderId) return;
+        if (syncingInvoice) return;
 
         if (anyPendingPricing) {
             alert("Hay items en Pending pricing. Apruébalos primero antes de Sync.");
@@ -128,8 +133,7 @@ export default function WorkOrderDetailPage() {
         } finally {
             setSyncingInvoice(false);
         }
-    }, [workOrderId, anyPendingPricing, router]);
-
+    }, [workOrderId, anyPendingPricing, syncingInvoice, router]);
     const loadWorkOrder = useCallback(async () => {
         if (!workOrderId) return;
 
@@ -140,7 +144,7 @@ export default function WorkOrderDetailPage() {
             const { data, error } = await supabase
                 .from("work_orders")
                 .select(
-                    "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, invoice_id",
+                    "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, customer_name, service_address, invoice_id",
                 )
                 .eq("work_order_id", workOrderId)
                 .single();
@@ -180,6 +184,11 @@ export default function WorkOrderDetailPage() {
     useEffect(() => {
         loadWorkOrder();
     }, [loadWorkOrder]);
+    const googleMapsUrl = useMemo(() => {
+        const addr = wo?.service_address?.trim();
+        if (!addr) return null;
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+    }, [wo?.service_address]);
 
     const refreshItemsOnly = useCallback(async () => {
         if (!workOrderId) return;
@@ -525,6 +534,40 @@ export default function WorkOrderDetailPage() {
                     <div style={{ display: "grid", gap: 8 }}>
                         <div style={{ fontSize: 18, fontWeight: 900 }}>{wo.job_type}</div>
                         <div style={{ opacity: 0.8 }}>{wo.description}</div>
+                        {wo.customer_name ? (
+                            <div style={{ fontSize: 14, opacity: 0.85 }}>
+                                <b>Customer:</b> {wo.customer_name}
+                            </div>
+                        ) : null}
+
+                        {wo.service_address ? (
+                            <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+                                <div style={{ fontSize: 14, opacity: 0.85 }}>
+                                    <b>Address:</b> {wo.service_address}
+                                </div>
+
+                                {googleMapsUrl ? (
+                                    <div>
+                                        <a
+                                            href={googleMapsUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{
+                                                display: "inline-block",
+                                                padding: "8px 12px",
+                                                borderRadius: 10,
+                                                border: "1px solid #111",
+                                                textDecoration: "none",
+                                                color: "#111",
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            Abrir en Google Maps
+                                        </a>
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : null}
 
                         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
                             <div>

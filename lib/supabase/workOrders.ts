@@ -25,6 +25,8 @@ export type WorkOrderRow = {
   customer_phone?: string | null;
   customer_email?: string | null;
   service_address?: string | null;
+  invoice_id?: string | null;
+  invoiced_at?: string | null;
 };
 
 // 1) Listado
@@ -32,7 +34,7 @@ export async function fetchWorkOrders(companyId: string) {
   return await supabase
     .from("work_orders")
     .select(
-      "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address",
+      "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at",
     )
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
@@ -45,7 +47,7 @@ export async function insertWorkOrder(payload: Record<string, any>) {
     .from("work_orders")
     .insert([payload])
     .select(
-      "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address",
+      "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at",
     )
     .single();
 }
