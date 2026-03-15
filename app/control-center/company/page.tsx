@@ -19,6 +19,7 @@ type CompanyForm = {
     country_code: string;
     currency_code: string;
     timezone: string;
+    payment_terms_days: string;
 };
 
 const EMPTY_FORM: CompanyForm = {
@@ -34,6 +35,7 @@ const EMPTY_FORM: CompanyForm = {
     country_code: "",
     currency_code: "",
     timezone: "",
+    payment_terms_days: "30",
 };
 
 export default function ControlCenterCompanyPage() {
@@ -107,7 +109,8 @@ export default function ControlCenterCompanyPage() {
             postal_code,
             country_code,
             currency_code,
-            timezone
+            timezone,
+            payment_terms_days
           `,
                     )
                     .eq("company_id", companyId)
@@ -115,7 +118,7 @@ export default function ControlCenterCompanyPage() {
 
                 if (error) throw error;
 
-                const row = (data as Partial<CompanyForm> | null) ?? {};
+                const row = (data as Partial<CompanyForm> & { payment_terms_days?: number | null } | null) ?? {};
 
                 if (!cancelled) {
                     setForm({
@@ -131,6 +134,7 @@ export default function ControlCenterCompanyPage() {
                         country_code: row.country_code ?? "",
                         currency_code: row.currency_code ?? "CAD",
                         timezone: row.timezone ?? "America/Toronto",
+                        payment_terms_days: String(row.payment_terms_days ?? 30),
                     });
                 }
             } catch (e: any) {
@@ -180,6 +184,13 @@ export default function ControlCenterCompanyPage() {
             return;
         }
 
+        const paymentTermsDays = Number(form.payment_terms_days);
+
+        if (!Number.isInteger(paymentTermsDays) || paymentTermsDays < 0) {
+            setErrorMsg("Payment Terms must be a whole number greater than or equal to 0.");
+            return;
+        }
+
         setSaving(true);
         setErrorMsg("");
         setOkMsg("");
@@ -198,6 +209,7 @@ export default function ControlCenterCompanyPage() {
                 country_code: form.country_code.trim(),
                 currency_code: form.currency_code.trim(),
                 timezone: form.timezone.trim(),
+                payment_terms_days: paymentTermsDays,
             };
 
             const { error } = await supabase
@@ -208,6 +220,10 @@ export default function ControlCenterCompanyPage() {
             if (error) throw error;
 
             setOkMsg("Changes saved successfully.");
+            setForm((prev) => ({
+                ...prev,
+                payment_terms_days: String(paymentTermsDays),
+            }));
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
         } finally {
@@ -318,7 +334,6 @@ export default function ControlCenterCompanyPage() {
                     </SectionCard>
 
                     <SectionCard title="Regional Settings">
-
                         {/* Currency */}
                         <label style={{ display: "grid", gap: 6 }}>
                             <span style={{ fontSize: 13, fontWeight: 600 }}>Currency</span>
@@ -331,7 +346,7 @@ export default function ControlCenterCompanyPage() {
                                     borderRadius: 8,
                                     border: "1px solid #ddd",
                                     background: "white",
-                                    fontSize: 14
+                                    fontSize: 14,
                                 }}
                             >
                                 <option value="CAD">Canadian Dollar (CAD)</option>
@@ -356,7 +371,7 @@ export default function ControlCenterCompanyPage() {
                                     borderRadius: 8,
                                     border: "1px solid #ddd",
                                     background: "white",
-                                    fontSize: 14
+                                    fontSize: 14,
                                 }}
                             >
                                 <option value="America/Toronto">Toronto (Canada Eastern Time)</option>
@@ -369,6 +384,30 @@ export default function ControlCenterCompanyPage() {
                             </span>
                         </label>
 
+                        {/* Payment Terms */}
+                        <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>Payment Terms (days)</span>
+
+                            <input
+                                type="number"
+                                min={0}
+                                step={1}
+                                value={form.payment_terms_days}
+                                onChange={(e) => setField("payment_terms_days", e.target.value)}
+                                style={{
+                                    height: 40,
+                                    borderRadius: 8,
+                                    border: "1px solid #ddd",
+                                    padding: "0 12px",
+                                    outline: "none",
+                                    background: "white",
+                                }}
+                            />
+
+                            <span style={{ fontSize: 12, opacity: 0.7 }}>
+                                Default number of days used to calculate invoice due date.
+                            </span>
+                        </label>
                     </SectionCard>
 
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>

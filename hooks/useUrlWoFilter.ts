@@ -49,8 +49,6 @@ export function useUrlWoFilter() {
       else params.set("filter", f);
 
       const qs = params.toString();
-
-      // ✅ IMPORTANTE: mantenerte en /work-orders
       router.push(qs ? `/work-orders?${qs}` : `/work-orders`);
     },
     [router, searchParams],

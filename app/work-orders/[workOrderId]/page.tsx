@@ -8,8 +8,6 @@ import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { createInvoiceFromWorkOrder } from "../../../lib/invoices";
 
-
-
 type WorkOrder = {
     work_order_id: string;
     company_id: string | null;
@@ -21,6 +19,8 @@ type WorkOrder = {
     created_at: string;
     assigned_to: string | null;
     customer_name?: string | null;
+    customer_email?: string | null;
+    customer_phone?: string | null;
     service_address?: string | null;
     invoice_id?: string | null;
 };
@@ -29,23 +29,78 @@ type WorkOrderItem = {
     item_id: string;
     description: string | null;
 
-    // legacy (si existe en tu DB)
     quantity: number | null;
 
-    // mini biblia
     qty_planned: number | null;
     qty_done: number | null;
 
-    // pricing
     unit_price: number | null;
     taxable: boolean | null;
 
     pending_pricing?: boolean | null;
-    pricing_status?: string | null; // "pending_pricing" | "priced" | ...
+    pricing_status?: string | null;
     tech_note?: string | null;
 };
 
+function normalizeInvoiceStatus(status: string | null | undefined) {
+    return String(status ?? "").trim().toLowerCase();
+}
 
+function prettyInvoiceStatus(status: string | null | undefined) {
+    const s = normalizeInvoiceStatus(status);
+    if (!s) return "—";
+    return s.replaceAll("_", " ").toUpperCase();
+}
+
+function invoiceBadgeStyle(status: string | null | undefined): React.CSSProperties {
+    const s = normalizeInvoiceStatus(status);
+
+    if (s === "draft") {
+        return {
+            background: "#e5e7eb",
+            color: "#374151",
+            border: "1px solid #d1d5db",
+        };
+    }
+
+    if (s === "sent") {
+        return {
+            background: "#dbeafe",
+            color: "#1d4ed8",
+            border: "1px solid #bfdbfe",
+        };
+    }
+
+    if (s === "partially_paid") {
+        return {
+            background: "#fef3c7",
+            color: "#b45309",
+            border: "1px solid #fde68a",
+        };
+    }
+
+    if (s === "paid") {
+        return {
+            background: "#dcfce7",
+            color: "#166534",
+            border: "1px solid #bbf7d0",
+        };
+    }
+
+    if (s === "overdue") {
+        return {
+            background: "#fee2e2",
+            color: "#b91c1c",
+            border: "1px solid #fecaca",
+        };
+    }
+
+    return {
+        background: "#f3f4f6",
+        color: "#111827",
+        border: "1px solid #e5e7eb",
+    };
+}
 
 export default function WorkOrderDetailPage() {
     const router = useRouter();
@@ -69,29 +124,46 @@ export default function WorkOrderDetailPage() {
     useEffect(() => {
         woRef.current = wo;
     }, [wo]);
+
     const [items, setItems] = useState<WorkOrderItem[]>([]);
-    // Detectar si hay items pendientes de pricing (bloquea Sync)
     const anyPendingPricing = items.some(
         (it) => it.pending_pricing === true || it.pricing_status === "pending_pricing"
     );
+
+    const [invoiceStatus, setInvoiceStatus] = useState<string | null>(null);
+
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState("");
 
     const [showForm, setShowForm] = useState(false);
     const [savingItem, setSavingItem] = useState(false);
     const [syncingInvoice, setSyncingInvoice] = useState(false);
+    const [savingCustomer, setSavingCustomer] = useState(false);
+    const [customerForm, setCustomerForm] = useState({
+        customer_name: "",
+        customer_email: "",
+        customer_phone: "",
+        service_address: "",
+    });
 
-    // Admin pricing draft (para pending_pricing)
     const [priceDraft, setPriceDraft] = useState<Record<string, number>>({});
     const [savingPrice, setSavingPrice] = useState<Record<string, boolean>>({});
 
-    // Form (lo reutilizamos, pero UI cambia según rol)
     const [newItem, setNewItem] = useState({
         description: "",
         quantity: 1,
-        unit_price: 0, // admin
-        taxable: true, // admin
+        unit_price: 0,
+        taxable: true,
     });
+
+    const invoiceStatusNormalized = useMemo(
+        () => normalizeInvoiceStatus(invoiceStatus),
+        [invoiceStatus]
+    );
+
+    const hasInvoice = !!wo?.invoice_id;
+    const invoiceIsDraft = hasInvoice && invoiceStatusNormalized === "draft";
+    const invoiceIsLocked = hasInvoice && invoiceStatusNormalized !== "" && invoiceStatusNormalized !== "draft";
 
     const loadRole = useCallback(async () => {
         if (!activeCompanyId || !myUserId) return;
@@ -114,6 +186,28 @@ export default function WorkOrderDetailPage() {
             setRoleLoading(false);
         }
     }, [activeCompanyId, myUserId]);
+
+    const loadInvoiceStatus = useCallback(async (invoiceId: string | null | undefined) => {
+        if (!invoiceId) {
+            setInvoiceStatus(null);
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from("invoices")
+            .select("status")
+            .eq("invoice_id", invoiceId)
+            .maybeSingle();
+
+        if (error) {
+            console.log("⚠️ No pude leer invoice status:", error.message);
+            setInvoiceStatus(null);
+            return;
+        }
+
+        setInvoiceStatus((data as any)?.status ?? null);
+    }, []);
+
     const onSyncInvoice = useCallback(async () => {
         if (!workOrderId) return;
         if (syncingInvoice) return;
@@ -123,9 +217,15 @@ export default function WorkOrderDetailPage() {
             return;
         }
 
+        if (hasInvoice && !invoiceIsDraft) {
+            alert(`La invoice asociada está en estado ${prettyInvoiceStatus(invoiceStatus)} y ya no permite Sync.`);
+            return;
+        }
+
         setSyncingInvoice(true);
         try {
             const invoiceId = await createInvoiceFromWorkOrder(workOrderId);
+            await loadInvoiceStatus(invoiceId);
             router.push(`/invoices/${invoiceId}`);
         } catch (e: any) {
             console.log("❌ Sync Invoice failed:", e?.message ?? e);
@@ -133,7 +233,17 @@ export default function WorkOrderDetailPage() {
         } finally {
             setSyncingInvoice(false);
         }
-    }, [workOrderId, anyPendingPricing, syncingInvoice, router]);
+    }, [
+        workOrderId,
+        anyPendingPricing,
+        syncingInvoice,
+        router,
+        hasInvoice,
+        invoiceIsDraft,
+        invoiceStatus,
+        loadInvoiceStatus,
+    ]);
+
     const loadWorkOrder = useCallback(async () => {
         if (!workOrderId) return;
 
@@ -144,7 +254,7 @@ export default function WorkOrderDetailPage() {
             const { data, error } = await supabase
                 .from("work_orders")
                 .select(
-                    "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, customer_name, service_address, invoice_id",
+                    "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, customer_name, customer_email, customer_phone, service_address, invoice_id"
                 )
                 .eq("work_order_id", workOrderId)
                 .single();
@@ -158,10 +268,19 @@ export default function WorkOrderDetailPage() {
 
             setWo(mapped);
 
+            setCustomerForm({
+                customer_name: (mapped as any)?.customer_name ?? "",
+                customer_email: (mapped as any)?.customer_email ?? "",
+                customer_phone: (mapped as any)?.customer_phone ?? "",
+                service_address: (mapped as any)?.service_address ?? "",
+            });
+
+            await loadInvoiceStatus(mapped.invoice_id);
+
             const { data: itemRows, error: itemErr } = await supabase
                 .from("work_order_items")
                 .select(
-                    "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status",
+                    "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
                 )
                 .eq("work_order_id", workOrderId)
                 .order("created_at", { ascending: true });
@@ -172,10 +291,11 @@ export default function WorkOrderDetailPage() {
             setErr(e?.message ?? "Error cargando Work Order");
             setWo(null);
             setItems([]);
+            setInvoiceStatus(null);
         } finally {
             setLoading(false);
         }
-    }, [workOrderId]);
+    }, [workOrderId, loadInvoiceStatus]);
 
     useEffect(() => {
         loadRole();
@@ -184,6 +304,7 @@ export default function WorkOrderDetailPage() {
     useEffect(() => {
         loadWorkOrder();
     }, [loadWorkOrder]);
+
     const googleMapsUrl = useMemo(() => {
         const addr = wo?.service_address?.trim();
         if (!addr) return null;
@@ -192,10 +313,11 @@ export default function WorkOrderDetailPage() {
 
     const refreshItemsOnly = useCallback(async () => {
         if (!workOrderId) return;
+
         const { data: itemRows, error: itemErr } = await supabase
             .from("work_order_items")
             .select(
-                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status",
+                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
             )
             .eq("work_order_id", workOrderId)
             .order("created_at", { ascending: true });
@@ -204,12 +326,16 @@ export default function WorkOrderDetailPage() {
             alert(`No se pudieron recargar items: ${itemErr.message}`);
             return;
         }
+
         setItems((itemRows as any) ?? []);
-    }, [workOrderId]);
+
+        if (woRef.current?.invoice_id) {
+            await loadInvoiceStatus(woRef.current.invoice_id);
+        }
+    }, [workOrderId, loadInvoiceStatus]);
 
     const updateQtyDone = useCallback(
         async (itemId: string, newQtyDone: number | null) => {
-            // 0) Buscar el item actual para saber si es Planned y cuál es su Plan
             const current = items.find((x) => x.item_id === itemId);
 
             const hasPlanned =
@@ -217,19 +343,17 @@ export default function WorkOrderDetailPage() {
 
             const plan = hasPlanned ? Number(current?.qty_planned ?? 0) : null;
 
-            // 1) Regla Opción A: si es Planned, Done no puede ser > Plan
             if (!isAdmin && hasPlanned) {
                 const n = newQtyDone === null ? 0 : Number(newQtyDone);
 
                 if (Number.isFinite(n) && plan !== null && n > plan) {
                     alert(
-                        `Este item es Planned (Plan=${plan}). Si hiciste más, crea un Extra para el excedente.`,
+                        `Este item es Planned (Plan=${plan}). Si hiciste más, crea un Extra para el excedente.`
                     );
-                    return; // ⛔ bloquea el update
+                    return;
                 }
             }
 
-            // 2) Guardar qty_done
             const { error } = await supabase
                 .from("work_order_items")
                 .update({ qty_done: newQtyDone })
@@ -240,19 +364,38 @@ export default function WorkOrderDetailPage() {
                 return;
             }
 
-            // 3) Refrescar items
             await refreshItemsOnly();
 
-            // 4) Sync invoice si existe
             if ((woRef.current as any)?.invoice_id) {
+                const currentInvoiceId = (woRef.current as any)?.invoice_id as string;
+
+                const { data: invRow, error: invErr } = await supabase
+                    .from("invoices")
+                    .select("status")
+                    .eq("invoice_id", currentInvoiceId)
+                    .maybeSingle();
+
+                if (invErr) {
+                    console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
+                    return;
+                }
+
+                const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
+
+                if (currentInvoiceStatus !== "draft") {
+                    console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
+                    return;
+                }
+
                 try {
                     await createInvoiceFromWorkOrder(workOrderId);
+                    await loadInvoiceStatus(currentInvoiceId);
                 } catch (syncErr: any) {
                     console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
                 }
             }
         },
-        [items, isAdmin, refreshItemsOnly, workOrderId],
+        [items, isAdmin, refreshItemsOnly, workOrderId, loadInvoiceStatus]
     );
 
     const priceItem = useCallback(
@@ -276,21 +419,37 @@ export default function WorkOrderDetailPage() {
                     return;
                 }
 
-                // ✅ Auto-sync: si esta WO ya tiene invoice, refrescar invoice_items desde WO
                 if ((woRef.current as any)?.invoice_id) {
-                    try {
-                        await createInvoiceFromWorkOrder(workOrderId);
-                    } catch (syncErr: any) {
-                        console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
-                        // No bloqueamos: el price ya quedó guardado
+                    const currentInvoiceId = (woRef.current as any)?.invoice_id as string;
+
+                    const { data: invRow, error: invErr } = await supabase
+                        .from("invoices")
+                        .select("status")
+                        .eq("invoice_id", currentInvoiceId)
+                        .maybeSingle();
+
+                    if (invErr) {
+                        console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
+                    } else {
+                        const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
+
+                        if (currentInvoiceStatus === "draft") {
+                            try {
+                                await createInvoiceFromWorkOrder(workOrderId);
+                                await loadInvoiceStatus(currentInvoiceId);
+                            } catch (syncErr: any) {
+                                console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+                            }
+                        } else {
+                            console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
+                        }
                     }
                 }
 
-                // ✅ Recargar items
                 const { data: itemRows, error: itemErr } = await supabase
                     .from("work_order_items")
                     .select(
-                        "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status",
+                        "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
                     )
                     .eq("work_order_id", workOrderId)
                     .order("created_at", { ascending: true });
@@ -305,10 +464,39 @@ export default function WorkOrderDetailPage() {
                 setSavingPrice((s) => ({ ...s, [itemId]: false }));
             }
         },
-        [priceDraft, workOrderId],
+        [priceDraft, workOrderId, loadInvoiceStatus]
     );
+
+    const saveCustomerInfo = useCallback(async () => {
+        if (!workOrderId) return;
+
+        setSavingCustomer(true);
+        try {
+            const payload = {
+                customer_name: customerForm.customer_name.trim() || null,
+                customer_email: customerForm.customer_email.trim() || null,
+                customer_phone: customerForm.customer_phone.trim() || null,
+                service_address: customerForm.service_address.trim() || null,
+            };
+
+            const { error } = await supabase
+                .from("work_orders")
+                .update(payload)
+                .eq("work_order_id", workOrderId);
+
+            if (error) {
+                alert("No se pudo guardar customer info: " + error.message);
+                return;
+            }
+
+            await loadWorkOrder();
+            alert("Customer info updated.");
+        } finally {
+            setSavingCustomer(false);
+        }
+    }, [workOrderId, customerForm, loadWorkOrder]);
+
     const totals = useMemo(() => {
-        // Total admin: sum(qty_to_price * unit_price)
         const sum = items.reduce((acc, it) => {
             const qtyPlannedRaw =
                 it.qty_planned === null || it.qty_planned === undefined ? null : Number(it.qty_planned);
@@ -316,11 +504,11 @@ export default function WorkOrderDetailPage() {
             const qtyDoneRaw =
                 it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
 
-            // Si es planned → se factura con Done si existe, si no con Plan.
-            // Si es extra → se factura con Done (porque Plan es null).
-            const qtyToPrice = qtyPlannedRaw !== null
-                ? Number((qtyDoneRaw ?? qtyPlannedRaw) ?? 0)
-                : Number(qtyDoneRaw ?? 0);
+            const qtyToPrice =
+                qtyPlannedRaw !== null
+                    ? Number((qtyDoneRaw ?? qtyPlannedRaw) ?? 0)
+                    : Number(qtyDoneRaw ?? 0);
+
             const unit = Number(it.unit_price ?? 0);
             return acc + qtyToPrice * unit;
         }, 0);
@@ -335,6 +523,7 @@ export default function WorkOrderDetailPage() {
             setErr("Cargando rol… intenta de nuevo en 1 segundo.");
             return;
         }
+
         if (!myRole) {
             setErr("No pude determinar tu rol (owner/admin/tech). Reintenta.");
             return;
@@ -366,8 +555,6 @@ export default function WorkOrderDetailPage() {
                 description: desc,
             };
 
-            // Admin -> planned (qty_planned + priced)
-            // Tech  -> extra   (qty_done + pending_pricing)
             const payload = isAdmin
                 ? {
                     ...base,
@@ -391,12 +578,30 @@ export default function WorkOrderDetailPage() {
             const { error } = await supabase.from("work_order_items").insert(payload);
             if (error) throw error;
 
-            // Si ya existe invoice, sync (no bloqueante)
             if ((woRef.current as any)?.invoice_id) {
-                try {
-                    await createInvoiceFromWorkOrder(workOrderId);
-                } catch (syncErr: any) {
-                    console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+                const currentInvoiceId = (woRef.current as any)?.invoice_id as string;
+
+                const { data: invRow, error: invErr } = await supabase
+                    .from("invoices")
+                    .select("status")
+                    .eq("invoice_id", currentInvoiceId)
+                    .maybeSingle();
+
+                if (invErr) {
+                    console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
+                } else {
+                    const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
+
+                    if (currentInvoiceStatus === "draft") {
+                        try {
+                            await createInvoiceFromWorkOrder(workOrderId);
+                            await loadInvoiceStatus(currentInvoiceId);
+                        } catch (syncErr: any) {
+                            console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+                        }
+                    } else {
+                        console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
+                    }
                 }
             }
 
@@ -409,7 +614,7 @@ export default function WorkOrderDetailPage() {
         } finally {
             setSavingItem(false);
         }
-    }, [roleLoading, myRole, newItem, wo, workOrderId, isAdmin, refreshItemsOnly]);
+    }, [roleLoading, myRole, newItem, wo, workOrderId, isAdmin, refreshItemsOnly, loadInvoiceStatus]);
 
     return (
         <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
@@ -432,13 +637,35 @@ export default function WorkOrderDetailPage() {
                 <div style={{ textAlign: "center" }}>
                     <h1 style={{ margin: 0 }}>Work Order</h1>
                     <div style={{ opacity: 0.7, fontFamily: "monospace" }}>{workOrderId}</div>
+
                     <div style={{ opacity: 0.75, marginTop: 4, fontSize: 12 }}>
                         Rol: <b>{myRole ?? "—"}</b>
 
                         {wo?.invoice_id ? (
                             <>
                                 {" "}
-                                · Invoice: <span style={{ fontFamily: "monospace" }}>{String(wo.invoice_id).slice(0, 8)}</span>
+                                · Invoice:{" "}
+                                <span style={{ fontFamily: "monospace" }}>{String(wo.invoice_id).slice(0, 8)}</span>
+                            </>
+                        ) : null}
+
+                        {wo?.invoice_id && invoiceStatus ? (
+                            <>
+                                {" "}
+                                · Estado invoice:{" "}
+                                <span
+                                    style={{
+                                        display: "inline-block",
+                                        padding: "3px 8px",
+                                        borderRadius: 999,
+                                        fontSize: 11,
+                                        fontWeight: 900,
+                                        letterSpacing: 0.3,
+                                        ...invoiceBadgeStyle(invoiceStatus),
+                                    }}
+                                >
+                                    {prettyInvoiceStatus(invoiceStatus)}
+                                </span>
                             </>
                         ) : null}
 
@@ -447,7 +674,7 @@ export default function WorkOrderDetailPage() {
                                 {wo?.invoice_id ? (
                                     <button
                                         type="button"
-                                        onClick={() => router.push(`/invoices/${wo.invoice_id}`)}
+                                        onClick={() => router.push(`/invoices/${wo.invoice_id}?fromWorkOrder=${workOrderId}`)}
                                         style={{
                                             padding: "4px 8px",
                                             borderRadius: 8,
@@ -461,22 +688,33 @@ export default function WorkOrderDetailPage() {
                                         Open
                                     </button>
                                 ) : null}
-
                                 <button
                                     type="button"
                                     onClick={onSyncInvoice}
-                                    disabled={syncingInvoice || anyPendingPricing}
-                                    title={anyPendingPricing ? "Aprueba los Pending pricing primero" : "Sincroniza items priced hacia la invoice"}
+                                    disabled={syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)}
+                                    title={
+                                        anyPendingPricing
+                                            ? "Aprueba los Pending pricing primero"
+                                            : hasInvoice && !invoiceIsDraft
+                                                ? `La invoice está en ${prettyInvoiceStatus(invoiceStatus)} y ya no permite Sync`
+                                                : "Sincroniza items priced hacia la invoice"
+                                    }
                                     style={{
                                         padding: "4px 8px",
                                         borderRadius: 8,
                                         border: "1px solid #111",
-                                        background: "#111",
+                                        background: hasInvoice && !invoiceIsDraft ? "#999" : "#111",
                                         color: "white",
-                                        cursor: syncingInvoice || anyPendingPricing ? "not-allowed" : "pointer",
+                                        cursor:
+                                            syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
+                                                ? "not-allowed"
+                                                : "pointer",
                                         fontWeight: 900,
                                         fontSize: 12,
-                                        opacity: syncingInvoice || anyPendingPricing ? 0.6 : 1,
+                                        opacity:
+                                            syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
+                                                ? 0.6
+                                                : 1,
                                     }}
                                 >
                                     {syncingInvoice ? "Syncing..." : "Sync"}
@@ -534,6 +772,7 @@ export default function WorkOrderDetailPage() {
                     <div style={{ display: "grid", gap: 8 }}>
                         <div style={{ fontSize: 18, fontWeight: 900 }}>{wo.job_type}</div>
                         <div style={{ opacity: 0.8 }}>{wo.description}</div>
+
                         {wo.customer_name ? (
                             <div style={{ fontSize: 14, opacity: 0.85 }}>
                                 <b>Customer:</b> {wo.customer_name}
@@ -582,7 +821,92 @@ export default function WorkOrderDetailPage() {
                             </div>
                         </div>
 
-                        {/* Items */}
+                        {invoiceIsLocked ? (
+                            <div
+                                style={{
+                                    marginTop: 10,
+                                    padding: 10,
+                                    borderRadius: 10,
+                                    background: "#fff7e6",
+                                    border: "1px solid #ffe1a8",
+                                    fontWeight: 700,
+                                }}
+                            >
+                                Esta Work Order tiene una invoice en estado <b>{prettyInvoiceStatus(invoiceStatus)}</b>. Puedes seguir
+                                trabajando la WO, pero ya no se hará Sync automático ni manual sobre esa invoice.
+                            </div>
+                        ) : null}
+
+                        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
+                            <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 10 }}>Customer</div>
+
+                            <div style={{ display: "grid", gap: 10, maxWidth: 620 }}>
+                                <label style={{ display: "grid", gap: 6 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Customer Name</span>
+                                    <input
+                                        value={customerForm.customer_name}
+                                        onChange={(e) =>
+                                            setCustomerForm((s) => ({ ...s, customer_name: e.target.value }))
+                                        }
+                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+                                    />
+                                </label>
+
+                                <label style={{ display: "grid", gap: 6 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Customer Email</span>
+                                    <input
+                                        value={customerForm.customer_email}
+                                        onChange={(e) =>
+                                            setCustomerForm((s) => ({ ...s, customer_email: e.target.value }))
+                                        }
+                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+                                    />
+                                </label>
+
+                                <label style={{ display: "grid", gap: 6 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Customer Phone</span>
+                                    <input
+                                        value={customerForm.customer_phone}
+                                        onChange={(e) =>
+                                            setCustomerForm((s) => ({ ...s, customer_phone: e.target.value }))
+                                        }
+                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+                                    />
+                                </label>
+
+                                <label style={{ display: "grid", gap: 6 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Service Address</span>
+                                    <input
+                                        value={customerForm.service_address}
+                                        onChange={(e) =>
+                                            setCustomerForm((s) => ({ ...s, service_address: e.target.value }))
+                                        }
+                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+                                    />
+                                </label>
+
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={saveCustomerInfo}
+                                        disabled={savingCustomer}
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderRadius: 10,
+                                            border: "1px solid #111",
+                                            background: "#111",
+                                            color: "white",
+                                            cursor: savingCustomer ? "not-allowed" : "pointer",
+                                            fontWeight: 900,
+                                            opacity: savingCustomer ? 0.7 : 1,
+                                        }}
+                                    >
+                                        {savingCustomer ? "Saving..." : "Save Customer Info"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
                             <div
                                 style={{
@@ -616,7 +940,6 @@ export default function WorkOrderDetailPage() {
                                 </div>
                             </div>
 
-                            {/* Formulario */}
                             {showForm ? (
                                 <div
                                     style={{
@@ -648,7 +971,9 @@ export default function WorkOrderDetailPage() {
                                                 placeholder="Ej: 10"
                                                 type="number"
                                                 value={newItem.quantity}
-                                                onChange={(e) => setNewItem((s) => ({ ...s, quantity: Number(e.target.value) }))}
+                                                onChange={(e) =>
+                                                    setNewItem((s) => ({ ...s, quantity: Number(e.target.value) }))
+                                                }
                                                 style={{
                                                     padding: 10,
                                                     borderRadius: 10,
@@ -665,7 +990,9 @@ export default function WorkOrderDetailPage() {
                                                     placeholder="Ej: 8.00"
                                                     type="number"
                                                     value={newItem.unit_price}
-                                                    onChange={(e) => setNewItem((s) => ({ ...s, unit_price: Number(e.target.value) }))}
+                                                    onChange={(e) =>
+                                                        setNewItem((s) => ({ ...s, unit_price: Number(e.target.value) }))
+                                                    }
                                                     style={{
                                                         padding: 10,
                                                         borderRadius: 10,
@@ -735,7 +1062,6 @@ export default function WorkOrderDetailPage() {
                                 </div>
                             ) : null}
 
-                            {/* Lista / tabla */}
                             {items.length === 0 ? (
                                 <div style={{ marginTop: 10, opacity: 0.7 }}>No hay items todavía.</div>
                             ) : (
@@ -757,14 +1083,11 @@ export default function WorkOrderDetailPage() {
                                             {items.map((it) => {
                                                 const hasPlanned = it.qty_planned !== null && it.qty_planned !== undefined;
 
-                                                // Plan es SOLO qty_planned (si no existe, es extra)
                                                 const qtyPlanned = hasPlanned ? Number(it.qty_planned ?? 0) : null;
 
-                                                // Done puede existir en planned (cuando tech reporta) o en extra (porque extra = qty_done)
                                                 const qtyDone =
                                                     it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
 
-                                                // Para pricing/total: usamos done si existe; si no, planned.
                                                 const qtyToPrice = Number((qtyDone ?? qtyPlanned ?? 0) ?? 0);
 
                                                 const unit = Number(it.unit_price ?? 0);
@@ -777,10 +1100,8 @@ export default function WorkOrderDetailPage() {
 
                                                 return (
                                                     <tr key={it.item_id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                                                        {/* Descripción */}
                                                         <td style={{ padding: "8px 6px" }}>{it.description ?? "—"}</td>
 
-                                                        {/* Tipo */}
                                                         <td style={{ padding: "8px 6px" }}>
                                                             <span
                                                                 style={{
@@ -798,7 +1119,7 @@ export default function WorkOrderDetailPage() {
                                                                 {tipo}
                                                             </span>
                                                         </td>
-                                                        {/* Estado */}
+
                                                         <td style={{ padding: "8px 6px" }}>
                                                             <span
                                                                 style={{
@@ -813,17 +1134,20 @@ export default function WorkOrderDetailPage() {
                                                                     color: isPendingPricing ? "#8a5a00" : "#065f46",
                                                                     whiteSpace: "nowrap",
                                                                 }}
-                                                                title={isPendingPricing ? "Este item necesita aprobación de precio" : "Precio aprobado"}
+                                                                title={
+                                                                    isPendingPricing
+                                                                        ? "Este item necesita aprobación de precio"
+                                                                        : "Precio aprobado"
+                                                                }
                                                             >
                                                                 {isPendingPricing ? "Pending pricing" : "Approved"}
                                                             </span>
                                                         </td>
-                                                        {/* PLAN */}
+
                                                         <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
                                                             {hasPlanned ? qtyPlanned : "—"}
                                                         </td>
 
-                                                        {/* DONE */}
                                                         <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
                                                             {isAdmin ? (
                                                                 <span style={{ opacity: 0.85 }}>{qtyDone ?? 0}</span>
@@ -842,7 +1166,6 @@ export default function WorkOrderDetailPage() {
                                                             )}
                                                         </td>
 
-                                                        {/* VALOR (admin) */}
                                                         {isAdmin ? (
                                                             <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
                                                                 {isPendingPricing ? (
@@ -855,8 +1178,7 @@ export default function WorkOrderDetailPage() {
                                                                             onChange={(e) =>
                                                                                 setPriceDraft((s) => ({
                                                                                     ...s,
-                                                                                    [it.item_id]:
-                                                                                        e.target.value === "" ? 0 : Number(e.target.value),
+                                                                                    [it.item_id]: e.target.value === "" ? 0 : Number(e.target.value),
                                                                                 }))
                                                                             }
                                                                         />
@@ -894,10 +1216,8 @@ export default function WorkOrderDetailPage() {
                                                             </td>
                                                         ) : null}
 
-                                                        {/* TAXABLE */}
                                                         <td style={{ padding: "8px 6px" }}>{it.taxable ? "✅" : "—"}</td>
 
-                                                        {/* TOTAL (admin) */}
                                                         {isAdmin ? (
                                                             <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
                                                                 ${lineTotal.toFixed(2)}

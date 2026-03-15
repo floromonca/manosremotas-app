@@ -79,7 +79,7 @@ export default function WorkOrdersPage() {
     const [companyNameSaving, setCompanyNameSaving] = useState(false);
     const [companyNameMsg, setCompanyNameMsg] = useState<string | null>(null);
 
-
+    
 
     // ✅ Guards para evitar re-suscripciones repetidas
     const woRtRef = useRef<string | null>(null);
@@ -1100,29 +1100,30 @@ export default function WorkOrdersPage() {
                                                 return;
                                             }
                                             try {
-                                                const customer = customers.find((c) => c.customer_id === newCustomerId);
-                                                const location = locations.find((l) => l.location_id === newLocationId);
+    const customer = customers.find((c) => c.customer_id === newCustomerId);
+    const location = locations.find((l) => l.location_id === newLocationId);
 
-                                                const { error } = await insertWorkOrder({
-                                                    company_id: companyId,
-                                                    customer_id: newCustomerId || null,
-                                                    location_id: newLocationId || null,
-                                                    customer_name: customer?.name ?? null,
-                                                    customer_phone: customer?.phone ?? null,
-                                                    customer_email: customer?.email ?? null,
-                                                    service_address: location?.address ?? null,
-                                                    job_type: newJobType,
-                                                    description: newDesc,
-                                                    priority: newPriority,
-                                                    scheduled_for: newScheduledFor || null,
-                                                    status: "new",
-                                                });
+    const { error } = await insertWorkOrder({
+        company_id: companyId,
+        customer_id: newCustomerId || null,
+        location_id: newLocationId || null,
+        customer_name: customer?.name ?? null,
+        customer_phone: customer?.phone ?? null,
+        customer_email: customer?.email ?? null,
+        service_address: location?.address ?? null,
+        job_type: newJobType,
+        description: newDesc,
+        priority: newPriority,
+        scheduled_for: newScheduledFor || null,
+        status: "new",
+    });
 
-                                                if (error) {
-                                                    alert("Error creando orden: " + error.message);
-                                                    return;
-                                                }
+    if (error) {
+        alert("Error creando orden: " + error.message);
+        return;
+    }
 
+    // limpiar formulario
                                                 // limpiar formulario
                                                 setNewJobType("");
                                                 setNewDesc("");
