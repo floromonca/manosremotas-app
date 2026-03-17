@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-
 import { supabase } from "../../lib/supabaseClient";
 import {
     fetchAttentionLists,
@@ -10,7 +9,6 @@ import {
     type AttentionLists,
     type ControlCenterKpis,
 } from "../../lib/supabase/controlCenter";
-import { checkIn, checkOut, getOpenShift } from "../../lib/supabase/shifts";
 import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 
@@ -21,7 +19,8 @@ export default function ControlCenterPage() {
     const { companyId, companyName, isLoadingCompany } = useActiveCompany();
 
     const [loading, setLoading] = useState(true);
-    const [errorMsg, setErrorMsg] = useState<string>("");
+    const [errorMsg, setErrorMsg] = useState("");
+    const [revenueMonth, setRevenueMonth] = useState(0);
 
     const [kpis, setKpis] = useState<ControlCenterKpis>({
         activeWorkOrders: 0,
@@ -36,68 +35,67 @@ export default function ControlCenterPage() {
         completedNotInvoiced: [],
     });
 
-    // ✅ evita hydration mismatch: solo renderizamos fecha después del mount
     const [mounted, setMounted] = useState(false);
-    const [prettyDate, setPrettyDate] = useState<string>("");
-
-    // ✅ Jornada
-    const [shiftLoading, setShiftLoading] = useState(false);
-    const [openShiftId, setOpenShiftId] = useState<string | null>(null);
+    const [prettyDate, setPrettyDate] = useState("");
 
     useEffect(() => {
         setMounted(true);
         setPrettyDate(new Date().toLocaleDateString());
     }, []);
 
-    const refreshAll = useCallback(
-        async (cid: string) => {
-            // Shift abierto (si existe)
-            try {
-                const { data, error } = await getOpenShift(cid);
-                if (error) throw error;
-                setOpenShiftId((data as any)?.shift_id ?? null);
-            } catch (e: any) {
-                console.log("shift load warn:", e?.message ?? e);
-                setOpenShiftId(null);
-            }
+    const refreshAll = useCallback(async (cid: string) => {
+        const [k, l] = await Promise.all([
+            fetchControlCenterKpis(cid),
+            fetchAttentionLists(cid),
+        ]);
 
-            // KPIs + lists
-            const [k, l] = await Promise.all([
-                fetchControlCenterKpis(cid),
-                fetchAttentionLists(cid),
-            ]);
+        setKpis(k);
+        setLists(l);
 
-            setKpis(k);
-            setLists(l);
-        },
-        [setKpis, setLists],
-    );
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // ✅ Bootstrap Opción A: crear company para el usuario actual
+        const { data: revenueData, error: revenueErr } = await supabase
+            .from("invoices")
+            .select("total")
+            .eq("company_id", cid)
+            .gte("issue_date", firstDay.toISOString().slice(0, 10));
+
+        if (revenueErr) {
+            console.error("Revenue month error:", revenueErr);
+            setRevenueMonth(0);
+            return;
+        }
+
+        const total = (revenueData ?? []).reduce(
+            (sum, row) => sum + Number(row.total || 0),
+            0
+        );
+
+        setRevenueMonth(total);
+    }, []);
+
     const createCompanyBootstrap = async () => {
         setErrorMsg("");
+
         try {
             const { data, error } = await supabase.rpc(
                 "create_company_for_current_user",
-                { p_company_name: "Empresa Prueba CO" },
+                { p_company_name: "Empresa Prueba CO" }
             );
+
             if (error) throw error;
 
-            const newCompanyId = (data as any) as string | null;
+            const newCompanyId = data as string | null;
             if (!newCompanyId) throw new Error("RPC no devolvió company_id");
 
-            // Guardar activeCompanyId (el hook también sanea, pero esto acelera UX)
             if (typeof window !== "undefined") {
                 localStorage.setItem("activeCompanyId", newCompanyId);
             }
 
-            // Cargar data de Control Center inmediatamente
             await refreshAll(newCompanyId);
 
             alert(`Company creada ✅ ${newCompanyId}`);
-
-            // Nota: useActiveCompany se actualizará solo (porque ya existe membership)
-            // Si quieres, puedes hacer router.refresh(), pero no es necesario.
         } catch (e: any) {
             console.log("❌ RPC create_company_for_current_user error:", e);
             const msg = e?.message ?? String(e);
@@ -106,18 +104,15 @@ export default function ControlCenterPage() {
         }
     };
 
-    // ✅ Boot: decide qué mostrar según auth + company
     useEffect(() => {
         if (authLoading) return;
 
-        // Si no está logueado, fuera
         if (!user) {
             setLoading(false);
             router.replace("/auth");
             return;
         }
 
-        // Esperamos a que el hook termine de resolver company
         if (isLoadingCompany) return;
 
         let cancelled = false;
@@ -128,19 +123,20 @@ export default function ControlCenterPage() {
 
             try {
                 if (!companyId) {
-                    // No hay company: modo bootstrap
                     setKpis({
                         activeWorkOrders: 0,
                         techniciansWorking: 0,
                         delayedOrders: 0,
                         readyToInvoice: 0,
                     });
+
                     setLists({
                         unassigned: [],
                         inProgressOld: [],
                         completedNotInvoiced: [],
                     });
-                    setOpenShiftId(null);
+
+                    setRevenueMonth(0);
                     return;
                 }
 
@@ -161,38 +157,47 @@ export default function ControlCenterPage() {
         if (companyId && typeof window !== "undefined") {
             localStorage.setItem("activeCompanyId", companyId);
         }
-        router.replace(url);
+        router.push(url);
     };
 
+    const revenueMonthLabel = loading
+        ? "…"
+        : `$${revenueMonth.toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        })}`;
+
     return (
-        <div style={{ padding: 24 }}>
-            <div style={{ marginBottom: 18 }}>
+        <div style={{ padding: 24, maxWidth: 1400 }}>
+            <div style={{ marginBottom: 22 }}>
                 {mounted && prettyDate ? (
-                    <div style={{ fontSize: 13, opacity: 0.7 }}>{prettyDate}</div>
+                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
+                        {prettyDate}
+                    </div>
                 ) : null}
 
-                <h1 style={{ fontSize: 28, fontWeight: 650, margin: "6px 0" }}>
-                    {(companyName && companyName.trim() ? companyName : "Your Business")} — Control Center
+                <h1
+                    style={{
+                        fontSize: 32,
+                        fontWeight: 700,
+                        margin: "0 0 8px 0",
+                        letterSpacing: "-0.02em",
+                    }}
+                >
+                    {(companyName && companyName.trim()
+                        ? companyName
+                        : "Your Business")}{" "}
+                    — Control Center
                 </h1>
 
-                <div style={{ opacity: 0.7 }}>
-                    {companyId ? "Live overview of your field operations" : "No company selected."}
+                <div style={{ color: "#6b7280", fontSize: 15 }}>
+                    {companyId
+                        ? "Live overview of your field operations."
+                        : "No company selected."}
                 </div>
 
-                {/* ✅ Bootstrap button */}
                 {!companyId ? (
-                    <button
-                        onClick={createCompanyBootstrap}
-                        style={{
-                            marginTop: 10,
-                            padding: "10px 14px",
-                            borderRadius: 10,
-                            border: "1px solid #ddd",
-                            background: "white",
-                            cursor: "pointer",
-                            fontWeight: 800,
-                        }}
-                    >
+                    <button onClick={createCompanyBootstrap} style={primaryButtonStyle}>
                         + Crear Company (Bootstrap)
                     </button>
                 ) : null}
@@ -200,11 +205,11 @@ export default function ControlCenterPage() {
                 {errorMsg ? (
                     <div
                         style={{
-                            marginTop: 10,
-                            padding: 10,
+                            marginTop: 14,
+                            padding: 12,
                             border: "1px solid #f3caca",
                             background: "#fff5f5",
-                            borderRadius: 8,
+                            borderRadius: 10,
                             color: "#a40000",
                             fontSize: 13,
                         }}
@@ -212,20 +217,21 @@ export default function ControlCenterPage() {
                         <b>Error:</b> {errorMsg}
                     </div>
                 ) : null}
-                {/* Quick actions */}
+
                 {companyId ? (
-                    <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <div
+                        style={{
+                            marginTop: 16,
+                            marginBottom: 8,
+                            display: "flex",
+                            gap: 10,
+                            flexWrap: "wrap",
+                        }}
+                    >
                         <button
                             type="button"
                             onClick={() => go("/work-orders")}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #ddd",
-                                background: "white",
-                                cursor: "pointer",
-                                fontWeight: 800,
-                            }}
+                            style={secondaryButtonStyle}
                         >
                             Work Orders
                         </button>
@@ -233,134 +239,94 @@ export default function ControlCenterPage() {
                         <button
                             type="button"
                             onClick={() => go("/settings/team")}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #ddd",
-                                background: "white",
-                                cursor: "pointer",
-                                fontWeight: 800,
-                            }}
+                            style={secondaryButtonStyle}
                         >
                             Team
                         </button>
                     </div>
                 ) : null}
-
             </div>
 
-            {/* KPI Cards */}
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                     gap: 16,
-                    marginBottom: 22,
+                    marginBottom: 28,
                 }}
             >
-                <Card title="Active Work Orders" value={loading ? "…" : String(kpis.activeWorkOrders)} />
-                <Card
+                <KpiCard
+                    title="Active Work Orders"
+                    value={loading ? "…" : String(kpis.activeWorkOrders)}
+                    accentColor="#3b82f6"
+                    onClick={companyId ? () => go("/work-orders?filter=active") : undefined}
+                />
+
+                <KpiCard
                     title="Technicians Working"
                     value={loading ? "…" : String(kpis.techniciansWorking)}
+                    accentColor="#10b981"
                 />
-                <Card title="Delayed Orders" value={loading ? "…" : String(kpis.delayedOrders)} />
-                <Card title="Ready to Invoice" value={loading ? "…" : String(kpis.readyToInvoice)} />
-            </div>
 
-            {/* ✅ Jornada */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
-                <button
-                    disabled={!companyId || shiftLoading || !!openShiftId}
-                    onClick={async () => {
-                        if (!companyId) return;
+                <KpiCard
+                    title="Delayed Orders"
+                    value={loading ? "…" : String(kpis.delayedOrders)}
+                    accentColor={kpis.delayedOrders > 0 ? "#ef4444" : undefined}
+                    onClick={companyId ? () => go("/work-orders?filter=delayed") : undefined}
+                />
 
-                        setShiftLoading(true);
-                        setErrorMsg("");
-
-                        try {
-                            const { data, error } = await checkIn(companyId);
-                            if (error) throw error;
-
-                            setOpenShiftId((data as any)?.shift_id ?? null);
-
-                            // refrescar KPIs después de check-in
-                            const k = await fetchControlCenterKpis(companyId);
-                            setKpis(k);
-                        } catch (e: any) {
-                            const msg = e?.message ?? String(e);
-                            console.error("CHECK-IN ERROR ❌", e);
-                            alert(msg);
-                            setErrorMsg(msg);
-                        } finally {
-                            setShiftLoading(false);
-                        }
-                    }}
-                    style={{
-                        border: "1px solid #ddd",
-                        background: openShiftId ? "#f5f5f5" : "white",
-                        borderRadius: 8,
-                        padding: "8px 12px",
-                        cursor: openShiftId ? "not-allowed" : "pointer",
-                        opacity: !companyId || shiftLoading || !!openShiftId ? 0.7 : 1,
-                    }}
-                    title={
-                        openShiftId
-                            ? "Ya tienes una jornada activa. Debes hacer check-out primero."
-                            : "Iniciar jornada"
+                <KpiCard
+                    title="Ready to Invoice"
+                    value={loading ? "…" : String(kpis.readyToInvoice)}
+                    accentColor={kpis.readyToInvoice > 0 ? "#f59e0b" : undefined}
+                    onClick={
+                        companyId ? () => go("/work-orders?filter=ready_to_invoice") : undefined
                     }
-                >
-                    {openShiftId ? "Check-in (jornada activa)" : shiftLoading ? "Check-in..." : "Check-in"}
-                </button>
+                />
 
-                <button
-                    disabled={!companyId || shiftLoading || !openShiftId}
-                    onClick={async () => {
-                        if (!openShiftId || !companyId) return;
-                        setShiftLoading(true);
-                        setErrorMsg("");
-                        try {
-                            const { data, error } = await checkOut(openShiftId);
-                            if (error) throw error;
+                <KpiCard
+                    title="Completed, Not Invoiced"
+                    value={loading ? "…" : String(lists.completedNotInvoiced.length)}
+                    accentColor={lists.completedNotInvoiced.length > 0 ? "#fbbf24" : undefined}
+                    onClick={
+                        companyId ? () => go("/work-orders?filter=ready_to_invoice") : undefined
+                    }
+                />
 
-                            setOpenShiftId(null);
-
-                            // refrescar KPIs después de check-out
-                            const k = await fetchControlCenterKpis(companyId);
-                            setKpis(k);
-                        } catch (e: any) {
-                            setErrorMsg(e?.message ?? String(e));
-                        } finally {
-                            setShiftLoading(false);
-                        }
-                    }}
-                    style={{
-                        border: "1px solid #ddd",
-                        background: !openShiftId ? "#f5f5f5" : "white",
-                        borderRadius: 8,
-                        padding: "8px 12px",
-                        cursor: "pointer",
-                    }}
-                >
-                    Check-out
-                </button>
-
-                <div style={{ fontSize: 13, opacity: 0.7, alignSelf: "center" }}>
-                    Jornada: <b>{openShiftId ? "ACTIVA ✅" : "cerrada"}</b>
-                </div>
+                <KpiCard
+                    title="Revenue This Month"
+                    value={revenueMonthLabel}
+                    accentColor="#14b8a6"
+                />
             </div>
 
-            {/* Attention Today */}
-            <div style={{ marginBottom: 26 }}>
-                <h2 style={{ marginBottom: 10 }}>Attention Today</h2>
+            <section style={{ marginBottom: 28 }}>
+                <div style={{ marginBottom: 12 }}>
+                    <h2
+                        style={{
+                            fontSize: 20,
+                            fontWeight: 700,
+                            margin: 0,
+                            letterSpacing: "-0.01em",
+                        }}
+                    >
+                        Attention Today
+                    </h2>
+
+                    <div style={{ color: "#6b7280", fontSize: 14, marginTop: 4 }}>
+                        Review exceptions and jump into filtered work orders.
+                    </div>
+                </div>
 
                 {loading ? (
-                    <div style={{ opacity: 0.7 }}>Loading…</div>
+                    <div style={{ color: "#6b7280" }}>Loading…</div>
                 ) : !companyId ? (
-                    <div style={{ opacity: 0.7 }}>No company selected.</div>
+                    <div style={{ color: "#6b7280" }}>No company selected.</div>
                 ) : (
                     <div style={{ display: "grid", gap: 14 }}>
                         <ListBlock
                             title={`Unassigned (${lists.unassigned.length})`}
+                            helper="Work orders without technician assignment."
                             onOpen={() => go("/work-orders?filter=unassigned")}
                             items={lists.unassigned.map((x) => ({
                                 title: x.job_type,
@@ -370,6 +336,7 @@ export default function ControlCenterPage() {
 
                         <ListBlock
                             title={`In progress > 3 days (${lists.inProgressOld.length})`}
+                            helper="Open work orders that may need attention."
                             onOpen={() => go("/work-orders?filter=delayed")}
                             items={lists.inProgressOld.map((x) => ({
                                 title: x.job_type,
@@ -379,6 +346,7 @@ export default function ControlCenterPage() {
 
                         <ListBlock
                             title={`Completed, not invoiced (${lists.completedNotInvoiced.length})`}
+                            helper="Finished work waiting for invoice action."
                             onOpen={() => go("/work-orders?filter=ready_to_invoice")}
                             items={lists.completedNotInvoiced.map((x) => ({
                                 title: x.job_type,
@@ -387,79 +355,133 @@ export default function ControlCenterPage() {
                         />
                     </div>
                 )}
-            </div>
+            </section>
 
-            <div style={{ opacity: 0.7, fontSize: 13 }}>
-                Nota: “Technicians Working” debe venir de shifts abiertos (real).
+            <div style={{ color: "#6b7280", fontSize: 13 }}>
+                Control Center is for supervision and navigation. Operational actions
+                should happen in Work Orders.
             </div>
         </div>
     );
 }
 
-function Card({ title, value }: { title: string; value: string }) {
+function KpiCard({
+    title,
+    value,
+    onClick,
+    accentColor,
+}: {
+    title: string;
+    value: string;
+    onClick?: () => void;
+    accentColor?: string;
+}) {
+    const clickable = !!onClick;
+
     return (
         <div
+            onClick={onClick}
             style={{
-                padding: 16,
-                border: "1px solid #e5e5e5",
-                borderRadius: 10,
+                padding: 18,
+                border: "1px solid #e5e7eb",
+                borderLeft: accentColor ? `4px solid ${accentColor}` : "1px solid #e5e7eb",
+                borderRadius: 12,
                 background: "#fff",
+                cursor: clickable ? "pointer" : "default",
+                transition: "all 0.15s ease",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+            }}
+            onMouseEnter={(e) => {
+                if (!clickable) return;
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.06)";
+            }}
+            onMouseLeave={(e) => {
+                if (!clickable) return;
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.03)";
             }}
         >
-            <div style={{ fontSize: 14, opacity: 0.6 }}>{title}</div>
-            <div style={{ fontSize: 26, fontWeight: 650, marginTop: 6 }}>{value}</div>
+            <div style={{ fontSize: 14, color: "#6b7280", minHeight: 18 }}>
+                {title}
+            </div>
+
+            <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{value}</div>
+
+            {clickable ? (
+                <div
+                    style={{
+                        marginTop: 10,
+                        fontSize: 13,
+                        color: "#111827",
+                        fontWeight: 600,
+                    }}
+                >
+                    View →
+                </div>
+            ) : null}
         </div>
     );
 }
 
 function ListBlock({
     title,
+    helper,
     items,
     onOpen,
 }: {
     title: string;
+    helper?: string;
     items: { title: string; meta?: string }[];
     onOpen?: () => void;
 }) {
     return (
         <div
             style={{
-                border: "1px solid #eee",
-                borderRadius: 10,
-                padding: 12,
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 14,
                 background: "#fafafa",
             }}
         >
             <div
                 style={{
-                    fontWeight: 650,
-                    marginBottom: 8,
+                    marginBottom: 10,
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 10,
+                    alignItems: "flex-start",
+                    gap: 12,
                 }}
             >
-                <span>{title}</span>
+                <div>
+                    <div style={{ fontWeight: 700, fontSize: 18 }}>{title}</div>
+                    {helper ? (
+                        <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
+                            {helper}
+                        </div>
+                    ) : null}
+                </div>
 
                 {onOpen ? (
-                    <button
-                        onClick={onOpen}
-                        style={{
-                            border: "1px solid #ddd",
-                            background: "white",
-                            borderRadius: 8,
-                            padding: "6px 10px",
-                            cursor: "pointer",
-                        }}
-                    >
+                    <button onClick={onOpen} style={secondaryButtonStyle}>
                         View →
                     </button>
                 ) : null}
             </div>
 
             {items.length === 0 ? (
-                <div style={{ opacity: 0.7, fontSize: 13 }}>Nothing here ✅</div>
+                <div
+                    style={{
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        background: "#fff",
+                        border: "1px solid #eee",
+                        color: "#6b7280",
+                        fontSize: 13,
+                    }}
+                >
+                    Nothing here ✅
+                </div>
             ) : (
                 <div style={{ display: "grid", gap: 8 }}>
                     {items.map((it, idx) => (
@@ -467,27 +489,38 @@ function ListBlock({
                             key={idx}
                             onClick={onOpen ? () => onOpen() : undefined}
                             style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                gap: 10,
-                                padding: "8px 10px",
-                                background: "white",
+                                padding: "10px 12px",
+                                background: "#fff",
                                 border: "1px solid #eee",
-                                borderRadius: 8,
+                                borderRadius: 10,
                                 cursor: onOpen ? "pointer" : "default",
                                 transition: "background 0.15s ease",
                             }}
                             onMouseEnter={(e) => {
-                                if (onOpen) e.currentTarget.style.background = "#f4f4f4";
+                                if (onOpen) e.currentTarget.style.background = "#f4f4f5";
                             }}
                             onMouseLeave={(e) => {
-                                if (onOpen) e.currentTarget.style.background = "white";
+                                if (onOpen) e.currentTarget.style.background = "#fff";
                             }}
                         >
-                            <div>{it.title}</div>
-                            <div style={{ opacity: 0.6, fontFamily: "monospace" }}>
-                                {it.meta ?? ""}
-                            </div>
+                            <div style={{ fontWeight: 500 }}>{it.title}</div>
+
+                            {it.meta ? (
+                                <div
+                                    style={{
+                                        marginTop: 6,
+                                        fontFamily: "monospace",
+                                        fontSize: 12,
+                                        display: "inline-block",
+                                        padding: "2px 6px",
+                                        borderRadius: 6,
+                                        background: "#f3f4f6",
+                                        color: "#374151",
+                                    }}
+                                >
+                                    WO #{it.meta}
+                                </div>
+                            ) : null}
                         </div>
                     ))}
                 </div>
@@ -495,3 +528,24 @@ function ListBlock({
         </div>
     );
 }
+
+const primaryButtonStyle: React.CSSProperties = {
+    marginTop: 12,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid #111827",
+    background: "#111827",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 700,
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    color: "#111827",
+    cursor: "pointer",
+    fontWeight: 600,
+};

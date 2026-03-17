@@ -614,24 +614,24 @@ export default function InvoicePage() {
                         {sendingInvoice ? "Sending..." : canResend ? "Resend Invoice" : "Send Invoice"}
                     </button>
 
-                    <button
-                        onClick={openPaymentModal}
-                        disabled={!canRecordPayment}
-                        title={canRecordPayment ? "Record a payment" : "Invoice already paid or unavailable"}
-                        style={{
-                            padding: "10px 14px",
-                            borderRadius: 10,
-                            border: "1px solid #16a34a",
-                            background: canRecordPayment ? "#16a34a" : "#93c5aa",
-                            color: "white",
-                            cursor: canRecordPayment ? "pointer" : "not-allowed",
-                            fontWeight: 900,
-                            height: "fit-content",
-                            opacity: canRecordPayment ? 1 : 0.8,
-                        }}
-                    >
-                        Record Payment
-                    </button>
+                    {canRecordPayment ? (
+                        <button
+                            onClick={openPaymentModal}
+                            title="Record a payment"
+                            style={{
+                                padding: "10px 14px",
+                                borderRadius: 10,
+                                border: "1px solid #16a34a",
+                                background: "#16a34a",
+                                color: "white",
+                                cursor: "pointer",
+                                fontWeight: 900,
+                                height: "fit-content",
+                            }}
+                        >
+                            Record Payment
+                        </button>
+                    ) : null}
 
                     <button
                         onClick={() => {
@@ -791,7 +791,56 @@ export default function InvoicePage() {
                         ) : null}
 
                         <hr style={{ margin: "10px 0", border: "none", borderTop: "1px solid #eee" }} />
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(3, 1fr)",
+                                gap: 12,
+                                marginBottom: 14,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    background: "#f8fafc",
+                                    border: "1px solid #eee",
+                                    borderRadius: 10,
+                                    padding: 12,
+                                }}
+                            >
+                                <div style={{ fontSize: 11, opacity: 0.7 }}>TOTAL</div>
+                                <div style={{ fontSize: 18, fontWeight: 900 }}>
+                                    {money(inv.total ?? totals.total, inv.currency_code)}
+                                </div>
+                            </div>
 
+                            <div
+                                style={{
+                                    background: "#f0fdf4",
+                                    border: "1px solid #bbf7d0",
+                                    borderRadius: 10,
+                                    padding: 12,
+                                }}
+                            >
+                                <div style={{ fontSize: 11, opacity: 0.7 }}>PAID</div>
+                                <div style={{ fontSize: 18, fontWeight: 900 }}>
+                                    {money(paymentsTotal, inv.currency_code)}
+                                </div>
+                            </div>
+
+                            <div
+                                style={{
+                                    background: "#fff7ed",
+                                    border: "1px solid #fed7aa",
+                                    borderRadius: 10,
+                                    padding: 12,
+                                }}
+                            >
+                                <div style={{ fontSize: 11, opacity: 0.7 }}>BALANCE</div>
+                                <div style={{ fontSize: 18, fontWeight: 900 }}>
+                                    {money(inv.balance_due ?? totals.balance, inv.currency_code)}
+                                </div>
+                            </div>
+                        </div>
                         <div>
                             <b>Subtotal:</b> {money(inv.subtotal ?? totals.subtotal, inv.currency_code)}
                         </div>
@@ -819,6 +868,55 @@ export default function InvoicePage() {
                         <div>
                             <b>Balance Due:</b> {money(inv.balance_due ?? totals.balance, inv.currency_code)}
                         </div>
+                        {(inv.total ?? totals.total) > 0 ? (
+                            <div style={{ marginTop: 14 }}>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        marginBottom: 6,
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        color: "#555",
+                                    }}
+                                >
+                                    <span>Payment Progress</span>
+                                    <span>
+                                        {Math.min(
+                                            100,
+                                            Math.round(
+                                                (paymentsTotal / Math.max(Number(inv.total ?? totals.total), 1)) * 100
+                                            )
+                                        )}
+                                        %
+                                    </span>
+                                </div>
+
+                                <div
+                                    style={{
+                                        width: "100%",
+                                        height: 10,
+                                        background: "#e5e7eb",
+                                        borderRadius: 999,
+                                        overflow: "hidden",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            height: "100%",
+                                            width: `${Math.min(
+                                                100,
+                                                (paymentsTotal / Math.max(Number(inv.total ?? totals.total), 1)) * 100
+                                            )}%`,
+                                            background:
+                                                (inv.balance_due ?? totals.balance) <= 0 ? "#10b981" : "#2563eb",
+                                            transition: "width 0.25s ease",
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
             ) : null}
@@ -842,25 +940,46 @@ export default function InvoicePage() {
                             <div
                                 key={p.payment_id}
                                 style={{
-                                    padding: 12,
+                                    padding: 14,
                                     border: "1px solid #eee",
-                                    borderRadius: 10,
+                                    borderRadius: 12,
                                     background: "#fafafa",
                                     display: "flex",
                                     justifyContent: "space-between",
-                                    gap: 12,
+                                    alignItems: "center",
+                                    gap: 16,
                                 }}
                             >
-                                <div>
-                                    <div style={{ fontWeight: 800 }}>{p.payment_method?.trim() || "Payment"}</div>
-                                    <div style={{ fontSize: 12, opacity: 0.8 }}>{p.payment_date ?? "—"}</div>
+                                <div style={{ display: "grid", gap: 4 }}>
+                                    <div style={{ fontWeight: 800, fontSize: 14 }}>
+                                        {p.payment_date
+                                            ? new Date(p.payment_date + "T00:00:00").toLocaleDateString(undefined, {
+                                                year: "numeric",
+                                                month: "short",
+                                                day: "numeric",
+                                            })
+                                            : "—"}
+                                    </div>
+
+                                    <div style={{ fontSize: 13, color: "#555", textTransform: "capitalize" }}>
+                                        {(p.payment_method?.trim() || "payment").toLowerCase()} payment
+                                    </div>
+
                                     {p.notes ? (
-                                        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>{p.notes}</div>
+                                        <div style={{ fontSize: 12, color: "#777" }}>{p.notes}</div>
                                     ) : null}
                                 </div>
 
-                                <div style={{ textAlign: "right", fontFamily: "monospace", minWidth: 140 }}>
-                                    <b>{money(p.amount, inv?.currency_code)}</b>
+                                <div
+                                    style={{
+                                        textAlign: "right",
+                                        minWidth: 140,
+                                        fontWeight: 900,
+                                        fontSize: 16,
+                                        fontFamily: "monospace",
+                                    }}
+                                >
+                                    {money(p.amount, inv?.currency_code)}
                                 </div>
                             </div>
                         ))}

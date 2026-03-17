@@ -725,7 +725,7 @@ export default function WorkOrderDetailPage() {
                 </div>
 
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => router.push("/work-orders")}
                     style={{
                         padding: "10px 14px",
                         borderRadius: 10,
@@ -736,7 +736,7 @@ export default function WorkOrderDetailPage() {
                         height: "fit-content",
                     }}
                 >
-                    ← Volver
+                    ← Back to Work Orders
                 </button>
             </div>
 

@@ -5,13 +5,6 @@ import { supabase } from "./supabaseClient";
 const FALLBACK_TAX_RATE_CA = 0.13; // Canadá (ON HST)
 const FALLBACK_TAX_RATE_CO = 0.19; // Colombia (IVA)
 
-// Genera invoice_number con timestamp + random para evitar choques
-function makeInvoiceNumber() {
-  const ts = new Date().toISOString().replace(/[-:T.Z]/g, "").slice(0, 14); // YYYYMMDDHHMMSS
-  const rnd = Math.random().toString(36).slice(2, 6).toUpperCase(); // 4 chars
-  return `INV-${ts}-${rnd}`;
-}
-
 export async function getDefaultTaxRate(companyId: string): Promise<number> {
   // Fuente oficial: public.companies.tax_rate_default
   const { data, error } = await supabase
@@ -53,13 +46,17 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   // 1) Leer WO (incluye invoice_id para guard)
   const { data: wo, error: woErr } = await supabase
     .from("work_orders")
-    .select("work_order_id, company_id, job_type, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at")
+    .select(
+      "work_order_id, work_order_number, company_id, job_type, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at",
+    )
     .eq("work_order_id", workOrderId)
     .single();
 
   if (woErr) throw woErr;
   if (!wo) throw new Error("Work order no encontrada");
-  if (!wo.company_id) throw new Error("WO sin company_id");
+  if (!(wo as any).company_id) throw new Error("WO sin company_id");
+
+  const companyId = String((wo as any).company_id);
 
   // 1.0) Guard principal: si la WO ya está linkeada, reutilizamos
   let invoiceId: string | null = (wo as any)?.invoice_id ?? null;
@@ -68,7 +65,7 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   const { data: companyRow, error: companyErr } = await supabase
     .from("companies")
     .select("currency_code, payment_terms_days")
-    .eq("company_id", wo.company_id)
+    .eq("company_id", companyId)
     .maybeSingle();
 
   if (companyErr) throw companyErr;
@@ -88,7 +85,7 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   const invoiceDate = new Date();
 
   const dueDate = new Date(
-    invoiceDate.getTime() + paymentTerms * 24 * 60 * 60 * 1000
+    invoiceDate.getTime() + paymentTerms * 24 * 60 * 60 * 1000,
   );
 
   // 1.2) Si WO no tiene invoice_id, buscamos invoice existente por (company_id, work_order_id)
@@ -96,8 +93,8 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
     const { data: existing, error: exErr } = await supabase
       .from("invoices")
       .select("invoice_id")
-      .eq("company_id", wo.company_id)
-      .eq("work_order_id", wo.work_order_id)
+      .eq("company_id", companyId)
+      .eq("work_order_id", (wo as any).work_order_id)
       .limit(1);
 
     if (exErr) throw exErr;
@@ -108,34 +105,57 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   }
 
   // 1.3) Leer tax rate default (sin INSERT)
-  const defaultTaxRate = await getDefaultTaxRate(wo.company_id);
+  const defaultTaxRate = await getDefaultTaxRate(companyId);
   console.log("🧾 defaultTaxRate resolved:", defaultTaxRate);
 
   // 2) Crear invoice (solo si no existe)
   if (!invoiceId) {
-    const invoiceNumber = makeInvoiceNumber();
+    const { data: allocatedNumber, error: allocErr } = await supabase.rpc(
+      "allocate_next_invoice_number",
+      {
+        p_company_id: companyId,
+      },
+    );
+
+    if (allocErr) throw allocErr;
+
+    const invoiceNumber =
+      typeof allocatedNumber === "string" && allocatedNumber.trim()
+        ? allocatedNumber.trim()
+        : null;
+
+    if (!invoiceNumber) {
+      throw new Error("No se pudo asignar invoice_number");
+    }
 
     const { data: inv, error: invErr } = await supabase
       .from("invoices")
       .insert({
-        company_id: wo.company_id,
-        work_order_id: wo.work_order_id,
+        company_id: companyId,
+        work_order_id: (wo as any).work_order_id,
         invoice_number: invoiceNumber,
         currency_code: currencyCode,
 
         customer_name:
-          ((wo as any).customer_name && String((wo as any).customer_name).trim()) ||
-          ((wo as any).job_type && String((wo as any).job_type).trim()) ||
-          "Cliente",
+          (((wo as any).customer_name &&
+            String((wo as any).customer_name).trim()) ||
+            ((wo as any).job_type && String((wo as any).job_type).trim()) ||
+            "Cliente"),
 
         customer_phone:
-          ((wo as any).customer_phone && String((wo as any).customer_phone).trim()) || null,
+          (((wo as any).customer_phone &&
+            String((wo as any).customer_phone).trim()) ||
+            null),
 
         customer_email:
-          ((wo as any).customer_email && String((wo as any).customer_email).trim()) || null,
+          (((wo as any).customer_email &&
+            String((wo as any).customer_email).trim()) ||
+            null),
 
         billing_address:
-          ((wo as any).service_address && String((wo as any).service_address).trim()) || null,
+          (((wo as any).service_address &&
+            String((wo as any).service_address).trim()) ||
+            null),
 
         invoice_date: invoiceDate.toISOString().slice(0, 10),
         due_date: dueDate.toISOString().slice(0, 10),
@@ -146,12 +166,13 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 
     if (invErr) {
       const code = (invErr as any)?.code;
+
       if (code === "23505") {
         const { data: ex2, error: ex2Err } = await supabase
           .from("invoices")
           .select("invoice_id")
-          .eq("company_id", wo.company_id)
-          .eq("work_order_id", wo.work_order_id)
+          .eq("company_id", companyId)
+          .eq("work_order_id", (wo as any).work_order_id)
           .limit(1);
 
         if (ex2Err) throw ex2Err;
@@ -172,7 +193,9 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   // 3) Leer items de la WO
   const { data: items, error: itemsErr } = await supabase
     .from("work_order_items")
-    .select("description, quantity, qty_planned, qty_done, unit_price, taxable, pending_pricing, pricing_status")
+    .select(
+      "description, quantity, qty_planned, qty_done, unit_price, taxable, pending_pricing, pricing_status",
+    )
     .eq("work_order_id", workOrderId)
     .order("created_at", { ascending: true });
 
@@ -191,15 +214,17 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
     const payload = items
       .filter((it: any) => {
         const isPending =
-          it?.pending_pricing === true || it?.pricing_status === "pending_pricing";
+          it?.pending_pricing === true ||
+          it?.pricing_status === "pending_pricing";
         return !isPending;
       })
       .map((it: any) => {
         const taxable = it?.taxable ?? true;
-        const qtyToInvoice = it?.qty_done ?? it?.qty_planned ?? it?.quantity ?? 1;
+        const qtyToInvoice =
+          it?.qty_done ?? it?.qty_planned ?? it?.quantity ?? 1;
 
         return {
-          company_id: wo.company_id,
+          company_id: companyId,
           invoice_id: invoiceId,
           description: withExtraTag(it),
           qty: qtyToInvoice,
@@ -212,7 +237,9 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
     console.log("🧾 Copy items payload (tax_rate check):", payload);
 
     if (payload.length > 0) {
-      const { error: copyErr } = await supabase.from("invoice_items").insert(payload);
+      const { error: copyErr } = await supabase
+        .from("invoice_items")
+        .insert(payload);
       if (copyErr) throw copyErr;
     }
   }
@@ -257,6 +284,7 @@ type InvoiceHtmlData = {
     invoice_id?: string;
     company_id?: string;
     work_order_id?: string | null;
+    work_order_number?: string | null;
     invoice_number?: string | null;
     status?: string | null;
     currency_code?: string | null;
@@ -309,10 +337,6 @@ function moneyHtml(value: number | null | undefined, currency = "CAD") {
   }).format(Number(value ?? 0));
 }
 
-function percentHtml(value: number | null | undefined) {
-  return `${(Number(value ?? 0) * 100).toFixed(2)}%`;
-}
-
 function escHtml(value: string | null | undefined) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -323,8 +347,13 @@ function escHtml(value: string | null | undefined) {
 }
 
 function joinCompanyAddress(company?: InvoiceHtmlData["company"]) {
-  const cityProvince = [company?.city, company?.province].filter(Boolean).join(", ");
-  const postalCountry = [company?.postal_code, company?.country].filter(Boolean).join(" ");
+  const cityProvince = [company?.city, company?.province]
+    .filter(Boolean)
+    .join(", ");
+
+  const postalCountry = [company?.postal_code, company?.country]
+    .filter(Boolean)
+    .join(" ");
 
   return [
     company?.address_line1,
@@ -336,9 +365,17 @@ function joinCompanyAddress(company?: InvoiceHtmlData["company"]) {
     .join("<br/>");
 }
 
-function dateHtml(value: string | null | undefined) {
-  if (!value) return "—";
-  return escHtml(value);
+function dateHtml(date: string | null | undefined) {
+  if (!date) return "—";
+
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return escHtml(date);
+
+  return d.toLocaleDateString("en-CA", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function statusMeta(status: string | null | undefined) {
@@ -397,6 +434,25 @@ function statusMeta(status: string | null | undefined) {
   };
 }
 
+function displayWorkOrder(invoice: InvoiceHtmlData["invoice"]) {
+  const workOrderNumber =
+    typeof invoice?.work_order_number === "string" &&
+      invoice.work_order_number.trim()
+      ? invoice.work_order_number.trim()
+      : null;
+
+  if (workOrderNumber) return workOrderNumber;
+
+  const workOrderId =
+    typeof invoice?.work_order_id === "string" && invoice.work_order_id.trim()
+      ? invoice.work_order_id.trim()
+      : null;
+
+  if (!workOrderId) return null;
+
+  return workOrderId.slice(0, 8);
+}
+
 export function renderInvoiceHtml(data: InvoiceHtmlData): string {
   const invoice = data.invoice ?? {};
   const company = data.company ?? {};
@@ -404,9 +460,11 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
   const payments = data.payments ?? [];
   const currency = invoice.currency_code || "CAD";
 
-  const companyDisplayName = company.legal_name || company.company_name || "Company";
+  const companyDisplayName =
+    company.legal_name || company.company_name || "Company";
   const companyAddress = joinCompanyAddress(company);
   const invoiceDate = invoice.invoice_date || invoice.issue_date || null;
+  const workOrderDisplay = displayWorkOrder(invoice);
 
   const status = statusMeta(invoice.status);
 
@@ -423,620 +481,544 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
 
   const rows = items.length
     ? items
-      .map((item, index) => {
+      .map((item) => {
         return `
-            <tr>
-              <td class="col-index">${index + 1}</td>
-              <td class="desc">${escHtml(item.description || "")}</td>
-              <td class="num">${Number(item.qty ?? 0)}</td>
-              <td class="num">${moneyHtml(item.unit_price, currency)}</td>
-              <td class="num">${percentHtml(item.tax_rate)}</td>
-              <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
-            </tr>
-          `;
+          <tr>
+            <td class="desc">${escHtml(item.description || "")}</td>
+            <td class="num">${Number(item.qty ?? 0)}</td>
+            <td class="num">${moneyHtml(item.unit_price, currency)}</td>
+            <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
+          </tr>
+        `;
       })
       .join("")
     : `
       <tr>
-        <td colspan="6" class="empty">No invoice items</td>
+        <td colspan="4" class="empty">No invoice items</td>
       </tr>
     `;
-
-  const paymentRows = payments.length
-    ? payments
-      .map((payment) => {
-        return `
-            <tr>
-              <td>${dateHtml(payment.payment_date)}</td>
-              <td>${escHtml(payment.payment_method || "Payment")}</td>
-              <td>${escHtml(payment.notes || "")}</td>
-              <td class="num">${moneyHtml(payment.amount, currency)}</td>
-            </tr>
-          `;
-      })
-      .join("")
-    : "";
 
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Invoice ${escHtml(invoice.invoice_number || "")}</title>
-  <style>
-    :root {
-      --text: #101828;
-      --muted: #667085;
-      --line: #e4e7ec;
-      --soft: #f8fafc;
-      --soft-2: #f2f4f7;
-      --heading: #0f172a;
-      --accent: #111827;
-    }
+<meta charset="UTF-8"/>
+<title>Invoice ${escHtml(invoice.invoice_number || "")}</title>
 
-    * {
-      box-sizing: border-box;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
+<style>
+:root{
+  --text:#101828;
+  --muted:#667085;
+  --line:#e4e7ec;
+  --soft:#f8fafc;
+  --heading:#0f172a;
+}
 
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: #ffffff;
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-      line-height: 1.45;
-      font-size: 13.5px;
-    }
+*{
+  box-sizing:border-box;
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact;
+}
 
-    body {
-      padding: 28px;
-    }
+html,body{
+  margin:0;
+  padding:0;
+  font-family:Arial,Helvetica,sans-serif;
+  color:var(--text);
+  font-size:12.5px;
+  line-height:1.35;
+  background:#ffffff;
+}
 
-    .page {
-      max-width: 960px;
-      margin: 0 auto;
-    }
+body{
+  padding:14px;
+}
 
-    .topbar {
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 28px;
-      align-items: start;
-      margin-bottom: 28px;
-    }
+.page{
+  max-width:860px;
+  margin:auto;
+}
 
-    .brand-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
+/* HEADER */
 
-    .logo {
-      max-width: 190px;
-      max-height: 88px;
-      object-fit: contain;
-      display: block;
-    }
+.topbar{
+  display:grid;
+  grid-template-columns:1.2fr 0.8fr;
+  gap:14px;
+  margin-bottom:10px;
+}
 
-    .brand-name {
-      font-size: 24px;
-      font-weight: 800;
-      color: var(--heading);
-      margin: 0;
-      letter-spacing: -0.02em;
-    }
+.logo{
+  max-width:140px;
+  max-height:70px;
+  object-fit:contain;
+  margin-bottom:6px;
+}
 
-    .brand-meta {
-      color: var(--muted);
-      font-size: 13px;
-    }
+.brand-name{
+  font-size:21px;
+  font-weight:900;
+  color:var(--heading);
+  margin:0 0 4px 0;
+  letter-spacing:-0.02em;
+}
 
-    .brand-meta div {
-      margin-top: 2px;
-    }
+.brand-meta{
+  color:var(--muted);
+  font-size:11.5px;
+}
 
-    .invoice-panel {
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: linear-gradient(180deg, #fcfcfd 0%, #f9fafb 100%);
-      padding: 20px 20px 16px;
-    }
+.brand-meta div{
+  margin-top:1px;
+}
 
-    .invoice-panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: start;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
+/* INVOICE PANEL */
 
-    .invoice-title {
-      margin: 0;
-      font-size: 34px;
-      font-weight: 800;
-      letter-spacing: -0.03em;
-      color: var(--heading);
-    }
+.invoice-panel{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:14px 16px;
+  background:#fafafa;
+}
 
-    .status-pill {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      background: ${status.bg};
-      color: ${status.color};
-      border: 1px solid ${status.border};
-      white-space: nowrap;
-    }
+.invoice-title{
+  font-size:28px;
+  font-weight:800;
+  margin:0;
+  letter-spacing:-0.02em;
+  color:var(--heading);
+}
 
-    .invoice-meta-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px 18px;
-    }
+.status-pill{
+  display:inline-block;
+  margin-top:5px;
+  padding:4px 9px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:800;
+  background:#eef4ff;
+  color:#1d4ed8;
+  border:1px solid #c7d7ff;
+}
 
-    .meta-item {
-      display: grid;
-      gap: 2px;
-    }
+.meta-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px 14px;
+  margin-top:10px;
+}
 
-    .meta-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      font-weight: 700;
-    }
+.meta-label{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--muted);
+  font-weight:700;
+}
 
-    .meta-value {
-      color: var(--text);
-      font-weight: 700;
-      word-break: break-word;
-    }
+.meta-value{
+  font-weight:700;
+  word-break:break-word;
+}
 
-    .section-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 0.9fr;
-      gap: 18px;
-      margin-bottom: 24px;
-    }
+/* INFO CARDS */
 
-    .card {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 16px;
-      background: #ffffff;
-      min-height: 148px;
-    }
+.section-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:10px;
+  margin-bottom:12px;
+}
 
-    .card h3 {
-      margin: 0 0 12px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      font-weight: 800;
-    }
+.card{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px;
+  min-height:76px;
+}
 
-    .card strong {
-      color: var(--heading);
-    }
+.card h3{
+  margin:0 0 8px;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+}
 
-    .block-line {
-      margin-top: 4px;
-    }
+.card div{
+  margin-top:2px;
+}
 
-    .muted {
-      color: var(--muted);
-    }
+/* ITEMS TABLE */
 
-    .items-card,
-    .payments-section,
-    .notes,
-    .footer-box {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: #ffffff;
-      overflow: hidden;
-    }
+.items-card{
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+}
 
-    .items-header,
-    .payments-header,
-    .notes-header,
-    .footer-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--line);
-      background: #fcfcfd;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      font-weight: 800;
-    }
+.items-header{
+  padding:8px 12px;
+  background:#fafafa;
+  border-bottom:1px solid var(--line);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.08em;
+  color:var(--muted);
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+table{
+  width:100%;
+  border-collapse:collapse;
+}
 
-    thead th {
-      text-align: left;
-      background: var(--soft-2);
-      color: #475467;
-      font-size: 12px;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
-      font-weight: 800;
-    }
+thead{
+  display:table-header-group;
+}
 
-    tbody td {
-      padding: 13px 14px;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
-      color: var(--text);
-    }
+thead th{
+  background:#f2f4f7;
+  padding:8px 10px;
+  text-align:left;
+  font-size:11px;
+  font-weight:800;
+  border-bottom:1px solid var(--line);
+}
 
-    tbody tr:last-child td {
-      border-bottom: 0;
-    }
+tbody td{
+  padding:8px 10px;
+  border-bottom:1px solid var(--line);
+  vertical-align:top;
+}
 
-    .col-index {
-      width: 44px;
-      text-align: center;
-      color: var(--muted);
-    }
+tbody tr:last-child td{
+  border-bottom:0;
+}
 
-    .desc {
-      width: 42%;
-    }
+.desc{
+  width:50%;
+}
 
-    .num {
-      text-align: right;
-      white-space: nowrap;
-    }
+.num{
+  text-align:right;
+  white-space:nowrap;
+}
 
-    .strong {
-      font-weight: 800;
-      color: var(--heading);
-    }
+.strong{
+  font-weight:800;
+}
 
-    .empty {
-      text-align: center;
-      color: var(--muted);
-      padding: 24px;
-    }
+/* TOTALS */
 
-    .summary-wrap {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 18px;
-      margin-bottom: 24px;
-    }
+.summary{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:10px;
+}
 
-    .totals {
-      width: 380px;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      overflow: hidden;
-      background: #ffffff;
-    }
+.totals{
+  width:300px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+}
 
-    .totals-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 18px;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--line);
-    }
+.totals-row{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 12px;
+  border-bottom:1px solid var(--line);
+}
 
-    .totals-row:last-child {
-      border-bottom: 0;
-    }
+.totals-row:last-child{
+  border-bottom:0;
+}
 
-    .totals-row .label {
-      color: #344054;
-      font-weight: 600;
-    }
+.totals-row.total{
+  font-size:16px;
+  font-weight:800;
+  background:#f8fafc;
+}
 
-    .totals-row .value {
-      font-weight: 700;
-      color: var(--heading);
-      white-space: nowrap;
-    }
+.totals-row.balance{
+  font-size:17px;
+  font-weight:900;
+  background:#eef4ff;
+  color:#1d4ed8;
+}
 
-    .totals-row.total {
-      background: #f9fafb;
-    }
+/* NOTES */
 
-    .totals-row.total .label,
-    .totals-row.total .value {
-      font-size: 16px;
-      font-weight: 800;
-    }
+.notes{
+  margin-top:14px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  page-break-inside:avoid;
+}
 
-    .totals-row.balance {
-      background: #eef4ff;
-    }
+.notes-header{
+  padding:10px 14px;
+  border-bottom:1px solid var(--line);
+  background:#fafafa;
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-weight:800;
+  color:var(--muted);
+}
 
-    .totals-row.balance .label,
-    .totals-row.balance .value {
-      font-size: 17px;
-      font-weight: 800;
-      color: #0f172a;
-    }
+.notes-body{
+  padding:14px;
+  color:#344054;
+}
 
-    .payments-body,
-    .notes-body,
-    .footer-body {
-      padding: 16px 18px;
-    }
+/* FOOTER */
 
-    .small-table thead th,
-    .small-table tbody td {
-      padding: 10px 12px;
-      font-size: 12px;
-    }
+.footer{
+  margin-top:12px;
+  color:#667085;
+  font-size:10px;
+  text-align:center;
+}
 
-    .note-text,
-    .footer-text {
-      color: #344054;
-      line-height: 1.6;
-      white-space: normal;
-    }
+/* TABLE SAFETY */
 
-    .footer-stack {
-      display: grid;
-      gap: 8px;
-    }
+tr{
+  page-break-inside:avoid;
+}
 
-    .thank-you {
-      margin-top: 8px;
-      font-weight: 700;
-      color: var(--heading);
-    }
+/* PRINT OPTIMIZATION */
 
-    .page-break-avoid {
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
+@media print{
 
-    @page {
-      size: auto;
-      margin: 18mm;
-    }
+  html, body{
+    font-size:11px;
+    line-height:1.25;
+  }
 
-    @media print {
-      body {
-        padding: 0;
-      }
+  body{
+    padding:0;
+  }
 
-      .page {
-        max-width: none;
-      }
+  .page{
+    max-width:none;
+  }
 
-      .topbar,
-      .section-grid,
-      .summary-wrap,
-      .payments-section,
-      .notes,
-      .footer-box,
-      .items-card {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-    }
+  .topbar,
+  .section-grid,
+  .summary,
+  .notes{
+    page-break-inside:avoid;
+  }
 
-    @media (max-width: 900px) {
-      .topbar,
-      .section-grid {
-        grid-template-columns: 1fr;
-      }
+  .logo{
+    max-width:115px;
+    max-height:56px;
+  }
 
-      .summary-wrap {
-        justify-content: stretch;
-      }
+  .brand-name{
+    font-size:20px;
+  }
 
-      .totals {
-        width: 100%;
-      }
-    }
-  </style>
+  .invoice-title{
+    font-size:24px;
+  }
+
+  .topbar{
+    gap:12px;
+    margin-bottom:10px;
+  }
+
+  .section-grid{
+    gap:8px;
+    margin-bottom:10px;
+  }
+
+  .card{
+    min-height:70px;
+    padding:8px;
+  }
+
+  thead th,
+  tbody td{
+    padding:7px 8px;
+  }
+
+  .summary{
+    margin-top:8px;
+  }
+
+  .totals{
+    width:290px;
+  }
+
+}
+  .footer{
+    margin-top:6px;
+    font-size:10px;
+  }
+}
+
+/* MUY IMPORTANTE:
+   dejamos márgenes al motor PDF (Playwright),
+   no duplicamos con @page margin aquí. */
+
+@media (max-width: 900px){
+  .topbar,
+  .section-grid{
+    grid-template-columns:1fr;
+  }
+
+  .summary{
+    justify-content:stretch;
+  }
+
+  .totals{
+    width:100%;
+  }
+}
+</style>
 </head>
+
 <body>
-  <div class="page">
-    <div class="topbar page-break-avoid">
-      <div class="brand-wrap">
-        ${company.logo_url
-      ? `<img class="logo" src="${escHtml(company.logo_url)}" alt="Company logo" />`
-      : ""
-    }
-        <h1 class="brand-name">${escHtml(companyDisplayName)}</h1>
-        <div class="brand-meta">
-          ${companyAddress ? `<div>${companyAddress}</div>` : `<div class="muted">No company address</div>`}
-          ${company.phone ? `<div>${escHtml(company.phone)}</div>` : ""}
-          ${company.email ? `<div>${escHtml(company.email)}</div>` : ""}
-          ${company.website ? `<div>${escHtml(company.website)}</div>` : ""}
-          ${company.tax_registration
-      ? `<div><strong>Tax Registration:</strong> ${escHtml(company.tax_registration)}</div>`
-      : ""
-    }
-        </div>
-      </div>
+<div class="page">
 
-      <div class="invoice-panel">
-        <div class="invoice-panel-header">
-          <h2 class="invoice-title">Invoice</h2>
-          <span class="status-pill">${escHtml(status.label)}</span>
-        </div>
+  <div class="topbar">
+    <div>
+      ${company.logo_url ? `<img class="logo" src="${escHtml(company.logo_url)}" alt="Company logo" />` : ""}
+      <h1 class="brand-name">${escHtml(companyDisplayName)}</h1>
 
-        <div class="invoice-meta-grid">
-          <div class="meta-item">
-            <div class="meta-label">Invoice Number</div>
-            <div class="meta-value">${escHtml(invoice.invoice_number || "—")}</div>
-          </div>
-
-          <div class="meta-item">
-            <div class="meta-label">Currency</div>
-            <div class="meta-value">${escHtml(currency)}</div>
-          </div>
-
-          <div class="meta-item">
-            <div class="meta-label">Issue Date</div>
-            <div class="meta-value">${dateHtml(invoiceDate)}</div>
-          </div>
-
-          <div class="meta-item">
-            <div class="meta-label">Due Date</div>
-            <div class="meta-value">${dateHtml(invoice.due_date)}</div>
-          </div>
-        </div>
+      <div class="brand-meta">
+        ${companyAddress ? `<div>${companyAddress}</div>` : ""}
+        ${company.phone ? `<div>${escHtml(company.phone)}</div>` : ""}
+        ${company.email ? `<div>${escHtml(company.email)}</div>` : ""}
+        ${company.website ? `<div>${escHtml(company.website)}</div>` : ""}
+        ${company.tax_registration ? `<div><strong>Tax Registration:</strong> ${escHtml(company.tax_registration)}</div>` : ""}
       </div>
     </div>
 
-    <div class="section-grid page-break-avoid">
-      <div class="card">
-        <h3>From</h3>
-        <div><strong>${escHtml(companyDisplayName)}</strong></div>
-        ${companyAddress ? `<div class="block-line">${companyAddress}</div>` : `<div class="block-line muted">No company address</div>`}
-        ${company.email ? `<div class="block-line">${escHtml(company.email)}</div>` : ""}
-        ${company.phone ? `<div class="block-line">${escHtml(company.phone)}</div>` : ""}
-      </div>
+    <div class="invoice-panel">
+      <h2 class="invoice-title">Invoice</h2>
+      <span class="status-pill">${escHtml(status.label)}</span>
 
-      <div class="card">
-        <h3>Bill To</h3>
-        <div><strong>${escHtml(invoice.customer_name || "—")}</strong></div>
-        ${invoice.customer_email ? `<div class="block-line">${escHtml(invoice.customer_email)}</div>` : ""}
-        ${invoice.customer_phone ? `<div class="block-line">${escHtml(invoice.customer_phone)}</div>` : ""}
-        ${invoice.billing_address ? `<div class="block-line">${escHtml(invoice.billing_address)}</div>` : ""}
-      </div>
-
-      <div class="card">
-        <h3>Summary</h3>
-        <div class="block-line"><strong>Tax Name:</strong> ${escHtml(invoice.tax_name || "Line-based tax")}</div>
-        <div class="block-line"><strong>Invoice Tax Rate:</strong> ${percentHtml(invoice.tax_rate)}</div>
-        ${invoice.work_order_id ? `<div class="block-line"><strong>Work Order:</strong> ${escHtml(invoice.work_order_id)}</div>` : ""}
-      </div>
-    </div>
-
-    <div class="items-card">
-      <div class="items-header">Invoice Items</div>
-      <table>
-        <thead>
-          <tr>
-            <th class="col-index">#</th>
-            <th>Description</th>
-            <th class="num">Qty</th>
-            <th class="num">Unit Price</th>
-            <th class="num">Tax</th>
-            <th class="num">Line Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="summary-wrap page-break-avoid">
-      <div class="totals">
-        <div class="totals-row">
-          <span class="label">Subtotal</span>
-          <span class="value">${moneyHtml(subtotal, currency)}</span>
+      <div class="meta-grid">
+        <div>
+          <div class="meta-label">Invoice Number</div>
+          <div class="meta-value">${escHtml(invoice.invoice_number || "—")}</div>
         </div>
 
-        <div class="totals-row">
-          <span class="label">Tax</span>
-          <span class="value">${moneyHtml(taxTotal, currency)}</span>
+        <div>
+          <div class="meta-label">Currency</div>
+          <div class="meta-value">${escHtml(currency)}</div>
         </div>
 
-        ${depositRequired > 0
-      ? `
-        <div class="totals-row">
-          <span class="label">Deposit Required</span>
-          <span class="value">${moneyHtml(depositRequired, currency)}</span>
-        </div>
-        `
-      : ""
-    }
-
-        ${paymentsReceived > 0
-      ? `
-        <div class="totals-row">
-          <span class="label">Payments Received</span>
-          <span class="value">${moneyHtml(paymentsReceived, currency)}</span>
-        </div>
-        `
-      : ""
-    }
-
-        <div class="totals-row total">
-          <span class="label">Total</span>
-          <span class="value">${moneyHtml(total, currency)}</span>
+        <div>
+          <div class="meta-label">Issue Date</div>
+          <div class="meta-value">${dateHtml(invoiceDate)}</div>
         </div>
 
-        <div class="totals-row balance">
-          <span class="label">Balance Due</span>
-          <span class="value">${moneyHtml(balanceDue, currency)}</span>
-        </div>
-      </div>
-    </div>
-
-    ${payments.length > 0
-      ? `
-      <div class="payments-section page-break-avoid">
-        <div class="payments-header">Payments</div>
-        <div class="payments-body" style="padding:0;">
-          <table class="small-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Method</th>
-                <th>Notes</th>
-                <th class="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${paymentRows}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    `
-      : ""
-    }
-
-    ${invoice.notes
-      ? `
-      <div class="notes page-break-avoid">
-        <div class="notes-header">Notes</div>
-        <div class="notes-body">
-          <div class="note-text">${escHtml(invoice.notes).replaceAll("\n", "<br/>")}</div>
-        </div>
-      </div>
-    `
-      : ""
-    }
-
-    <div class="footer-box page-break-avoid">
-      <div class="footer-header">Additional Information</div>
-      <div class="footer-body">
-        <div class="footer-stack">
-          ${company.invoice_footer
-      ? `<div class="footer-text">${escHtml(company.invoice_footer).replaceAll("\n", "<br/>")}</div>`
-      : `<div class="footer-text">Thank you for your business.</div>`
-    }
-          <div class="thank-you">We appreciate the opportunity to serve you.</div>
+        <div>
+          <div class="meta-label">Due Date</div>
+          <div class="meta-value">${dateHtml(invoice.due_date)}</div>
         </div>
       </div>
     </div>
   </div>
+
+  <div class="section-grid">
+    <div class="card">
+      <h3>Bill To</h3>
+      <strong>${escHtml(invoice.customer_name || "—")}</strong>
+      ${invoice.customer_email ? `<div>${escHtml(invoice.customer_email)}</div>` : ""}
+      ${invoice.customer_phone ? `<div>${escHtml(invoice.customer_phone)}</div>` : ""}
+    </div>
+
+    <div class="card">
+      <h3>Service Address</h3>
+      ${invoice.billing_address ? escHtml(invoice.billing_address) : "—"}
+    </div>
+
+    <div class="card">
+      <h3>Service Details</h3>
+      ${workOrderDisplay ? `<div><strong>Work Order:</strong> ${escHtml(workOrderDisplay)}</div>` : ""}
+      ${invoice.tax_name ? `<div><strong>Tax:</strong> ${escHtml(invoice.tax_name)}</div>` : ""}
+    </div>
+  </div>
+
+  <div class="items-card">
+    <div class="items-header">Invoice Items</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Unit Price</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="summary">
+    <div class="totals">
+      <div class="totals-row">
+        <span>Subtotal</span>
+        <span>${moneyHtml(subtotal, currency)}</span>
+      </div>
+
+      <div class="totals-row">
+        <span>Tax</span>
+        <span>${moneyHtml(taxTotal, currency)}</span>
+      </div>
+
+      ${depositRequired > 0 ? `
+      <div class="totals-row">
+        <span>Deposit Required</span>
+        <span>${moneyHtml(depositRequired, currency)}</span>
+      </div>
+      ` : ""}
+
+      ${paymentsReceived > 0 ? `
+      <div class="totals-row">
+        <span>Payments Received</span>
+        <span>${moneyHtml(paymentsReceived, currency)}</span>
+      </div>
+      ` : ""}
+
+      <div class="totals-row total">
+        <span>Total</span>
+        <span>${moneyHtml(total, currency)}</span>
+      </div>
+
+      <div class="totals-row balance">
+        <span>Balance Due</span>
+        <span>${moneyHtml(balanceDue, currency)}</span>
+      </div>
+    </div>
+  </div>
+
+  ${invoice.notes ? `
+  <div class="notes">
+    <div class="notes-header">Notes</div>
+    <div class="notes-body">
+      ${escHtml(invoice.notes).replaceAll("\\n", "<br/>")}
+    </div>
+  </div>
+  ` : ""}
+
+  <div class="footer">
+    ${company.invoice_footer
+      ? escHtml(company.invoice_footer).replaceAll("\\n", "<br/>")
+      : "Thank you for your business."
+    }
+  </div>
+
+</div>
 </body>
 </html>
 `;

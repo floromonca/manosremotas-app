@@ -10,6 +10,7 @@ export const safeStatus = (s: string): WorkOrderStatus =>
 
 export type WorkOrderRow = {
   work_order_id: string;
+  work_order_number?: string | null;
   company_id?: string | null;
   job_type: string;
   description: string;
@@ -34,7 +35,7 @@ export async function fetchWorkOrders(companyId: string) {
   return await supabase
     .from("work_orders")
     .select(
-      "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at",
+      "work_order_id, work_order_number, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at",
     )
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
@@ -43,11 +44,44 @@ export async function fetchWorkOrders(companyId: string) {
 
 // 2) Crear WO
 export async function insertWorkOrder(payload: Record<string, any>) {
+  const companyId =
+    typeof payload?.company_id === "string" && payload.company_id.trim()
+      ? payload.company_id.trim()
+      : null;
+
+  if (!companyId) {
+    throw new Error("company_id es requerido para crear la work order");
+  }
+
+  const { data: allocatedNumber, error: allocErr } = await supabase.rpc(
+    "allocate_next_work_order_number",
+    {
+      p_company_id: companyId,
+    },
+  );
+
+  if (allocErr) throw allocErr;
+
+  const workOrderNumber =
+    typeof allocatedNumber === "string" && allocatedNumber.trim()
+      ? allocatedNumber.trim()
+      : null;
+
+  if (!workOrderNumber) {
+    throw new Error("No se pudo asignar work_order_number");
+  }
+
   return await supabase
     .from("work_orders")
-    .insert([payload])
+    .insert([
+      {
+        ...payload,
+        company_id: companyId,
+        work_order_number: workOrderNumber,
+      },
+    ])
     .select(
-      "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at",
+      "work_order_id, work_order_number, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, created_by, customer_id, location_id, customer_name, customer_phone, customer_email, service_address, invoice_id, invoiced_at",
     )
     .single();
 }
