@@ -12,7 +12,7 @@ import { createInvoiceFromWorkOrder } from "../../lib/invoices";
 import { CompanyGuard } from "../components/CompanyGuard";
 import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
 import OperationalShiftBanner from "./components/OperationalShiftBanner";
-
+import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
 
 
 import {
@@ -577,22 +577,7 @@ export default function WorkOrdersPage() {
         return false;
     };
 
-    const FilterBtn = ({ f, label }: { f: WOFilter; label: string }) => (
-        <button
-            onClick={() => setWoFilterAndUrl(f)}
-            style={{
-                padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #ddd",
-                cursor: "pointer",
-                background: woFilter === f ? "#111" : "#fff",
-                color: woFilter === f ? "#fff" : "#111",
-                fontWeight: 650,
-            }}
-        >
-            {label}
-        </button>
-    );
+
 
     // ✅ Login UI embebido (visible)
     const AuthBox = (
@@ -909,69 +894,17 @@ export default function WorkOrdersPage() {
                         </header>
 
                         {/* filtros */}
-                        <div
-                            style={{
-                                display: "flex",
-                                gap: 10,
-                                flexWrap: "wrap",
-                                marginBottom: 12,
+                        <WorkOrdersToolbar
+                            woFilter={woFilter}
+                            setWoFilterAndUrl={setWoFilterAndUrl}
+                            isAdminOrOwner={isAdminOrOwner}
+                            showNewWO={showNewWO}
+                            onToggleNewWO={() => setShowNewWO((s) => !s)}
+                            onRefresh={() => {
+                                if (companyId) loadOrders(companyId);
                             }}
-                        >
-                            <FilterBtn f="all" label="Todas" />
-                            <FilterBtn f="mine" label="Mis órdenes" />
-                            <FilterBtn f="unassigned" label="Sin asignar" />
-                            <FilterBtn f="delayed" label="Delayed" />
-                            <FilterBtn f="ready_to_invoice" label="Ready to invoice" />
-
-                            {/* ✅ + Nueva orden (solo owner/admin) */}
-                            {isAdminOrOwner ? (
-                                <button
-                                    onClick={() => setShowNewWO((s) => !s)}
-                                    style={{
-                                        marginLeft: "auto",
-                                        padding: "10px 14px",
-                                        borderRadius: 10,
-                                        border: "1px solid #111",
-                                        cursor: "pointer",
-                                        background: "#111",
-                                        color: "white",
-                                        fontWeight: 800,
-                                    }}
-                                >
-                                    {showNewWO ? "Cerrar" : "+ Nueva orden"}
-                                </button>
-                            ) : (
-                                <div style={{ marginLeft: "auto" }} />
-                            )}
-
-                            <button
-                                onClick={() => companyId && loadOrders(companyId)}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: 10,
-                                    border: "1px solid #ddd",
-                                    cursor: "pointer",
-                                    background: "#fff",
-                                    fontWeight: 650,
-                                }}
-                            >
-                                Refresh
-                            </button>
-
-                            <button
-                                onClick={() => router.replace("/control-center")}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: 10,
-                                    border: "1px solid #ddd",
-                                    cursor: "pointer",
-                                    background: "#fff",
-                                    fontWeight: 650,
-                                }}
-                            >
-                                Control Center →
-                            </button>
-                        </div>
+                            onGoControlCenter={() => router.replace("/control-center")}
+                        />
 
                         {isAdminOrOwner && showNewWO ? (
                             <div
