@@ -10,6 +10,8 @@ import { useActiveCompany } from "../../hooks/useActiveCompany";
 import { useUrlWoFilter, type WOFilter } from "../../hooks/useUrlWoFilter";
 import { createInvoiceFromWorkOrder } from "../../lib/invoices";
 import { CompanyGuard } from "../components/CompanyGuard";
+import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
+
 
 
 import {
@@ -79,7 +81,7 @@ export default function WorkOrdersPage() {
     const [companyNameSaving, setCompanyNameSaving] = useState(false);
     const [companyNameMsg, setCompanyNameMsg] = useState<string | null>(null);
 
-    
+
 
     // ✅ Guards para evitar re-suscripciones repetidas
     const woRtRef = useRef<string | null>(null);
@@ -1100,30 +1102,30 @@ export default function WorkOrdersPage() {
                                                 return;
                                             }
                                             try {
-    const customer = customers.find((c) => c.customer_id === newCustomerId);
-    const location = locations.find((l) => l.location_id === newLocationId);
+                                                const customer = customers.find((c) => c.customer_id === newCustomerId);
+                                                const location = locations.find((l) => l.location_id === newLocationId);
 
-    const { error } = await insertWorkOrder({
-        company_id: companyId,
-        customer_id: newCustomerId || null,
-        location_id: newLocationId || null,
-        customer_name: customer?.name ?? null,
-        customer_phone: customer?.phone ?? null,
-        customer_email: customer?.email ?? null,
-        service_address: location?.address ?? null,
-        job_type: newJobType,
-        description: newDesc,
-        priority: newPriority,
-        scheduled_for: newScheduledFor || null,
-        status: "new",
-    });
+                                                const { error } = await insertWorkOrder({
+                                                    company_id: companyId,
+                                                    customer_id: newCustomerId || null,
+                                                    location_id: newLocationId || null,
+                                                    customer_name: customer?.name ?? null,
+                                                    customer_phone: customer?.phone ?? null,
+                                                    customer_email: customer?.email ?? null,
+                                                    service_address: location?.address ?? null,
+                                                    job_type: newJobType,
+                                                    description: newDesc,
+                                                    priority: newPriority,
+                                                    scheduled_for: newScheduledFor || null,
+                                                    status: "new",
+                                                });
 
-    if (error) {
-        alert("Error creando orden: " + error.message);
-        return;
-    }
+                                                if (error) {
+                                                    alert("Error creando orden: " + error.message);
+                                                    return;
+                                                }
 
-    // limpiar formulario
+                                                // limpiar formulario
                                                 // limpiar formulario
                                                 setNewJobType("");
                                                 setNewDesc("");
@@ -1510,42 +1512,10 @@ export default function WorkOrdersPage() {
                                                 ) : null}
 
                                                 {auditOpenFor === wo.work_order_id ? (
-                                                    <div
-                                                        style={{
-                                                            marginTop: 10,
-                                                            padding: 10,
-                                                            border: "1px solid #eee",
-                                                            borderRadius: 12,
-                                                            background: "#fafafa",
-                                                            maxWidth: 420,
-                                                        }}
-                                                    >
-                                                        {auditLoadingFor[wo.work_order_id] ? (
-                                                            <div style={{ opacity: 0.7 }}>Cargando historial…</div>
-                                                        ) : (auditByWo[wo.work_order_id]?.length ?? 0) === 0 ? (
-                                                            <div style={{ opacity: 0.7 }}>Sin eventos de auditoría.</div>
-                                                        ) : (
-                                                            <div style={{ display: "grid", gap: 8 }}>
-                                                                {auditByWo[wo.work_order_id].map((it, idx) => (
-                                                                    <div
-                                                                        key={idx}
-                                                                        style={{
-                                                                            padding: 10,
-                                                                            border: "1px solid #eee",
-                                                                            borderRadius: 10,
-                                                                            background: "white",
-                                                                        }}
-                                                                    >
-                                                                        <div style={{ fontSize: 12, opacity: 0.75 }}>
-                                                                            <b>{it.changed_by_name ?? "—"}</b> ·{" "}
-                                                                            {it.changed_at_ui ?? it.changed_at ?? "—"}
-                                                                        </div>
-                                                                        <div style={{ marginTop: 4 }}>{it.message ?? "—"}</div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    <WorkOrderAuditPanel
+                                                        loading={!!auditLoadingFor[wo.work_order_id]}
+                                                        items={auditByWo[wo.work_order_id] ?? []}
+                                                    />
                                                 ) : null}
                                             </div>
                                         </div>
