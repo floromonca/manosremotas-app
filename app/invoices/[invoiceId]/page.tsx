@@ -11,6 +11,7 @@ import InvoiceActionBar from "./components/InvoiceActionBar";
 import InvoiceDetailsCard from "./components/InvoiceDetailsCard";
 import AddInvoiceItemForm from "./components/AddInvoiceItemForm";
 import InvoiceItemRow from "./components/InvoiceItemRow";
+import InvoiceItemsSection from "./components/InvoiceItemsSection";
 
 async function getDefaultTaxRate(companyId: string) {
     const FALLBACK_TAX_RATE = 0.13;
@@ -681,49 +682,24 @@ export default function InvoicePage() {
                 workOrders={includedWorkOrders}
                 onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
             />
-            <div
-                style={{
-                    marginTop: 16,
-                    padding: 14,
-                    borderRadius: 12,
-                    border: "1px solid #eee",
-                    background: "white",
-                }}
-            >
-                <div style={{ fontWeight: 900, marginBottom: 10 }}>Items</div>
-
-                <AddInvoiceItemForm
-                    desc={desc}
-                    qty={qty}
-                    unitPrice={unitPrice}
-                    taxable={taxable}
-                    isDraft={isDraft}
-                    saving={saving}
-                    onChangeDesc={setDesc}
-                    onChangeQty={setQty}
-                    onChangeUnitPrice={setUnitPrice}
-                    onChangeTaxable={setTaxable}
-                    onAddItem={addItem}
-                />
-
-                {items.length === 0 ? (
-                    <div style={{ opacity: 0.7 }}>No hay items aún.</div>
-                ) : (
-                    <div style={{ display: "grid", gap: 10 }}>
-                        {items.map((it: any) => (
-                            <InvoiceItemRow
-                                key={it.invoice_item_id}
-                                item={it}
-                                currencyCode={inv?.currency_code}
-                                isDraft={isDraft}
-                                money={money}
-                                onUpdateItem={handleUpdateInvoiceItem}
-                                onDeleteItem={handleDeleteInvoiceItem}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
+            <InvoiceItemsSection
+                items={items}
+                currencyCode={inv?.currency_code}
+                desc={desc}
+                qty={qty}
+                unitPrice={unitPrice}
+                taxable={taxable}
+                isDraft={isDraft}
+                saving={saving}
+                onChangeDesc={setDesc}
+                onChangeQty={setQty}
+                onChangeUnitPrice={setUnitPrice}
+                onChangeTaxable={setTaxable}
+                onAddItem={addItem}
+                money={money}
+                onUpdateItem={handleUpdateInvoiceItem}
+                onDeleteItem={handleDeleteInvoiceItem}
+            />
 
             <RecordPaymentModal
                 open={showPaymentModal}
