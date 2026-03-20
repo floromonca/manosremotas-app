@@ -18,3 +18,23 @@ export function allowedStatusesForRole(
 
   return [current];
 }
+
+export function canChangeWorkOrderStatus(params: {
+  userId: string | null;
+  isAdminOrOwner: boolean;
+  role: WorkOrderRole;
+  canOperate: boolean;
+  assignedTo: string | null | undefined;
+}): boolean {
+  const { userId, isAdminOrOwner, role, canOperate, assignedTo } = params;
+
+  if (!userId) return false;
+
+  if (isAdminOrOwner) return true;
+
+  if (role === "tech") {
+    return canOperate && assignedTo === userId;
+  }
+
+  return false;
+}

@@ -16,7 +16,10 @@ import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
 import WorkOrderCard from "./components/WorkOrderCard";
 import WorkOrdersList from "./components/WorkOrdersList";
 
-import { allowedStatusesForRole } from "../../lib/work-orders/policies";
+import {
+    allowedStatusesForRole,
+    canChangeWorkOrderStatus,
+} from "../../lib/work-orders/policies";
 import type { WorkOrderRole } from "../../lib/work-orders/policies";
 
 
@@ -329,27 +332,9 @@ export default function WorkOrdersPage() {
             setCompanyNameSaving(false);
         }
     }, [companyId, myRole, companyNameDraft]);
-    const allowedStatusesForRole = (
-        role: string | null,
-        current: WorkOrderStatus,
-    ): WorkOrderStatus[] => {
-        const all: WorkOrderStatus[] = ["new", "in_progress", "resolved", "closed"];
 
-        // owner/admin: todo permitido (la DB sigue mandando igual)
-        if (role === "owner" || role === "admin") return all;
 
-        // tech: solo avanzar (nunca retroceder)
-        // new -> in_progress -> resolved -> closed
-        if (role === "tech") {
-            if (current === "new") return ["new", "in_progress"];
-            if (current === "in_progress") return ["in_progress", "resolved"];
-            if (current === "resolved") return ["resolved", "closed"];
-            return ["closed"];
-        }
 
-        // viewer u otros: no cambia
-        return [current];
-    };
 
     useEffect(() => {
         setCompanyNameDraft(companyName ?? "");
@@ -565,20 +550,14 @@ export default function WorkOrdersPage() {
         };
     }, [auditOpenFor, companyId, user?.id, loadAuditTimeline, loadOrders]);
     // ✅ Permiso para cambiar status (UI). La DB igual valida con RLS + triggers.
-    const canChangeStatus = (wo: WorkOrder) => {
-        if (!user?.id) return false;
-
-        // Owner/Admin: permitido (sin depender del shift)
-        if (isAdminOrOwner) return true;
-
-        // Tech: solo si está asignado a él y tiene jornada activa
-        if (myRole === "tech") {
-            return canOperate && wo.assigned_to === user.id;
-        }
-
-        // Viewer u otros: no
-        return false;
-    };
+    const canChangeStatus = (wo: WorkOrder) =>
+        canChangeWorkOrderStatus({
+            userId: user?.id ?? null,
+            isAdminOrOwner,
+            role: myRole,
+            canOperate,
+            assignedTo: wo.assigned_to,
+        });
 
 
 
