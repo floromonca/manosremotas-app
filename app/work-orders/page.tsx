@@ -16,6 +16,9 @@ import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
 import WorkOrderCard from "./components/WorkOrderCard";
 import WorkOrdersList from "./components/WorkOrdersList";
 
+import { allowedStatusesForRole } from "../../lib/work-orders/policies";
+import type { WorkOrderRole } from "../../lib/work-orders/policies";
+
 
 import {
     fetchWorkOrders,
@@ -143,9 +146,7 @@ export default function WorkOrdersPage() {
 
 
     // ✅ Rol del usuario en la compañía (owner/admin/tech/viewer)
-    const [myRole, setMyRole] = useState<
-        "owner" | "admin" | "tech" | "viewer" | null
-    >(null);
+    const [myRole, setMyRole] = useState<WorkOrderRole>(null);
 
     type MemberRow = { user_id: string; role: string };
 

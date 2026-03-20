@@ -1,5 +1,7 @@
 "use client";
 
+import type { WorkOrderRole } from "../../../lib/work-orders/policies";
+
 type AuditItem = {
     changed_at: string | null;
     changed_at_ui: string | null;
@@ -34,9 +36,9 @@ type Props = {
     isAdminOrOwner: boolean;
     techMembers: MemberRow[];
     canChangeStatus: (wo: WorkOrder) => boolean;
-    myRole: "owner" | "admin" | "tech" | "viewer" | null;
+    myRole: WorkOrderRole;
     allowedStatusesForRole: (
-        role: string | null,
+        role: WorkOrderRole,
         current: WorkOrderStatus
     ) => WorkOrderStatus[];
     auditOpenFor: string | null;
