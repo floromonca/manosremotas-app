@@ -601,7 +601,17 @@ export default function WorkOrdersPage() {
         },
         [companyId, auditOpenFor, loadAuditTimeline, loadOrders]
     );
+    const handleToggleAudit = useCallback(
+        async (woId: string) => {
+            const nextOpen = auditOpenFor === woId ? null : woId;
+            setAuditOpenFor(nextOpen);
 
+            if (nextOpen) {
+                await loadAuditTimeline(woId);
+            }
+        },
+        [auditOpenFor, loadAuditTimeline]
+    );
     // ✅ Login UI embebido (visible)
     const AuthBox = (
         <div
@@ -1158,14 +1168,7 @@ export default function WorkOrdersPage() {
                                 onAssignTech={handleAssignTech}
                                 onChangeStatus={handleChangeStatus}
                                 onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
-                                onToggleAudit={async (woId) => {
-                                    const nextOpen = auditOpenFor === woId ? null : woId;
-                                    setAuditOpenFor(nextOpen);
-
-                                    if (nextOpen) {
-                                        await loadAuditTimeline(woId);
-                                    }
-                                }}
+                                onToggleAudit={handleToggleAudit}
                                 onOpenInvoice={(invoiceId) => router.push(`/invoices/${invoiceId}`)}
                                 onCreateInvoice={async (woId) => {
                                     try {
