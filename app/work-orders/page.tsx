@@ -439,7 +439,7 @@ export default function WorkOrdersPage() {
             });
 
         const isReadyToInvoice = (w: WorkOrder) =>
-            w.status === "resolved" || w.status === "closed";
+            isWorkOrderReadyToInvoice(w.status);
 
         switch (woFilter) {
             case "mine":
@@ -453,6 +453,8 @@ export default function WorkOrdersPage() {
             default:
                 return rows;
         }
+
+
     }, [rows, user?.id, woFilter]);
 
     const loadAuditTimeline = useCallback(async (workOrderId: string) => {
@@ -561,7 +563,25 @@ export default function WorkOrdersPage() {
             canOperate,
             assignedTo: wo.assigned_to,
         });
+    const handleAssignTech = useCallback(
+        async (woId: string, techId: string) => {
+            const { error } = await setWorkOrderAssignee(woId, techId);
 
+            if (error) {
+                alert("No se pudo asignar: " + error.message);
+                return;
+            }
+
+            if (companyId) {
+                await loadOrders(companyId);
+            }
+
+            if (auditOpenFor === woId) {
+                await loadAuditTimeline(woId);
+            }
+        },
+        [companyId, auditOpenFor, loadAuditTimeline, loadOrders]
+    );
 
 
     // ✅ Login UI embebido (visible)
@@ -1117,22 +1137,7 @@ export default function WorkOrdersPage() {
                                 auditOpenFor={auditOpenFor}
                                 auditLoadingFor={auditLoadingFor}
                                 auditByWo={auditByWo}
-                                onAssignTech={async (woId, techId) => {
-                                    const { error } = await setWorkOrderAssignee(woId, techId);
-
-                                    if (error) {
-                                        alert("No se pudo asignar: " + error.message);
-                                        return;
-                                    }
-
-                                    if (companyId) {
-                                        await loadOrders(companyId);
-                                    }
-
-                                    if (auditOpenFor === woId) {
-                                        await loadAuditTimeline(woId);
-                                    }
-                                }}
+                                onAssignTech={handleAssignTech}
                                 onChangeStatus={async (woId, next) => {
                                     const { error } = await setWorkOrderStatus(woId, next);
 
