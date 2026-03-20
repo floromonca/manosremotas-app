@@ -5,6 +5,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "../../../lib/supabaseClient";
 
+import InvoicePaymentsSection from "./components/InvoicePaymentsSection";
+
 async function getDefaultTaxRate(companyId: string) {
     const FALLBACK_TAX_RATE = 0.13;
 
@@ -71,6 +73,13 @@ type InvoicePaymentRow = {
     payment_method: string | null;
     payment_date: string | null;
     notes: string | null;
+    created_at: string | null;
+};
+
+type IncludedWorkOrderRow = {
+    work_order_id: string;
+    work_order_number: string | null;
+    description: string | null;
     created_at: string | null;
 };
 
@@ -180,6 +189,9 @@ export default function InvoicePage() {
     const [savingPayment, setSavingPayment] = useState(false);
 
     const [sendingInvoice, setSendingInvoice] = useState(false);
+    const [includedWorkOrders, setIncludedWorkOrders] = useState<IncludedWorkOrderRow[]>([]);
+
+
 
     const loadAll = useCallback(async () => {
         if (!invoiceId) return;
@@ -217,17 +229,46 @@ export default function InvoicePage() {
 
             if (paymentErr) throw paymentErr;
 
+            const { data: iwoData, error: iwoErr } = await supabase
+                .from("invoice_work_orders")
+                .select(`
+        work_order_id,
+        work_orders (
+            work_order_id,
+            work_order_number,
+            description,
+            created_at
+        )
+    `)
+                .eq("invoice_id", invoiceId);
+
+            if (iwoErr) throw iwoErr;
+
             const nextInv = (invData as any) ?? null;
+
+            const normalizedIncludedWOs: IncludedWorkOrderRow[] = ((iwoData as any[]) ?? []).map((row: any) => {
+                const wo = Array.isArray(row.work_orders) ? row.work_orders[0] : row.work_orders;
+
+                return {
+                    work_order_id: wo?.work_order_id ?? row.work_order_id,
+                    work_order_number: wo?.work_order_number ?? null,
+                    description: wo?.description ?? null,
+                    created_at: wo?.created_at ?? null,
+                };
+            });
 
             setInv(nextInv);
             setBillingEmail(String(nextInv?.customer_email ?? ""));
             setItems((itemData as any) ?? []);
             setPayments((paymentData as any) ?? []);
+            setIncludedWorkOrders(normalizedIncludedWOs);
+
         } catch (e: any) {
             setErr(e?.message ?? "Error cargando invoice");
             setInv(null);
             setItems([]);
             setPayments([]);
+            setIncludedWorkOrders([]);
         } finally {
             setLoading(false);
         }
@@ -921,72 +962,76 @@ export default function InvoicePage() {
                 </div>
             ) : null}
 
-            <div
-                style={{
-                    marginTop: 16,
-                    padding: 14,
-                    borderRadius: 12,
-                    border: "1px solid #eee",
-                    background: "white",
-                }}
-            >
-                <div style={{ fontWeight: 900, marginBottom: 10 }}>Payments</div>
+            <InvoicePaymentsSection
+                payments={payments}
+                currencyCode={inv?.currency_code}
+                money={money}
+            />            {includedWorkOrders.length > 0 ? (
+                <div
+                    style={{
+                        marginTop: 16,
+                        padding: 14,
+                        borderRadius: 12,
+                        border: "1px solid #eee",
+                        background: "white",
+                    }}
+                >
+                    <div style={{ fontWeight: 900, marginBottom: 10 }}>
+                        Included Work Orders
+                    </div>
 
-                {payments.length === 0 ? (
-                    <div style={{ opacity: 0.7 }}>No payments recorded yet.</div>
-                ) : (
                     <div style={{ display: "grid", gap: 10 }}>
-                        {payments.map((p) => (
+                        {includedWorkOrders.map((wo) => (
                             <div
-                                key={p.payment_id}
+                                key={wo.work_order_id}
                                 style={{
-                                    padding: 14,
+                                    padding: 12,
                                     border: "1px solid #eee",
-                                    borderRadius: 12,
+                                    borderRadius: 10,
                                     background: "#fafafa",
                                     display: "flex",
                                     justifyContent: "space-between",
+                                    gap: 12,
                                     alignItems: "center",
-                                    gap: 16,
                                 }}
                             >
-                                <div style={{ display: "grid", gap: 4 }}>
-                                    <div style={{ fontWeight: 800, fontSize: 14 }}>
-                                        {p.payment_date
-                                            ? new Date(p.payment_date + "T00:00:00").toLocaleDateString(undefined, {
-                                                year: "numeric",
-                                                month: "short",
-                                                day: "numeric",
-                                            })
-                                            : "—"}
+                                <div>
+                                    <div style={{ fontWeight: 800 }}>
+                                        {wo.work_order_number ?? "Work Order"}
                                     </div>
 
-                                    <div style={{ fontSize: 13, color: "#555", textTransform: "capitalize" }}>
-                                        {(p.payment_method?.trim() || "payment").toLowerCase()} payment
-                                    </div>
+                                    {wo.description ? (
+                                        <div style={{ fontSize: 13, opacity: 0.8 }}>
+                                            {wo.description}
+                                        </div>
+                                    ) : null}
 
-                                    {p.notes ? (
-                                        <div style={{ fontSize: 12, color: "#777" }}>{p.notes}</div>
+                                    {wo.created_at ? (
+                                        <div style={{ fontSize: 12, opacity: 0.65 }}>
+                                            {new Date(wo.created_at).toLocaleString()}
+                                        </div>
                                     ) : null}
                                 </div>
 
-                                <div
+                                <button
+                                    type="button"
+                                    onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
                                     style={{
-                                        textAlign: "right",
-                                        minWidth: 140,
-                                        fontWeight: 900,
-                                        fontSize: 16,
-                                        fontFamily: "monospace",
+                                        padding: "8px 12px",
+                                        borderRadius: 8,
+                                        border: "1px solid #ddd",
+                                        background: "white",
+                                        cursor: "pointer",
+                                        fontWeight: 700,
                                     }}
                                 >
-                                    {money(p.amount, inv?.currency_code)}
-                                </div>
+                                    Open WO
+                                </button>
                             </div>
                         ))}
                     </div>
-                )}
-            </div>
-
+                </div>
+            ) : null}
             <div
                 style={{
                     marginTop: 16,
