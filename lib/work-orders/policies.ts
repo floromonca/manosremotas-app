@@ -38,3 +38,17 @@ export function canChangeWorkOrderStatus(params: {
 
   return false;
 }
+export function isWorkOrderDelayed(params: {
+  status: WorkOrderStatus;
+  createdAt: string | null;
+  nowMs?: number;
+}): boolean {
+  const { status, createdAt, nowMs = Date.now() } = params;
+
+  if (status !== "in_progress") return false;
+
+  const created = createdAt ? new Date(createdAt).getTime() : nowMs;
+  const days = (nowMs - created) / (1000 * 60 * 60 * 24);
+
+  return days > 3;
+}

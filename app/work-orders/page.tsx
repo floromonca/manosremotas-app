@@ -19,7 +19,10 @@ import WorkOrdersList from "./components/WorkOrdersList";
 import {
     allowedStatusesForRole,
     canChangeWorkOrderStatus,
+    isWorkOrderDelayed,
+    isWorkOrderReadyToInvoice,
 } from "../../lib/work-orders/policies";
+
 import type { WorkOrderRole } from "../../lib/work-orders/policies";
 
 
@@ -428,12 +431,12 @@ export default function WorkOrdersPage() {
 
 
 
-        const isDelayed = (w: WorkOrder) => {
-            if (w.status !== "in_progress") return false;
-            const created = w.created_at ? new Date(w.created_at).getTime() : now;
-            const days = (now - created) / (1000 * 60 * 60 * 24);
-            return days > 3;
-        };
+        const isDelayed = (w: WorkOrder) =>
+            isWorkOrderDelayed({
+                status: w.status,
+                createdAt: w.created_at,
+                nowMs: now,
+            });
 
         const isReadyToInvoice = (w: WorkOrder) =>
             w.status === "resolved" || w.status === "closed";
