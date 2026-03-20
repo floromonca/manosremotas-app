@@ -13,6 +13,7 @@ import { CompanyGuard } from "../components/CompanyGuard";
 import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
 import OperationalShiftBanner from "./components/OperationalShiftBanner";
 import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
+import WorkOrderCard from "./components/WorkOrderCard";
 
 
 import {
@@ -1124,281 +1125,70 @@ export default function WorkOrdersPage() {
                             <div
                                 style={{ display: "grid", gap: 12 }}>
                                 {filtered.map((wo) => (
-                                    <div
+                                    <WorkOrderCard
                                         key={wo.work_order_id}
-                                        style={{
-                                            padding: 14,
-                                            border: "1px solid #eee",
-                                            borderRadius: 12,
-                                            background: "white",
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            gap: 14,
+                                        wo={wo}
+                                        companyId={companyId}
+                                        isAdminOrOwner={isAdminOrOwner}
+                                        techMembers={techMembers}
+                                        canChangeStatus={canChangeStatus}
+                                        myRole={myRole}
+                                        allowedStatusesForRole={allowedStatusesForRole}
+                                        auditOpenFor={auditOpenFor}
+                                        auditLoadingFor={auditLoadingFor}
+                                        auditByWo={auditByWo}
+                                        onAssignTech={async (woId, techId) => {
+                                            const { error } = await setWorkOrderAssignee(woId, techId);
+
+                                            if (error) {
+                                                alert("No se pudo asignar: " + error.message);
+                                                return;
+                                            }
+
+                                            if (companyId) {
+                                                await loadOrders(companyId);
+                                            }
+
+                                            if (auditOpenFor === woId) {
+                                                await loadAuditTimeline(woId);
+                                            }
                                         }}
-                                    >
-                                        <div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                                                <div style={{ fontWeight: 700 }}>{wo.job_type}</div>
+                                        onChangeStatus={async (woId, next) => {
+                                            const { error } = await setWorkOrderStatus(woId, next);
 
-                                                {wo.invoice_id ? (
-                                                    <span
-                                                        style={{
-                                                            display: "inline-block",
-                                                            padding: "4px 8px",
-                                                            borderRadius: 999,
-                                                            fontSize: 12,
-                                                            fontWeight: 900,
-                                                            border: "1px solid #22c55e",
-                                                            background: "#ecfdf5",
-                                                            color: "#065f46",
-                                                            whiteSpace: "nowrap",
-                                                        }}
-                                                        title="Esta orden ya tiene factura"
-                                                    >
-                                                        Invoiced
-                                                    </span>
-                                                ) : null}
-                                            </div>
+                                            if (error) {
+                                                alert("No se pudo cambiar status: " + error.message);
+                                                return;
+                                            }
 
-                                            <div style={{ opacity: 0.7, marginTop: 4 }}>{wo.description}</div>
-                                            {wo.customer_name ? (
-                                                <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
-                                                    <b>Customer:</b> {wo.customer_name}
-                                                </div>
-                                            ) : null}
+                                            if (companyId) {
+                                                await loadOrders(companyId);
+                                            }
 
-                                            {wo.service_address ? (
-                                                <div style={{ fontSize: 12, opacity: 0.7 }}>
-                                                    <b>Location:</b> {wo.service_address}
-                                                </div>
-                                            ) : null}
+                                            if (auditOpenFor === woId) {
+                                                await loadAuditTimeline(woId);
+                                            }
+                                        }}
+                                        onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
+                                        onToggleAudit={async (woId) => {
+                                            const nextOpen = auditOpenFor === woId ? null : woId;
+                                            setAuditOpenFor(nextOpen);
 
-                                            <div style={{ fontFamily: "monospace", opacity: 0.7, marginTop: 6 }}>
-                                                <div><b>wo_id:</b> {wo.work_order_id}</div>
-                                                <div><b>assigned_to:</b> {wo.assigned_to ?? "—"}</div>
-                                            </div>
-                                            {/* ✅ Botón Asignarme (solo si está sin asignar) */}
-                                            {/* ✅ Asignación v1.0: solo owner/admin puede asignar */}
-                                            {!wo.assigned_to && isAdminOrOwner && (
-                                                <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
-                                                    <label style={{ fontSize: 12, opacity: 0.7 }}>
-                                                        Asignar a técnico
-                                                    </label>
-
-                                                    <select
-                                                        defaultValue=""
-                                                        onChange={async (e) => {
-                                                            const techId = e.target.value;
-                                                            if (!techId) return;
-
-                                                            if (!companyId) {
-                                                                alert("No hay empresa activa");
-                                                                return;
-                                                            }
-
-                                                            const { error } = await setWorkOrderAssignee(
-                                                                wo.work_order_id,
-                                                                techId
-                                                            );
-
-                                                            if (error) {
-                                                                alert("No se pudo asignar: " + error.message);
-                                                                return;
-                                                            }
-
-                                                            await loadOrders(companyId);
-
-                                                            // ✅ refresh historial si está abierto
-                                                            if (auditOpenFor === wo.work_order_id) {
-                                                                await loadAuditTimeline(wo.work_order_id);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            padding: "6px 8px",
-                                                            borderRadius: 8,
-                                                            border: "1px solid #ddd",
-                                                            fontSize: 12,
-                                                        }}
-                                                    >
-                                                        <option value="">Seleccionar tech...</option>
-                                                        {techMembers.map((m) => (
-                                                            <option key={m.user_id} value={m.user_id}>
-                                                                {m.user_id.slice(0, 8)}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
-                                            {/* pill */}
-                                            <div
-                                                style={{
-                                                    alignSelf: "flex-start",
-                                                    padding: "4px 10px",
-                                                    borderRadius: 999,
-                                                    border: "1px solid #ddd",
-                                                    background: "#f7f7f7",
-                                                    fontSize: 12,
-                                                    fontWeight: 700,
-                                                }}
-                                            >
-                                                {wo.status}
-                                            </div>
-
-                                            {/* selector */}
-                                            <label style={{ fontSize: 12, opacity: 0.8 }}>Cambiar status</label>
-
-                                            <select
-
-                                                value={wo.status}
-                                                disabled={!canChangeStatus(wo)}
-                                                onChange={async (e) => {
-                                                    const next = e.target.value as WorkOrderStatus;
-
-                                                    if (!companyId) {
-                                                        alert("No hay companyId activo");
-                                                        return;
-                                                    }
-
-                                                    if (!canChangeStatus(wo)) {
-                                                        alert(
-                                                            isAdminOrOwner
-                                                                ? "No tienes permiso para cambiar esta orden."
-                                                                : "Para cambiar status necesitas jornada activa y la orden asignada a ti.",
-                                                        );
-                                                        return;
-                                                    }
-
-                                                    const { error } = await setWorkOrderStatus(wo.work_order_id, next);
-
-                                                    if (error) {
-                                                        alert("No se pudo cambiar status: " + error.message);
-                                                        return;
-                                                    }
-
-                                                    await loadOrders(companyId);
-                                                    // ✅ Si el historial está abierto para esta WO, refrescarlo sin recargar página
-                                                    if (auditOpenFor === wo.work_order_id) {
-                                                        await loadAuditTimeline(wo.work_order_id);
-                                                    }
-
-                                                }}
-                                                style={{
-                                                    padding: "8px 10px",
-                                                    borderRadius: 10,
-                                                    border: "1px solid #ddd",
-                                                    background: "white",
-                                                    fontWeight: 700,
-                                                    cursor: canChangeStatus(wo) ? "pointer" : "not-allowed",
-                                                    opacity: canChangeStatus(wo) ? 1 : 0.6,
-                                                    minWidth: 160,
-                                                }}
-                                            >
-                                                {allowedStatusesForRole(myRole ?? null, wo.status).map((s: WorkOrderStatus) => (
-                                                    <option key={s} value={s}>
-                                                        {s}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <div style={{ marginTop: 10 }}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
-                                                    style={{
-                                                        padding: "6px 10px",
-                                                        borderRadius: 10,
-                                                        border: "1px solid #ddd",
-                                                        background: "white",
-                                                        cursor: "pointer",
-                                                        fontSize: 12,
-                                                        fontWeight: 700,
-                                                        marginRight: 8,
-                                                    }}
-                                                >
-                                                    Abrir
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        const nextOpen =
-                                                            auditOpenFor === wo.work_order_id ? null : wo.work_order_id;
-
-                                                        setAuditOpenFor(nextOpen);
-
-                                                        if (nextOpen) {
-                                                            await loadAuditTimeline(wo.work_order_id);
-                                                        }
-                                                    }}
-                                                    style={{
-                                                        padding: "6px 10px",
-                                                        borderRadius: 10,
-                                                        border: "1px solid #ddd",
-                                                        background: "white",
-                                                        cursor: "pointer",
-                                                        fontSize: 12,
-                                                        fontWeight: 700,
-                                                    }}
-                                                >
-                                                    {auditOpenFor === wo.work_order_id ? "Ocultar historial" : "Ver historial"}
-                                                </button>
-                                                {wo.invoice_id ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => router.push(`/invoices/${wo.invoice_id}`)}
-                                                        style={{
-                                                            padding: "6px 10px",
-                                                            borderRadius: 10,
-                                                            border: "1px solid #ddd",
-                                                            background: "white",
-                                                            cursor: "pointer",
-                                                            fontSize: 12,
-                                                            fontWeight: 800,
-                                                            marginLeft: 8,
-                                                        }}
-                                                        title="Abrir la factura existente"
-                                                    >
-                                                        Abrir factura
-                                                    </button>
-                                                ) : isAdminOrOwner && (wo.status === "resolved" || wo.status === "closed") ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={async () => {
-                                                            try {
-                                                                const invoiceId = await createInvoiceFromWorkOrder(wo.work_order_id);
-                                                                router.push(`/invoices/${invoiceId}`);
-                                                            } catch (e: any) {
-                                                                alert("Error creando factura: " + (e?.message ?? e));
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            padding: "6px 10px",
-                                                            borderRadius: 10,
-                                                            border: "1px solid #111",
-                                                            background: "#111",
-                                                            color: "white",
-                                                            cursor: "pointer",
-                                                            fontSize: 12,
-                                                            fontWeight: 800,
-                                                            marginLeft: 8,
-                                                        }}
-                                                        title="Crear factura desde esta orden"
-                                                    >
-                                                        Crear factura
-                                                    </button>
-                                                ) : null}
-
-                                                {auditOpenFor === wo.work_order_id ? (
-                                                    <WorkOrderAuditPanel
-                                                        loading={!!auditLoadingFor[wo.work_order_id]}
-                                                        items={auditByWo[wo.work_order_id] ?? []}
-                                                    />
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                    </div>
+                                            if (nextOpen) {
+                                                await loadAuditTimeline(woId);
+                                            }
+                                        }}
+                                        onOpenInvoice={(invoiceId) => router.push(`/invoices/${invoiceId}`)}
+                                        onCreateInvoice={async (woId) => {
+                                            try {
+                                                const invoiceId = await createInvoiceFromWorkOrder(woId);
+                                                router.push(`/invoices/${invoiceId}`);
+                                            } catch (e: any) {
+                                                alert("Error creando factura: " + (e?.message ?? e));
+                                            }
+                                        }}
+                                        AuditPanel={WorkOrderAuditPanel}
+                                    />
                                 ))}
                             </div>
                         )}
