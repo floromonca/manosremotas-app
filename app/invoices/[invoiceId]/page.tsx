@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import InvoicePaymentsSection from "./components/InvoicePaymentsSection";
 import IncludedWorkOrdersSection from "./components/IncludedWorkOrdersSection";
+import RecordPaymentModal from "./components/RecordPaymentModal";
 
 async function getDefaultTaxRate(companyId: string) {
     const FALLBACK_TAX_RATE = 0.13;
@@ -1212,149 +1213,23 @@ export default function InvoicePage() {
                 )}
             </div>
 
-            {showPaymentModal && (
-                <div
-                    style={{
-                        position: "fixed",
-                        top: 0,
-                        left: 0,
-                        width: "100%",
-                        height: "100%",
-                        background: "rgba(0,0,0,0.4)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        zIndex: 1000,
-                    }}
-                >
-                    <div
-                        style={{
-                            background: "white",
-                            padding: 24,
-                            borderRadius: 12,
-                            width: 420,
-                            maxWidth: "92vw",
-                            display: "grid",
-                            gap: 14,
-                            boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
-                        }}
-                    >
-                        <h3 style={{ margin: 0 }}>Record Payment</h3>
-
-                        {inv ? (
-                            <div
-                                style={{
-                                    fontSize: 13,
-                                    opacity: 0.8,
-                                    padding: 10,
-                                    borderRadius: 8,
-                                    background: "#f8fafc",
-                                    border: "1px solid #e5e7eb",
-                                }}
-                            >
-                                Current balance: <b>{money(currentBalance, inv.currency_code)}</b>
-                            </div>
-                        ) : null}
-
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span>Amount</span>
-                            <input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={paymentAmount}
-                                onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                                style={{
-                                    padding: 10,
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                }}
-                            />
-                        </label>
-
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span>Method</span>
-                            <select
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value)}
-                                style={{
-                                    padding: 10,
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                }}
-                            >
-                                <option value="cash">Cash</option>
-                                <option value="e-transfer">E-Transfer</option>
-                                <option value="card">Card</option>
-                                <option value="check">Check</option>
-                            </select>
-                        </label>
-
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span>Payment date</span>
-                            <input
-                                type="date"
-                                value={paymentDate}
-                                onChange={(e) => setPaymentDate(e.target.value)}
-                                style={{
-                                    padding: 10,
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                }}
-                            />
-                        </label>
-
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span>Notes</span>
-                            <textarea
-                                value={paymentNotes}
-                                onChange={(e) => setPaymentNotes(e.target.value)}
-                                rows={3}
-                                placeholder="Optional notes"
-                                style={{
-                                    padding: 10,
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                    resize: "vertical",
-                                }}
-                            />
-                        </label>
-
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                            <button
-                                onClick={closePaymentModal}
-                                disabled={savingPayment}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                    background: "white",
-                                    cursor: savingPayment ? "not-allowed" : "pointer",
-                                }}
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                onClick={savePayment}
-                                disabled={savingPayment}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: 8,
-                                    border: "none",
-                                    background: "#16a34a",
-                                    color: "white",
-                                    fontWeight: 700,
-                                    cursor: savingPayment ? "not-allowed" : "pointer",
-                                    opacity: savingPayment ? 0.8 : 1,
-                                }}
-                            >
-                                {savingPayment ? "Saving..." : "Save Payment"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <RecordPaymentModal
+                open={showPaymentModal}
+                savingPayment={savingPayment}
+                currentBalance={currentBalance}
+                currencyCode={inv?.currency_code}
+                paymentAmount={paymentAmount}
+                paymentMethod={paymentMethod}
+                paymentDate={paymentDate}
+                paymentNotes={paymentNotes}
+                money={money}
+                onChangeAmount={setPaymentAmount}
+                onChangeMethod={setPaymentMethod}
+                onChangeDate={setPaymentDate}
+                onChangeNotes={setPaymentNotes}
+                onCancel={closePaymentModal}
+                onSave={savePayment}
+            />
         </div>
     );
 }
