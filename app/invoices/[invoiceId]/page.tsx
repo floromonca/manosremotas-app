@@ -10,6 +10,7 @@ import RecordPaymentModal from "./components/RecordPaymentModal";
 import InvoiceActionBar from "./components/InvoiceActionBar";
 import InvoiceDetailsCard from "./components/InvoiceDetailsCard";
 import AddInvoiceItemForm from "./components/AddInvoiceItemForm";
+import InvoiceItemRow from "./components/InvoiceItemRow";
 
 async function getDefaultTaxRate(companyId: string) {
     const FALLBACK_TAX_RATE = 0.13;
@@ -571,6 +572,42 @@ export default function InvoicePage() {
         loadAll,
         router,
     ]);
+    const handleUpdateInvoiceItem = useCallback(
+        async (invoiceItemId: string, fields: any) => {
+            const { error } = await supabase
+                .from("invoice_items")
+                .update(fields)
+                .eq("invoice_item_id", invoiceItemId);
+
+            if (error) {
+                alert("Error actualizando item: " + error.message);
+                return;
+            }
+
+            await loadAll();
+        },
+        [loadAll]
+    );
+
+    const handleDeleteInvoiceItem = useCallback(
+        async (invoiceItemId: string) => {
+            const ok = confirm("¿Eliminar este item?");
+            if (!ok) return;
+
+            const { error } = await supabase
+                .from("invoice_items")
+                .delete()
+                .eq("invoice_item_id", invoiceItemId);
+
+            if (error) {
+                alert("Error eliminando item: " + error.message);
+                return;
+            }
+
+            await loadAll();
+        },
+        [loadAll]
+    );
 
     return (
         <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
@@ -673,147 +710,17 @@ export default function InvoicePage() {
                     <div style={{ opacity: 0.7 }}>No hay items aún.</div>
                 ) : (
                     <div style={{ display: "grid", gap: 10 }}>
-                        {items.map((it: any) => {
-                            const qtyN = Number(it.qty ?? 0);
-                            const unitN = Number(it.unit_price ?? 0);
-                            const taxN = Number(it.tax_rate ?? 0);
-
-                            const fallbackSub = qtyN * unitN;
-                            const fallbackTax = fallbackSub * taxN;
-                            const fallbackTotal = fallbackSub + fallbackTax;
-
-                            const isManual = it.synced_from_wo !== true;
-                            const canEdit = isDraft && isManual;
-
-                            const updateItem = async (fields: any) => {
-                                if (!canEdit) return;
-
-                                const { error } = await supabase
-                                    .from("invoice_items")
-                                    .update(fields)
-                                    .eq("invoice_item_id", it.invoice_item_id);
-
-                                if (error) {
-                                    alert("Error actualizando item: " + error.message);
-                                    return;
-                                }
-
-                                await loadAll();
-                            };
-
-                            const deleteItem = async () => {
-                                if (!canEdit) return;
-
-                                const ok = confirm("¿Eliminar este item?");
-                                if (!ok) return;
-
-                                const { error } = await supabase
-                                    .from("invoice_items")
-                                    .delete()
-                                    .eq("invoice_item_id", it.invoice_item_id);
-
-                                if (error) {
-                                    alert("Error eliminando item: " + error.message);
-                                    return;
-                                }
-
-                                await loadAll();
-                            };
-
-                            return (
-                                <div
-                                    key={it.invoice_item_id}
-                                    style={{
-                                        padding: 12,
-                                        border: "1px solid #eee",
-                                        borderRadius: 10,
-                                        background: "#fafafa",
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        gap: 12,
-                                    }}
-                                >
-                                    <div style={{ flex: 1 }}>
-                                        {canEdit ? (
-                                            <input
-                                                defaultValue={it.description ?? ""}
-                                                onBlur={(e) => updateItem({ description: e.target.value })}
-                                                style={{
-                                                    fontWeight: 800,
-                                                    padding: "6px 8px",
-                                                    borderRadius: 8,
-                                                    border: "1px solid #ddd",
-                                                    width: "100%",
-                                                    marginBottom: 6,
-                                                }}
-                                            />
-                                        ) : (
-                                            <div style={{ fontWeight: 800 }}>{it.description ?? "Item"}</div>
-                                        )}
-
-                                        {canEdit ? (
-                                            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                                                <div style={{ fontSize: 12, opacity: 0.8 }}>qty:</div>
-                                                <input
-                                                    type="number"
-                                                    defaultValue={qtyN}
-                                                    onBlur={(e) => updateItem({ qty: Number(e.target.value) })}
-                                                    style={{
-                                                        width: 90,
-                                                        padding: "6px 8px",
-                                                        borderRadius: 8,
-                                                        border: "1px solid #ddd",
-                                                    }}
-                                                />
-                                                <div style={{ fontSize: 12, opacity: 0.8 }}>unit:</div>
-                                                <input
-                                                    type="number"
-                                                    defaultValue={unitN}
-                                                    onBlur={(e) => updateItem({ unit_price: Number(e.target.value) })}
-                                                    style={{
-                                                        width: 110,
-                                                        padding: "6px 8px",
-                                                        borderRadius: 8,
-                                                        border: "1px solid #ddd",
-                                                    }}
-                                                />
-                                                <div style={{ fontSize: 12, opacity: 0.8 }}>tax_rate: {taxN}</div>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={deleteItem}
-                                                    style={{
-                                                        marginLeft: "auto",
-                                                        padding: "6px 10px",
-                                                        borderRadius: 8,
-                                                        border: "1px solid #ff4d4f",
-                                                        background: "#ff4d4f",
-                                                        color: "white",
-                                                        cursor: "pointer",
-                                                        fontWeight: 800,
-                                                    }}
-                                                >
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div style={{ opacity: 0.75, fontSize: 12 }}>
-                                                qty: {qtyN} · unit: {unitN} · tax_rate: {taxN}
-                                                {!isManual ? " · synced" : ""}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div style={{ textAlign: "right", fontFamily: "monospace", minWidth: 170 }}>
-                                        <div>sub: {money(it.line_subtotal ?? fallbackSub, inv?.currency_code)}</div>
-                                        <div>tax: {money(it.line_tax ?? fallbackTax, inv?.currency_code)}</div>
-                                        <div>
-                                            <b>total: {money(it.line_total ?? fallbackTotal, inv?.currency_code)}</b>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                        {items.map((it: any) => (
+                            <InvoiceItemRow
+                                key={it.invoice_item_id}
+                                item={it}
+                                currencyCode={inv?.currency_code}
+                                isDraft={isDraft}
+                                money={money}
+                                onUpdateItem={handleUpdateInvoiceItem}
+                                onDeleteItem={handleDeleteInvoiceItem}
+                            />
+                        ))}
                     </div>
                 )}
             </div>
