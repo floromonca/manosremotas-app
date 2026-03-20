@@ -582,7 +582,25 @@ export default function WorkOrdersPage() {
         },
         [companyId, auditOpenFor, loadAuditTimeline, loadOrders]
     );
+    const handleChangeStatus = useCallback(
+        async (woId: string, next: WorkOrderStatus) => {
+            const { error } = await setWorkOrderStatus(woId, next);
 
+            if (error) {
+                alert("No se pudo cambiar status: " + error.message);
+                return;
+            }
+
+            if (companyId) {
+                await loadOrders(companyId);
+            }
+
+            if (auditOpenFor === woId) {
+                await loadAuditTimeline(woId);
+            }
+        },
+        [companyId, auditOpenFor, loadAuditTimeline, loadOrders]
+    );
 
     // ✅ Login UI embebido (visible)
     const AuthBox = (
@@ -1138,22 +1156,7 @@ export default function WorkOrdersPage() {
                                 auditLoadingFor={auditLoadingFor}
                                 auditByWo={auditByWo}
                                 onAssignTech={handleAssignTech}
-                                onChangeStatus={async (woId, next) => {
-                                    const { error } = await setWorkOrderStatus(woId, next);
-
-                                    if (error) {
-                                        alert("No se pudo cambiar status: " + error.message);
-                                        return;
-                                    }
-
-                                    if (companyId) {
-                                        await loadOrders(companyId);
-                                    }
-
-                                    if (auditOpenFor === woId) {
-                                        await loadAuditTimeline(woId);
-                                    }
-                                }}
+                                onChangeStatus={handleChangeStatus}
                                 onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
                                 onToggleAudit={async (woId) => {
                                     const nextOpen = auditOpenFor === woId ? null : woId;
