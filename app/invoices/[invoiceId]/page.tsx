@@ -9,6 +9,7 @@ import IncludedWorkOrdersSection from "./components/IncludedWorkOrdersSection";
 import RecordPaymentModal from "./components/RecordPaymentModal";
 import InvoiceActionBar from "./components/InvoiceActionBar";
 import InvoiceDetailsCard from "./components/InvoiceDetailsCard";
+import AddInvoiceItemForm from "./components/AddInvoiceItemForm";
 
 async function getDefaultTaxRate(companyId: string) {
     const FALLBACK_TAX_RATE = 0.13;
@@ -654,86 +655,19 @@ export default function InvoicePage() {
             >
                 <div style={{ fontWeight: 900, marginBottom: 10 }}>Items</div>
 
-                <div style={{ display: "grid", gap: 10, marginBottom: 12, opacity: isDraft ? 1 : 0.75 }}>
-                    <label style={{ display: "grid", gap: 6 }}>
-                        <span style={{ fontSize: 12, opacity: 0.8 }}>Descripción</span>
-                        <input
-                            value={desc}
-                            onChange={(e) => setDesc(e.target.value)}
-                            placeholder="Ej: Mano de obra / Material"
-                            disabled={!isDraft}
-                            style={{
-                                padding: 10,
-                                border: "1px solid #ddd",
-                                borderRadius: 8,
-                                background: !isDraft ? "#f6f6f6" : "white",
-                            }}
-                        />
-                    </label>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ fontSize: 12, opacity: 0.8 }}>Qty</span>
-                            <input
-                                type="number"
-                                value={qty}
-                                onChange={(e) => setQty(Number(e.target.value))}
-                                disabled={!isDraft}
-                                style={{
-                                    padding: 10,
-                                    border: "1px solid #ddd",
-                                    borderRadius: 8,
-                                    background: !isDraft ? "#f6f6f6" : "white",
-                                }}
-                            />
-                        </label>
-
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ fontSize: 12, opacity: 0.8 }}>Unit price</span>
-                            <input
-                                type="number"
-                                value={unitPrice}
-                                onChange={(e) => setUnitPrice(Number(e.target.value))}
-                                disabled={!isDraft}
-                                style={{
-                                    padding: 10,
-                                    border: "1px solid #ddd",
-                                    borderRadius: 8,
-                                    background: !isDraft ? "#f6f6f6" : "white",
-                                }}
-                            />
-                        </label>
-
-                        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 24 }}>
-                            <input
-                                type="checkbox"
-                                checked={taxable}
-                                onChange={(e) => setTaxable(e.target.checked)}
-                                disabled={!isDraft}
-                            />
-                            <span style={{ fontSize: 13 }}>Taxable</span>
-                        </label>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={addItem}
-                        disabled={saving || !isDraft}
-                        style={{
-                            padding: "10px 14px",
-                            borderRadius: 10,
-                            border: "1px solid #111",
-                            background: isDraft ? "#111" : "#999",
-                            color: "white",
-                            cursor: saving || !isDraft ? "not-allowed" : "pointer",
-                            fontWeight: 900,
-                            width: "fit-content",
-                            opacity: saving || !isDraft ? 0.7 : 1,
-                        }}
-                    >
-                        {!isDraft ? "Invoice read-only" : saving ? "Agregando..." : "+ Add item"}
-                    </button>
-                </div>
+                <AddInvoiceItemForm
+                    desc={desc}
+                    qty={qty}
+                    unitPrice={unitPrice}
+                    taxable={taxable}
+                    isDraft={isDraft}
+                    saving={saving}
+                    onChangeDesc={setDesc}
+                    onChangeQty={setQty}
+                    onChangeUnitPrice={setUnitPrice}
+                    onChangeTaxable={setTaxable}
+                    onAddItem={addItem}
+                />
 
                 {items.length === 0 ? (
                     <div style={{ opacity: 0.7 }}>No hay items aún.</div>
