@@ -4,8 +4,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { supabase } from "../../../lib/supabaseClient";
-
 import InvoicePaymentsSection from "./components/InvoicePaymentsSection";
+import IncludedWorkOrdersSection from "./components/IncludedWorkOrdersSection";
 
 async function getDefaultTaxRate(companyId: string) {
     const FALLBACK_TAX_RATE = 0.13;
@@ -966,72 +966,11 @@ export default function InvoicePage() {
                 payments={payments}
                 currencyCode={inv?.currency_code}
                 money={money}
-            />            {includedWorkOrders.length > 0 ? (
-                <div
-                    style={{
-                        marginTop: 16,
-                        padding: 14,
-                        borderRadius: 12,
-                        border: "1px solid #eee",
-                        background: "white",
-                    }}
-                >
-                    <div style={{ fontWeight: 900, marginBottom: 10 }}>
-                        Included Work Orders
-                    </div>
-
-                    <div style={{ display: "grid", gap: 10 }}>
-                        {includedWorkOrders.map((wo) => (
-                            <div
-                                key={wo.work_order_id}
-                                style={{
-                                    padding: 12,
-                                    border: "1px solid #eee",
-                                    borderRadius: 10,
-                                    background: "#fafafa",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    gap: 12,
-                                    alignItems: "center",
-                                }}
-                            >
-                                <div>
-                                    <div style={{ fontWeight: 800 }}>
-                                        {wo.work_order_number ?? "Work Order"}
-                                    </div>
-
-                                    {wo.description ? (
-                                        <div style={{ fontSize: 13, opacity: 0.8 }}>
-                                            {wo.description}
-                                        </div>
-                                    ) : null}
-
-                                    {wo.created_at ? (
-                                        <div style={{ fontSize: 12, opacity: 0.65 }}>
-                                            {new Date(wo.created_at).toLocaleString()}
-                                        </div>
-                                    ) : null}
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
-                                    style={{
-                                        padding: "8px 12px",
-                                        borderRadius: 8,
-                                        border: "1px solid #ddd",
-                                        background: "white",
-                                        cursor: "pointer",
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    Open WO
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ) : null}
+            />
+            <IncludedWorkOrdersSection
+                workOrders={includedWorkOrders}
+                onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+            />
             <div
                 style={{
                     marginTop: 16,
