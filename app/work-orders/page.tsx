@@ -14,6 +14,7 @@ import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
 import OperationalShiftBanner from "./components/OperationalShiftBanner";
 import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
 import WorkOrderCard from "./components/WorkOrderCard";
+import WorkOrdersList from "./components/WorkOrdersList";
 
 
 import {
@@ -1122,75 +1123,69 @@ export default function WorkOrdersPage() {
                         ) : filtered.length === 0 ? (
                             <div style={{ opacity: 0.6 }}>No hay órdenes que mostrar.</div>
                         ) : (
-                            <div
-                                style={{ display: "grid", gap: 12 }}>
-                                {filtered.map((wo) => (
-                                    <WorkOrderCard
-                                        key={wo.work_order_id}
-                                        wo={wo}
-                                        companyId={companyId}
-                                        isAdminOrOwner={isAdminOrOwner}
-                                        techMembers={techMembers}
-                                        canChangeStatus={canChangeStatus}
-                                        myRole={myRole}
-                                        allowedStatusesForRole={allowedStatusesForRole}
-                                        auditOpenFor={auditOpenFor}
-                                        auditLoadingFor={auditLoadingFor}
-                                        auditByWo={auditByWo}
-                                        onAssignTech={async (woId, techId) => {
-                                            const { error } = await setWorkOrderAssignee(woId, techId);
+                            <WorkOrdersList
+                                rows={filtered}
+                                companyId={companyId}
+                                isAdminOrOwner={isAdminOrOwner}
+                                techMembers={techMembers}
+                                canChangeStatus={canChangeStatus}
+                                myRole={myRole}
+                                allowedStatusesForRole={allowedStatusesForRole}
+                                auditOpenFor={auditOpenFor}
+                                auditLoadingFor={auditLoadingFor}
+                                auditByWo={auditByWo}
+                                onAssignTech={async (woId, techId) => {
+                                    const { error } = await setWorkOrderAssignee(woId, techId);
 
-                                            if (error) {
-                                                alert("No se pudo asignar: " + error.message);
-                                                return;
-                                            }
+                                    if (error) {
+                                        alert("No se pudo asignar: " + error.message);
+                                        return;
+                                    }
 
-                                            if (companyId) {
-                                                await loadOrders(companyId);
-                                            }
+                                    if (companyId) {
+                                        await loadOrders(companyId);
+                                    }
 
-                                            if (auditOpenFor === woId) {
-                                                await loadAuditTimeline(woId);
-                                            }
-                                        }}
-                                        onChangeStatus={async (woId, next) => {
-                                            const { error } = await setWorkOrderStatus(woId, next);
+                                    if (auditOpenFor === woId) {
+                                        await loadAuditTimeline(woId);
+                                    }
+                                }}
+                                onChangeStatus={async (woId, next) => {
+                                    const { error } = await setWorkOrderStatus(woId, next);
 
-                                            if (error) {
-                                                alert("No se pudo cambiar status: " + error.message);
-                                                return;
-                                            }
+                                    if (error) {
+                                        alert("No se pudo cambiar status: " + error.message);
+                                        return;
+                                    }
 
-                                            if (companyId) {
-                                                await loadOrders(companyId);
-                                            }
+                                    if (companyId) {
+                                        await loadOrders(companyId);
+                                    }
 
-                                            if (auditOpenFor === woId) {
-                                                await loadAuditTimeline(woId);
-                                            }
-                                        }}
-                                        onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
-                                        onToggleAudit={async (woId) => {
-                                            const nextOpen = auditOpenFor === woId ? null : woId;
-                                            setAuditOpenFor(nextOpen);
+                                    if (auditOpenFor === woId) {
+                                        await loadAuditTimeline(woId);
+                                    }
+                                }}
+                                onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
+                                onToggleAudit={async (woId) => {
+                                    const nextOpen = auditOpenFor === woId ? null : woId;
+                                    setAuditOpenFor(nextOpen);
 
-                                            if (nextOpen) {
-                                                await loadAuditTimeline(woId);
-                                            }
-                                        }}
-                                        onOpenInvoice={(invoiceId) => router.push(`/invoices/${invoiceId}`)}
-                                        onCreateInvoice={async (woId) => {
-                                            try {
-                                                const invoiceId = await createInvoiceFromWorkOrder(woId);
-                                                router.push(`/invoices/${invoiceId}`);
-                                            } catch (e: any) {
-                                                alert("Error creando factura: " + (e?.message ?? e));
-                                            }
-                                        }}
-                                        AuditPanel={WorkOrderAuditPanel}
-                                    />
-                                ))}
-                            </div>
+                                    if (nextOpen) {
+                                        await loadAuditTimeline(woId);
+                                    }
+                                }}
+                                onOpenInvoice={(invoiceId) => router.push(`/invoices/${invoiceId}`)}
+                                onCreateInvoice={async (woId) => {
+                                    try {
+                                        const invoiceId = await createInvoiceFromWorkOrder(woId);
+                                        router.push(`/invoices/${invoiceId}`);
+                                    } catch (e: any) {
+                                        alert("Error creando factura: " + (e?.message ?? e));
+                                    }
+                                }}
+                                AuditPanel={WorkOrderAuditPanel}
+                            />
                         )}
                     </>
                 )}
