@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import InvoicePaymentsSection from "./components/InvoicePaymentsSection";
 import IncludedWorkOrdersSection from "./components/IncludedWorkOrdersSection";
 import RecordPaymentModal from "./components/RecordPaymentModal";
+import InvoiceActionBar from "./components/InvoiceActionBar";
 
 async function getDefaultTaxRate(companyId: string) {
     const FALLBACK_TAX_RATE = 0.13;
@@ -577,125 +578,24 @@ export default function InvoicePage() {
                     <div style={{ opacity: 0.7, fontFamily: "monospace" }}>{invoiceId}</div>
                 </div>
 
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    {inv ? (
-                        <a
-                            href={
-                                fromWorkOrder
-                                    ? `/api/invoices/${invoiceId}/html?mode=preview&fromWorkOrder=${encodeURIComponent(fromWorkOrder)}`
-                                    : `/api/invoices/${invoiceId}/html?mode=preview`
-                            }
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #2563eb",
-                                background: "#2563eb",
-                                color: "white",
-                                textDecoration: "none",
-                                cursor: "pointer",
-                                fontWeight: 900,
-                                height: "fit-content",
-                                display: "inline-flex",
-                                alignItems: "center",
-                            }}
-                            title="Abrir vista HTML de la factura"
-                        >
-                            View HTML
-                        </a>
-                    ) : null}
-
-                    {inv ? (
-                        <a
-                            href={`/api/invoices/${invoiceId}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #0f172a",
-                                background: "#0f172a",
-                                color: "white",
-                                textDecoration: "none",
-                                cursor: "pointer",
-                                fontWeight: 900,
-                                height: "fit-content",
-                                display: "inline-flex",
-                                alignItems: "center",
-                            }}
-                            title="Abrir PDF de la factura"
-                        >
-                            Download PDF
-                        </a>
-                    ) : null}
-
-                    <button
-                        onClick={sendInvoice}
-                        disabled={!inv || (!isDraft && !canResend) || sendingInvoice}
-                        title={
-                            !inv
-                                ? "Invoice no disponible"
-                                : !isDraft && !canResend
-                                    ? "Esta factura no se puede enviar"
-                                    : canResend
-                                        ? "Resend invoice"
-                                        : "Send invoice"
+                <InvoiceActionBar
+                    invoiceId={invoiceId}
+                    fromWorkOrder={fromWorkOrder}
+                    hasInvoice={!!inv}
+                    isDraft={isDraft}
+                    canResend={canResend}
+                    sendingInvoice={sendingInvoice}
+                    canRecordPayment={canRecordPayment}
+                    onSendInvoice={sendInvoice}
+                    onRecordPayment={openPaymentModal}
+                    onBack={() => {
+                        if (fromWorkOrder) {
+                            router.push(`/work-orders/${fromWorkOrder}`);
+                            return;
                         }
-                        style={{
-                            padding: "10px 14px",
-                            borderRadius: 10,
-                            border: "1px solid #7c3aed",
-                            background: !inv || (!isDraft && !canResend) ? "#c4b5fd" : "#7c3aed",
-                            color: "white",
-                            cursor: !inv || (!isDraft && !canResend) || sendingInvoice ? "not-allowed" : "pointer",
-                            fontWeight: 900,
-                            opacity: !inv || (!isDraft && !canResend) || sendingInvoice ? 0.85 : 1,
-                        }}
-                    >
-                        {sendingInvoice ? "Sending..." : canResend ? "Resend Invoice" : "Send Invoice"}
-                    </button>
-
-                    {canRecordPayment ? (
-                        <button
-                            onClick={openPaymentModal}
-                            title="Record a payment"
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #16a34a",
-                                background: "#16a34a",
-                                color: "white",
-                                cursor: "pointer",
-                                fontWeight: 900,
-                                height: "fit-content",
-                            }}
-                        >
-                            Record Payment
-                        </button>
-                    ) : null}
-
-                    <button
-                        onClick={() => {
-                            if (fromWorkOrder) {
-                                router.push(`/work-orders/${fromWorkOrder}`);
-                                return;
-                            }
-                            router.back();
-                        }}
-                        style={{
-                            padding: "10px 14px",
-                            borderRadius: 10,
-                            border: "1px solid #ddd",
-                            background: "white",
-                            cursor: "pointer",
-                            fontWeight: 800,
-                            height: "fit-content",
-                        }}
-                    >
-                        {fromWorkOrder ? "← Back to Work Order" : "← Back"}
-                    </button>
-                </div>
+                        router.back();
+                    }}
+                />
             </div>
 
             {loading ? <div style={{ marginTop: 16 }}>Cargando…</div> : null}
