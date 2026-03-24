@@ -11,12 +11,13 @@ import {
 } from "../../lib/supabase/controlCenter";
 import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
+import { checkIn, checkOut, getOpenShift, type ShiftRow } from "../../lib/supabase/shifts";
 
 export default function ControlCenterPage() {
     const router = useRouter();
 
     const { user, authLoading } = useAuthState();
-    const { companyId, companyName, isLoadingCompany } = useActiveCompany();
+    const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
 
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState("");
@@ -37,6 +38,10 @@ export default function ControlCenterPage() {
 
     const [mounted, setMounted] = useState(false);
     const [prettyDate, setPrettyDate] = useState("");
+    const [openShift, setOpenShift] = useState<ShiftRow | null>(null);
+    const [shiftLoading, setShiftLoading] = useState(false);
+    const [shiftBusy, setShiftBusy] = useState(false);
+    const [shiftMsg, setShiftMsg] = useState("");
 
     useEffect(() => {
         setMounted(true);
@@ -74,7 +79,19 @@ export default function ControlCenterPage() {
 
         setRevenueMonth(total);
     }, []);
-
+    const refreshShift = useCallback(async (cid: string) => {
+        setShiftLoading(true);
+        try {
+            const { data, error } = await getOpenShift(cid);
+            if (error) throw error;
+            setOpenShift((data as ShiftRow | null) ?? null);
+        } catch (e: any) {
+            console.error("Shift refresh error:", e);
+            setOpenShift(null);
+        } finally {
+            setShiftLoading(false);
+        }
+    }, []);
     const createCompanyBootstrap = async () => {
         setErrorMsg("");
 
@@ -103,7 +120,47 @@ export default function ControlCenterPage() {
             setErrorMsg(msg);
         }
     };
+    const handleCheckIn = useCallback(async () => {
+        if (!companyId) return;
 
+        setShiftBusy(true);
+        setShiftMsg("");
+
+        try {
+            const { data, error } = await checkIn(companyId);
+            if (error) throw error;
+
+            setOpenShift((data as ShiftRow) ?? null);
+            setShiftMsg("Check-in registrado correctamente.");
+            await refreshAll(companyId);
+        } catch (e: any) {
+            const msg = e?.message ?? String(e);
+            setShiftMsg(msg);
+        } finally {
+            setShiftBusy(false);
+        }
+    }, [companyId, refreshAll]);
+
+    const handleCheckOut = useCallback(async () => {
+        if (!openShift?.shift_id || !companyId) return;
+
+        setShiftBusy(true);
+        setShiftMsg("");
+
+        try {
+            const { error } = await checkOut(openShift.shift_id);
+            if (error) throw error;
+
+            setShiftMsg("Check-out registrado correctamente.");
+            await refreshShift(companyId);
+            await refreshAll(companyId);
+        } catch (e: any) {
+            const msg = e?.message ?? String(e);
+            setShiftMsg(msg);
+        } finally {
+            setShiftBusy(false);
+        }
+    }, [openShift?.shift_id, companyId, refreshShift, refreshAll]);
     useEffect(() => {
         if (authLoading) return;
 
@@ -114,6 +171,12 @@ export default function ControlCenterPage() {
         }
 
         if (isLoadingCompany) return;
+
+        if (myRole !== "owner" && myRole !== "admin") {
+            setLoading(false);
+            router.replace("/work-orders");
+            return;
+        }
 
         let cancelled = false;
 
@@ -140,7 +203,10 @@ export default function ControlCenterPage() {
                     return;
                 }
 
-                await refreshAll(companyId);
+                await Promise.all([
+                    refreshAll(companyId),
+                    refreshShift(companyId),
+                ]);
             } catch (e: any) {
                 if (!cancelled) setErrorMsg(e?.message ?? String(e));
             } finally {
@@ -151,7 +217,16 @@ export default function ControlCenterPage() {
         return () => {
             cancelled = true;
         };
-    }, [authLoading, user?.id, isLoadingCompany, companyId, refreshAll, router]);
+    }, [
+        authLoading,
+        user?.id,
+        isLoadingCompany,
+        companyId,
+        myRole,
+        refreshAll,
+        refreshShift,
+        router,
+    ]);
 
     const go = (url: string) => {
         if (companyId && typeof window !== "undefined") {
@@ -243,6 +318,65 @@ export default function ControlCenterPage() {
                         >
                             Team
                         </button>
+                    </div>
+                ) : null}
+                {companyId ? (
+                    <div
+                        style={{
+                            marginTop: 16,
+                            marginBottom: 20,
+                            padding: 16,
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 12,
+                            background: "#ffffff",
+                            maxWidth: 560,
+                        }}
+                    >
+                        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
+                            Operational Shift
+                        </div>
+
+                        <div style={{ fontSize: 14, color: "#4b5563", marginBottom: 12 }}>
+                            {shiftLoading
+                                ? "Verificando jornada..."
+                                : openShift
+                                    ? `Jornada abierta desde ${new Date(openShift.check_in_at).toLocaleString()}`
+                                    : "No tienes jornada abierta."}
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            {!openShift ? (
+                                <button
+                                    type="button"
+                                    onClick={handleCheckIn}
+                                    disabled={shiftBusy || shiftLoading}
+                                    style={primaryButtonStyle}
+                                >
+                                    {shiftBusy ? "Procesando..." : "Check-in"}
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleCheckOut}
+                                    disabled={shiftBusy || shiftLoading}
+                                    style={secondaryButtonStyle}
+                                >
+                                    {shiftBusy ? "Procesando..." : "Check-out"}
+                                </button>
+                            )}
+                        </div>
+
+                        {shiftMsg ? (
+                            <div
+                                style={{
+                                    marginTop: 12,
+                                    fontSize: 13,
+                                    color: shiftMsg.toLowerCase().includes("error") ? "#a40000" : "#374151",
+                                }}
+                            >
+                                {shiftMsg}
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
             </div>

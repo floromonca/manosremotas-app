@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useActiveCompany } from "../../hooks/useActiveCompany";
 
 export default function AppSidebar() {
     const pathname = usePathname();
+    const { myRole } = useActiveCompany();
+
+    const isAdmin = myRole === "owner" || myRole === "admin";
+    const isTech = myRole === "tech";
 
     const Item = ({ href, label }: { href: string; label: string }) => {
         const active = pathname.startsWith(href);
@@ -41,17 +46,44 @@ export default function AppSidebar() {
         >
             <h2 style={{ marginTop: 0 }}>ManosRemotas</h2>
 
-            <Item href="/control-center" label="Control Center" />
+            {isAdmin ? <Item href="/control-center" label="Control Center" /> : null}
 
-            <div style={{ height: 10 }} />
-
+            <Item href="/my-day" label="My Day" />
             <Item href="/work-orders" label="Work Orders" />
-            <Item href="/customers" label="Customers" />
-            <Item href="/invoices" label="Invoices" />
 
-            <div style={{ height: 10, opacity: 0.3, borderTop: "1px solid #475569" }} />
+            {isAdmin ? (
+                <>
+                    <Item href="/customers" label="Customers" />
+                    <Item href="/invoices" label="Invoices" />
 
-            <Item href="/settings" label="Settings" />
+                    <div
+                        style={{
+                            height: 10,
+                            opacity: 0.3,
+                            borderTop: "1px solid #475569",
+                        }}
+                    />
+
+                    <Item href="/settings" label="Settings" />
+                </>
+            ) : null}
+
+            {!isAdmin && !isTech ? (
+                <>
+                    <Item href="/customers" label="Customers" />
+                    <Item href="/invoices" label="Invoices" />
+
+                    <div
+                        style={{
+                            height: 10,
+                            opacity: 0.3,
+                            borderTop: "1px solid #475569",
+                        }}
+                    />
+
+                    <Item href="/settings" label="Settings" />
+                </>
+            ) : null}
         </aside>
     );
 }

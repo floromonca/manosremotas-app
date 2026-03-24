@@ -4,9 +4,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
-import { useRouter } from "next/navigation";
-
-
 
 type MemberRow = {
     company_id: string;
@@ -26,9 +23,19 @@ type InviteRow = {
     accepted_at: string | null;
 };
 
+function getMemberDisplayName(member: MemberRow) {
+    const fullName = member.profiles?.full_name;
+
+    if (typeof fullName === "string" && fullName.trim()) {
+        return fullName.trim();
+    }
+
+    return "Unnamed member";
+}
+
 export default function TeamPage() {
     const { user, authLoading } = useAuthState();
-    const { companyId, myRole } = useActiveCompany();
+    const { companyId, companyName, myRole } = useActiveCompany();
 
     const [members, setMembers] = useState<MemberRow[]>([]);
     const [invites, setInvites] = useState<InviteRow[]>([]);
@@ -38,8 +45,6 @@ export default function TeamPage() {
     const [inviteRole, setInviteRole] = useState("tech");
     const [err, setErr] = useState<string | null>(null);
     const [ok, setOk] = useState<string | null>(null);
-    // ...dentro del componente:
-    const router = useRouter();
 
     const refresh = useCallback(async () => {
         if (!companyId) return;
@@ -49,7 +54,6 @@ export default function TeamPage() {
         setOk(null);
 
         try {
-            // 1) Members (SIN join)
             const { data: memRows, error: memErr } = await supabase
                 .from("company_members")
                 .select("company_id, user_id, role, created_at")
@@ -59,8 +63,6 @@ export default function TeamPage() {
             if (memErr) throw memErr;
 
             const membersOnly = (memRows ?? []) as any[];
-
-            // 2) Profiles (otra query) y hacemos merge
             const ids = membersOnly.map((m) => m.user_id).filter(Boolean);
 
             let profilesMap = new Map<string, any>();
@@ -83,7 +85,6 @@ export default function TeamPage() {
 
             setMembers(merged as MemberRow[]);
 
-            // 3) Invites
             const { data: inv, error: invErr } = await supabase
                 .from("company_invites")
                 .select("invite_id, company_id, email, role, status, created_at, accepted_at")
@@ -91,13 +92,15 @@ export default function TeamPage() {
                 .order("created_at", { ascending: false });
 
             if (invErr) throw invErr;
-            setInvites((inv ?? []) as any as InviteRow[]);
+
+            setInvites((inv ?? []) as InviteRow[]);
         } catch (e: any) {
-            setErr(e?.message ?? "Error cargando Team");
+            setErr(e?.message ?? "Error loading team data.");
         } finally {
             setLoading(false);
         }
     }, [companyId]);
+
     useEffect(() => {
         if (authLoading) return;
         if (!user) return;
@@ -117,8 +120,9 @@ export default function TeamPage() {
         setOk(null);
 
         const email = inviteEmail.trim().toLowerCase();
+
         if (!email || !email.includes("@")) {
-            setErr("Email inválido");
+            setErr("Please enter a valid email address.");
             return;
         }
 
@@ -134,253 +138,649 @@ export default function TeamPage() {
 
             setInviteEmail("");
             setInviteRole("tech");
-            setOk("Invite creado (pending). El técnico debe registrarse con ese email.");
+            setOk("Invite created successfully. The technician must register with the same email.");
             await refresh();
         } catch (e: any) {
-            setErr(e?.message ?? "No se pudo crear invite");
+            setErr(e?.message ?? "Could not create invite.");
         }
     }, [companyId, inviteEmail, inviteRole, refresh]);
 
-    // ✅ Loading auth
     if (authLoading) {
         return (
-            <div style={{ padding: 16 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 900 }}>Team</h2>
-                <p>Cargando sesión...</p>
-            </div>
+            <PageShell>
+                <SimpleStateCard title="Team" message="Loading session..." />
+            </PageShell>
         );
     }
 
-    // ✅ Not logged in
     if (!user) {
         return (
-            <div style={{ padding: 16 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 900 }}>Team</h2>
-                <p>Debes iniciar sesión.</p>
-            </div>
+            <PageShell>
+                <SimpleStateCard title="Team" message="You must sign in to access this section." />
+            </PageShell>
         );
     }
 
-    // ✅ Guard de permisos (solo owner/admin)
     if (myRole !== "owner" && myRole !== "admin") {
         return (
-            <div style={{ padding: 16 }}>
-                <h2 style={{ fontSize: 20, fontWeight: 900 }}>Team</h2>
-                <p>No tienes permisos para ver esta sección.</p>
-            </div>
+            <PageShell>
+                <SimpleStateCard title="Team" message="You do not have permission to access this section." />
+            </PageShell>
         );
     }
 
     return (
-        <div style={{ padding: 16, maxWidth: 1000, margin: "0 auto" }}>
-            <div style={{ marginBottom: 12 }}>
-                <button
-                    type="button"
-                    onClick={() => router.replace("/control-center")}
-                    style={{
-                        padding: "8px 10px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                    }}
-                >
-                    ← Volver a Control Center
-                </button>
-            </div>
-
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                }}
-            >
-                <h2 style={{ fontSize: 22, fontWeight: 900 }}>Team</h2>
-                <button
-                    type="button"
-                    onClick={refresh}
-                    style={{
-                        padding: "8px 10px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                    }}
-                >
-                    {loading ? "Cargando..." : "Refresh"}
-                </button>
-            </div>
-
-            {!companyId ? (
-                <div style={{ marginTop: 12, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
-                    <b>No hay empresa activa.</b>
-                    <div style={{ marginTop: 6, color: "#666" }}>Selecciona una empresa (companyId).</div>
-                </div>
-            ) : null}
-
-            {err ? (
+        <PageShell>
+            <div style={{ marginBottom: 22 }}>
                 <div
                     style={{
-                        marginTop: 12,
-                        padding: 10,
-                        borderRadius: 10,
-                        border: "1px solid #f3c2c2",
-                        background: "#fff5f5",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#6b7280",
+                        marginBottom: 10,
                     }}
                 >
-                    <b>Error:</b> {err}
+                    Settings / Team
                 </div>
-            ) : null}
 
-            {ok ? (
                 <div
                     style={{
-                        marginTop: 12,
-                        padding: 10,
-                        borderRadius: 10,
-                        border: "1px solid #bfe6bf",
-                        background: "#f3fff3",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 16,
+                        flexWrap: "wrap",
                     }}
                 >
-                    {ok}
-                </div>
-            ) : null}
+                    <div>
+                        <h1
+                            style={{
+                                fontSize: 40,
+                                lineHeight: 1.08,
+                                fontWeight: 750,
+                                letterSpacing: "-0.03em",
+                                color: "#111827",
+                                margin: 0,
+                            }}
+                        >
+                            Team
+                        </h1>
 
-            {/* Members */}
-            <div style={{ marginTop: 16, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Members</h3>
-                    <div style={{ color: "#666", fontSize: 12 }}>{members.length} total</div>
-                </div>
-
-                <div style={{ marginTop: 10, overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                            <tr style={{ textAlign: "left" }}>
-                                <th style={{ padding: 8, borderBottom: "1px solid #eee" }}>Name</th>
-                                <th style={{ padding: 8, borderBottom: "1px solid #eee" }}>Role</th>
-                                <th style={{ padding: 8, borderBottom: "1px solid #eee" }}>Created</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {members.map((m) => (
-                                <tr key={m.user_id}>
-                                    <td style={{ padding: 8, borderBottom: "1px solid #f3f3f3" }}>
-                                        {(m as any)?.profiles?.full_name
-                                            ?? (m.user_id ? m.user_id.slice(0, 8) : "—")}
-                                    </td>
-
-                                    <td style={{ padding: 8, borderBottom: "1px solid #f3f3f3", fontWeight: 800 }}>
-                                        {m.role}
-                                    </td>
-
-                                    <td style={{ padding: 8, borderBottom: "1px solid #f3f3f3", color: "#666" }}>
-                                        {m.created_at ? new Date(m.created_at).toLocaleString() : "—"}
-                                    </td>
-                                </tr>
-                            ))}
-
-                            {members.length === 0 ? (
-                                <tr>
-                                    <td colSpan={3} style={{ padding: 10, color: "#666" }}>
-                                        No hay miembros.
-                                    </td>
-                                </tr>
-                            ) : null}
-                        </tbody>
-                    </table>                </div>
-            </div>
-
-            {/* Invite */}
-            <div style={{ marginTop: 16, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Invite new member</h3>
-
-                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 160px 140px", gap: 10 }}>
-                    <input
-                        value={inviteEmail}
-                        onChange={(e) => setInviteEmail(e.target.value)}
-                        placeholder="email@domain.com"
-                        style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd" }}
-                    />
-
-                    <select
-                        value={inviteRole}
-                        onChange={(e) => setInviteRole(e.target.value)}
-                        style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #ddd", background: "white" }}
-                    >
-                        <option value="tech">tech</option>
-                        <option value="admin">admin</option>
-                    </select>
+                        <div
+                            style={{
+                                marginTop: 10,
+                                fontSize: 16,
+                                color: "#6b7280",
+                                lineHeight: 1.6,
+                                maxWidth: 760,
+                            }}
+                        >
+                            Manage members and pending invites for{" "}
+                            {companyName?.trim() ? companyName : "your company"}.
+                        </div>
+                    </div>
 
                     <button
                         type="button"
-                        onClick={createInvite}
+                        onClick={refresh}
                         style={{
-                            padding: "10px 12px",
+                            height: 42,
+                            padding: "0 16px",
                             borderRadius: 10,
-                            border: "1px solid #111",
-                            background: "#111",
-                            color: "white",
+                            border: "1px solid #d1d5db",
+                            background: "#ffffff",
+                            color: "#111827",
                             cursor: "pointer",
-                            fontWeight: 900,
+                            fontWeight: 700,
+                            fontSize: 14,
                         }}
                     >
-                        Invite
+                        {loading ? "Refreshing..." : "Refresh"}
                     </button>
-                </div>
-
-                <div style={{ marginTop: 8, color: "#666", fontSize: 12 }}>
-                    MVP: el técnico debe registrarse con ese mismo email para que el sistema lo vincule.
                 </div>
             </div>
 
-            {/* Pending invites */}
-            <div style={{ marginTop: 16, padding: 12, border: "1px solid #eee", borderRadius: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900 }}>Pending invites</h3>
-                    <div style={{ color: "#666", fontSize: 12 }}>{pendingInvites.length} pending</div>
-                </div>
+            {!companyId ? (
+                <AlertBox tone="error">
+                    <strong>No active company selected.</strong> Select a company before managing team
+                    members.
+                </AlertBox>
+            ) : null}
 
-                <div style={{ marginTop: 10, overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                            <tr style={{ textAlign: "left" }}>
-                                <th style={{ padding: 8, borderBottom: "1px solid #eee" }}>Email</th>
-                                <th style={{ padding: 8, borderBottom: "1px solid #eee" }}>Role</th>
-                                <th style={{ padding: 8, borderBottom: "1px solid #eee" }}>Status</th>
-                                <th style={{ padding: 8, borderBottom: "1px solid #eee" }}>Created</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {pendingInvites.map((i) => (
-                                <tr key={i.invite_id}>
-                                    <td style={{ padding: 8, borderBottom: "1px solid #f3f3f3" }}>{i.email}</td>
-                                    <td style={{ padding: 8, borderBottom: "1px solid #f3f3f3" }}>{i.role}</td>
-                                    <td style={{ padding: 8, borderBottom: "1px solid #f3f3f3", fontWeight: 800 }}>
-                                        {i.status}
-                                    </td>
-                                    <td style={{ padding: 8, borderBottom: "1px solid #f3f3f3", color: "#666" }}>
-                                        {new Date(i.created_at).toLocaleString()}
-                                    </td>
-                                </tr>
-                            ))}
+            {err ? (
+                <AlertBox tone="error">
+                    <strong>Error:</strong> {err}
+                </AlertBox>
+            ) : null}
 
-                            {pendingInvites.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} style={{ padding: 10, color: "#666" }}>
-                                        No hay invites pendientes.
-                                    </td>
-                                </tr>
-                            ) : null}
-                        </tbody>
-                    </table>
-                </div>
+            {ok ? <AlertBox tone="success">{ok}</AlertBox> : null}
+
+            <div style={{ display: "grid", gap: 20 }}>
+                <SectionCard
+                    title="Members"
+                    description="Active members linked to this company and their current role."
+                    rightMeta={`${members.length} total`}
+                >
+                    <DataTable
+                        columns={["Name", "Role", "Created"]}
+                        emptyMessage={loading ? "Loading members..." : "No members found."}
+                        rows={members.map((m) => [
+                            getMemberDisplayName(m),
+                            <RoleBadge key={`${m.user_id}-role`} role={m.role} />,
+                            m.created_at ? formatDateTime(m.created_at) : "—",
+                        ])}
+                    />                </SectionCard>
+
+                <SectionCard
+                    title="Invite New Member"
+                    description="Create a pending invite for a new technician or admin."
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0, 1fr) 160px 140px",
+                            gap: 12,
+                            alignItems: "end",
+                        }}
+                    >
+                        <Field
+                            label="Email"
+                            value={inviteEmail}
+                            onChange={setInviteEmail}
+                            placeholder="email@domain.com"
+                        />
+
+                        <SelectField
+                            label="Role"
+                            value={inviteRole}
+                            onChange={setInviteRole}
+                            options={[
+                                { value: "tech", label: "tech" },
+                                { value: "admin", label: "admin" },
+                            ]}
+                        />
+
+                        <div style={{ display: "grid", gap: 8 }}>
+                            <div style={{ height: 18 }} />
+                            <button
+                                type="button"
+                                onClick={createInvite}
+                                style={{
+                                    height: 44,
+                                    borderRadius: 10,
+                                    border: "1px solid #111827",
+                                    background: "#111827",
+                                    color: "#ffffff",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                    fontSize: 14,
+                                }}
+                            >
+                                Invite
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            marginTop: 12,
+                            fontSize: 13,
+                            color: "#6b7280",
+                            lineHeight: 1.5,
+                        }}
+                    >
+                        The invited technician must register with the same email so the system can link
+                        the account correctly.
+                    </div>
+                </SectionCard>
+
+                <SectionCard
+                    title="Pending Invites"
+                    description="Invitations that have been created but not yet accepted."
+                    rightMeta={`${pendingInvites.length} pending`}
+                >
+                    <DataTable
+                        columns={["Email", "Role", "Status", "Created"]}
+                        emptyMessage={loading ? "Loading invites..." : "No pending invites."}
+                        rows={pendingInvites.map((i) => [
+                            i.email,
+                            i.role,
+                            <StatusBadge key={`${i.invite_id}-status`} status={i.status} />,
+                            formatDateTime(i.created_at),
+                        ])}
+                    />
+                </SectionCard>
+            </div>
+        </PageShell>
+    );
+}
+
+function PageShell({ children }: { children: React.ReactNode }) {
+    return (
+        <div
+            style={{
+                width: "100%",
+                maxWidth: 1040,
+                padding: "6px 0 32px 0",
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function SimpleStateCard({
+    title,
+    message,
+}: {
+    title: string;
+    message: string;
+}) {
+    return (
+        <div>
+            <div
+                style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#6b7280",
+                    marginBottom: 10,
+                }}
+            >
+                Settings / Team
+            </div>
+
+            <h1
+                style={{
+                    fontSize: 40,
+                    lineHeight: 1.08,
+                    fontWeight: 750,
+                    letterSpacing: "-0.03em",
+                    color: "#111827",
+                    margin: 0,
+                }}
+            >
+                {title}
+            </h1>
+
+            <div
+                style={{
+                    marginTop: 18,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 16,
+                    background: "#ffffff",
+                    padding: 20,
+                    color: "#6b7280",
+                }}
+            >
+                {message}
             </div>
         </div>
     );
+}
+
+function AlertBox({
+    tone,
+    children,
+}: {
+    tone: "error" | "success";
+    children: React.ReactNode;
+}) {
+    const isError = tone === "error";
+
+    return (
+        <div
+            style={{
+                marginBottom: 18,
+                padding: "12px 14px",
+                border: isError ? "1px solid #fecaca" : "1px solid #bbf7d0",
+                background: isError ? "#fff5f5" : "#f0fdf4",
+                borderRadius: 12,
+                color: isError ? "#991b1b" : "#166534",
+                fontSize: 14,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function SectionCard({
+    title,
+    description,
+    rightMeta,
+    children,
+}: {
+    title: string;
+    description?: string;
+    rightMeta?: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <section
+            style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 16,
+                background: "#ffffff",
+                padding: 22,
+                boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 16,
+                    marginBottom: 18,
+                    flexWrap: "wrap",
+                }}
+            >
+                <div>
+                    <div
+                        style={{
+                            fontSize: 22,
+                            fontWeight: 700,
+                            color: "#111827",
+                            marginBottom: description ? 6 : 0,
+                            letterSpacing: "-0.02em",
+                        }}
+                    >
+                        {title}
+                    </div>
+
+                    {description ? (
+                        <div
+                            style={{
+                                fontSize: 14,
+                                color: "#6b7280",
+                                lineHeight: 1.55,
+                                maxWidth: 720,
+                            }}
+                        >
+                            {description}
+                        </div>
+                    ) : null}
+                </div>
+
+                {rightMeta ? (
+                    <div
+                        style={{
+                            fontSize: 13,
+                            color: "#6b7280",
+                            fontWeight: 600,
+                        }}
+                    >
+                        {rightMeta}
+                    </div>
+                ) : null}
+            </div>
+
+            {children}
+        </section>
+    );
+}
+
+function Field({
+    label,
+    value,
+    onChange,
+    placeholder,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+}) {
+    return (
+        <label style={{ display: "grid", gap: 8 }}>
+            <span
+                style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#374151",
+                }}
+            >
+                {label}
+            </span>
+
+            <input
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                style={{
+                    height: 44,
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    padding: "0 14px",
+                    outline: "none",
+                    background: "#ffffff",
+                    fontSize: 14,
+                    color: "#111827",
+                    width: "100%",
+                }}
+            />
+        </label>
+    );
+}
+
+function SelectField({
+    label,
+    value,
+    onChange,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    options: { value: string; label: string }[];
+}) {
+    return (
+        <label style={{ display: "grid", gap: 8 }}>
+            <span
+                style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#374151",
+                }}
+            >
+                {label}
+            </span>
+
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                style={{
+                    height: 44,
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    padding: "0 14px",
+                    outline: "none",
+                    background: "#ffffff",
+                    fontSize: 14,
+                    color: "#111827",
+                    width: "100%",
+                }}
+            >
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        </label>
+    );
+}
+
+function DataTable({
+    columns,
+    rows,
+    emptyMessage,
+}: {
+    columns: string[];
+    rows: React.ReactNode[][];
+    emptyMessage: string;
+}) {
+    return (
+        <div
+            style={{
+                overflowX: "auto",
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
+                background: "#ffffff",
+            }}
+        >
+            <table
+                style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                }}
+            >
+                <thead>
+                    <tr style={{ textAlign: "left", background: "#f9fafb" }}>
+                        {columns.map((column) => (
+                            <th
+                                key={column}
+                                style={{
+                                    padding: "14px 16px",
+                                    borderBottom: "1px solid #e5e7eb",
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    color: "#374151",
+                                }}
+                            >
+                                {column}
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {rows.length === 0 ? (
+                        <tr>
+                            <td
+                                colSpan={columns.length}
+                                style={{
+                                    padding: "18px 16px",
+                                    color: "#6b7280",
+                                    fontSize: 14,
+                                }}
+                            >
+                                {emptyMessage}
+                            </td>
+                        </tr>
+                    ) : (
+                        rows.map((row, rowIndex) => (
+                            <tr key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                    <td
+                                        key={cellIndex}
+                                        style={{
+                                            padding: "14px 16px",
+                                            borderBottom:
+                                                rowIndex === rows.length - 1
+                                                    ? "none"
+                                                    : "1px solid #f1f5f9",
+                                            color: "#111827",
+                                            fontSize: 14,
+                                            verticalAlign: "middle",
+                                        }}
+                                    >
+                                        {cell}
+                                    </td>
+                                ))}
+                            </tr>
+                        ))
+                    )}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
+function RoleBadge({ role }: { role: string }) {
+    const normalized = role?.toLowerCase?.() ?? role;
+
+    const styles =
+        normalized === "owner"
+            ? {
+                background: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                color: "#1d4ed8",
+            }
+            : normalized === "admin"
+                ? {
+                    background: "#f5f3ff",
+                    border: "1px solid #ddd6fe",
+                    color: "#6d28d9",
+                }
+                : {
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                    color: "#374151",
+                };
+
+    return (
+        <span
+            style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "4px 10px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: "lowercase",
+                ...styles,
+            }}
+        >
+            {role}
+        </span>
+    );
+}
+
+function StatusBadge({ status }: { status: string }) {
+    const normalized = status?.toLowerCase?.() ?? status;
+
+    const styles =
+        normalized === "pending"
+            ? {
+                background: "#fff7ed",
+                border: "1px solid #fed7aa",
+                color: "#c2410c",
+            }
+            : normalized === "accepted"
+                ? {
+                    background: "#ecfdf3",
+                    border: "1px solid #bbf7d0",
+                    color: "#166534",
+                }
+                : {
+                    background: "#f9fafb",
+                    border: "1px solid #e5e7eb",
+                    color: "#374151",
+                };
+
+    return (
+        <span
+            style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "4px 10px",
+                borderRadius: 999,
+                fontSize: 12,
+                fontWeight: 700,
+                textTransform: "lowercase",
+                ...styles,
+            }}
+        >
+            {status}
+        </span>
+    );
+}
+
+function formatDateTime(value: string) {
+    try {
+        return new Date(value).toLocaleString();
+    } catch {
+        return value;
+    }
 }

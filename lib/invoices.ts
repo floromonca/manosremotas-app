@@ -260,6 +260,7 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 
 type InvoiceHtmlItem = {
   invoice_item_id?: string;
+  work_order_id?: string | null;
   description?: string | null;
   qty?: number | null;
   unit_price?: number | null;
@@ -278,7 +279,18 @@ type InvoiceHtmlPayment = {
   notes?: string | null;
   created_at?: string | null;
 };
-
+type InvoiceHtmlIncludedWorkOrder = {
+  invoice_work_order_id?: string;
+  work_order_id?: string;
+  work_order_number_snapshot?: string | null;
+  live_work_order_number?: string | null;
+  service_address_snapshot?: string | null;
+  customer_name_snapshot?: string | null;
+  subtotal_snapshot?: number | null;
+  tax_snapshot?: number | null;
+  total_snapshot?: number | null;
+  created_at?: string | null;
+};
 type InvoiceHtmlData = {
   invoice?: {
     invoice_id?: string;
@@ -286,6 +298,7 @@ type InvoiceHtmlData = {
     work_order_id?: string | null;
     work_order_number?: string | null;
     invoice_number?: string | null;
+    invoice_type?: string | null;
     status?: string | null;
     currency_code?: string | null;
     issue_date?: string | null;
@@ -326,6 +339,7 @@ type InvoiceHtmlData = {
   };
   items?: InvoiceHtmlItem[];
   payments?: InvoiceHtmlPayment[];
+  invoice_work_orders?: InvoiceHtmlIncludedWorkOrder[];
 };
 
 function moneyHtml(value: number | null | undefined, currency = "CAD") {
@@ -458,6 +472,7 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
   const company = data.company ?? {};
   const items = data.items ?? [];
   const payments = data.payments ?? [];
+  const includedWorkOrders = data.invoice_work_orders ?? [];
   const currency = invoice.currency_code || "CAD";
 
   const companyDisplayName =
@@ -479,7 +494,10 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
       ? payments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0)
       : Math.max(0, total - balanceDue);
 
-  const rows = items.length
+  const invoiceType = invoice.invoice_type ?? "standard";
+  const isPeriodInvoice = invoiceType === "period";
+
+  const flatRows = items.length
     ? items
       .map((item) => {
         return `
@@ -497,6 +515,111 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
         <td colspan="4" class="empty">No invoice items</td>
       </tr>
     `;
+
+  const groupedPeriodSections = includedWorkOrders.length
+    ? includedWorkOrders
+      .map((wo) => {
+        const woItems = items.filter(
+          (item) => (item.work_order_id ?? null) === (wo.work_order_id ?? null)
+        );
+
+        const computedSubtotal = woItems.reduce((acc, item) => {
+          const lineSubtotal =
+            item.line_subtotal != null
+              ? Number(item.line_subtotal)
+              : Number(item.line_total ?? 0) - Number(item.line_tax ?? 0);
+          return acc + lineSubtotal;
+        }, 0);
+
+        const computedTax = woItems.reduce((acc, item) => {
+          return acc + Number(item.line_tax ?? 0);
+        }, 0);
+
+        const computedTotal = woItems.reduce((acc, item) => {
+          return acc + Number(item.line_total ?? 0);
+        }, 0);
+
+        const snapshotSubtotal = Number(wo.subtotal_snapshot ?? 0);
+        const snapshotTax = Number(wo.tax_snapshot ?? 0);
+        const snapshotTotal = Number(wo.total_snapshot ?? 0);
+
+        const hasValidSnapshots =
+          woItems.length === 0
+            ? true
+            : !(snapshotSubtotal === 0 && snapshotTax === 0 && snapshotTotal === 0);
+
+        const woSubtotal = hasValidSnapshots ? snapshotSubtotal : computedSubtotal;
+        const woTax = hasValidSnapshots ? snapshotTax : computedTax;
+        const woTotal = hasValidSnapshots ? snapshotTotal : computedTotal;
+
+        const woRows = woItems.length
+          ? woItems
+            .map((item) => {
+              return `
+                  <tr>
+                    <td class="desc">${escHtml(item.description || "")}</td>
+                    <td class="num">${Number(item.qty ?? 0)}</td>
+                    <td class="num">${moneyHtml(item.unit_price, currency)}</td>
+                    <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
+                  </tr>
+                `;
+            })
+            .join("")
+          : `
+              <tr>
+                <td colspan="4" class="empty">No items for this work order</td>
+              </tr>
+            `;
+
+        const woTitle = escHtml(
+          wo.work_order_number_snapshot ||
+          wo.live_work_order_number ||
+          (wo.work_order_id ? `Work Order ${String(wo.work_order_id).slice(0, 8)}` : "Included Work Order")
+        );
+
+        const woAddress = escHtml(
+          wo.service_address_snapshot || invoice.billing_address || company.address_line1 || ""
+        );
+
+        const woCustomer = escHtml(
+          wo.customer_name_snapshot || invoice.customer_name || ""
+        );
+
+        return `
+          <div class="period-wo-section">
+            <div class="period-wo-title-row">
+              <div class="period-wo-title-left">
+                <span class="period-wo-code">${woTitle}</span>
+                ${woAddress ? `<span class="period-wo-sep">—</span><span class="period-wo-address">${woAddress}</span>` : ""}
+              </div>
+              ${woCustomer ? `<div class="period-wo-customer">${woCustomer}</div>` : ""}
+            </div>
+
+            <table class="period-wo-table">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th class="num">Qty</th>
+                  <th class="num">Unit Price</th>
+                  <th class="num">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${woRows}
+              </tbody>
+            </table>
+
+            <div class="period-wo-summary-line">
+              <span><strong>Subtotal:</strong> ${moneyHtml(woSubtotal, currency)}</span>
+              <span><strong>Tax:</strong> ${moneyHtml(woTax, currency)}</span>
+              <span><strong>Total:</strong> ${moneyHtml(woTotal, currency)}</span>
+            </div>
+          </div>
+        `;
+      })
+      .join("")
+    : "";
+  const rows = flatRows;
 
   return `
 <!DOCTYPE html>
@@ -546,6 +669,7 @@ body{
   grid-template-columns:1.2fr 0.8fr;
   gap:14px;
   margin-bottom:10px;
+  align-items:start;
 }
 
 .logo{
@@ -667,6 +791,68 @@ body{
   color:var(--muted);
 }
 
+.period-wrap{
+  padding:6px 10px 8px;
+}
+
+.period-wo-section{
+  border-bottom:1px solid var(--line);
+  padding:6px 0 8px;
+  page-break-inside:avoid;
+}
+
+.period-wo-section:first-child{
+  padding-top:0;
+}
+
+.period-wo-section:last-child{
+  border-bottom:0;
+  padding-bottom:2px;
+}
+
+.period-wo-line{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:8px;
+  margin-bottom:4px;
+}
+
+.period-wo-main{
+  font-size:11.5px;
+  color:var(--heading);
+  min-width:0;
+}
+
+.period-wo-code{
+  font-weight:800;
+}
+
+.period-wo-sep{
+  margin:0 3px;
+  color:var(--muted);
+}
+
+.period-wo-address{
+  color:var(--muted);
+}
+
+.period-wo-customer{
+  font-size:10.5px;
+  color:var(--muted);
+  text-align:right;
+  white-space:nowrap;
+}
+
+.period-wo-table thead th{
+  padding:5px 6px;
+  font-size:10px;
+}
+
+.period-wo-table tbody td{
+  padding:5px 6px;
+}
+
 table{
   width:100%;
   border-collapse:collapse;
@@ -708,16 +894,34 @@ tbody tr:last-child td{
   font-weight:800;
 }
 
+.period-wo-inline-totals{
+  display:flex;
+  justify-content:flex-end;
+  gap:12px;
+  margin-top:4px;
+  font-size:10.5px;
+  color:var(--text);
+  flex-wrap:wrap;
+}
+
+.empty{
+  text-align:center;
+  color:var(--muted);
+  padding:10px 6px;
+}
+
 /* TOTALS */
 
 .summary{
   display:flex;
   justify-content:flex-end;
   margin-top:10px;
+  width:100%;
 }
 
 .totals{
   width:300px;
+  margin-left:auto;
   border:1px solid var(--line);
   border-radius:12px;
   overflow:hidden;
@@ -793,8 +997,8 @@ tr{
 @media print{
 
   html, body{
-    font-size:11px;
-    line-height:1.25;
+    font-size:10.4px;
+    line-height:1.18;
   }
 
   body{
@@ -808,58 +1012,196 @@ tr{
   .topbar,
   .section-grid,
   .summary,
-  .notes{
+  .notes,
+  .period-wo-section{
     page-break-inside:avoid;
   }
 
   .logo{
-    max-width:115px;
-    max-height:56px;
+    max-width:108px;
+    max-height:52px;
   }
 
   .brand-name{
-    font-size:20px;
+    font-size:18px;
+    margin-bottom:2px;
+  }
+
+  .brand-meta{
+    font-size:10px;
+  }
+
+  .invoice-panel{
+    padding:10px 12px;
+    border-radius:10px;
   }
 
   .invoice-title{
-    font-size:24px;
+    font-size:22px;
   }
 
-  .topbar{
-    gap:12px;
-    margin-bottom:10px;
+  .status-pill{
+    margin-top:4px;
+    padding:3px 8px;
+    font-size:9px;
   }
+
+  .meta-grid{
+    gap:6px 10px;
+    margin-top:8px;
+  }
+
+.topbar{
+  gap:10px;
+  margin-bottom:8px;
+  align-items:start;
+}
 
   .section-grid{
     gap:8px;
-    margin-bottom:10px;
+    margin-bottom:8px;
   }
 
   .card{
-    min-height:70px;
-    padding:8px;
+    min-height:58px;
+    padding:7px 8px;
+  }
+
+  .card h3{
+    margin-bottom:5px;
+    font-size:9px;
+  }
+
+  .items-header{
+    padding:6px 10px;
+    font-size:9px;
   }
 
   thead th,
   tbody td{
-    padding:7px 8px;
+    padding:6px 7px;
   }
 
-  .summary{
-    margin-top:8px;
-  }
-
-  .totals{
-    width:290px;
-  }
-
+ .summary{
+  margin-top:8px;
+  width:100%;
+  justify-content:flex-end;
 }
+
+.totals{
+  width:290px;
+  margin-left:auto;
+}
+
+  .totals-row{
+    padding:7px 10px;
+  }
+
+  .totals-row.total{
+    font-size:14px;
+  }
+
+  .totals-row.balance{
+    font-size:15px;
+  }
+
+  .notes{
+    margin-top:10px;
+  }
+
+  .notes-header{
+    padding:8px 10px;
+  }
+
+  .notes-body{
+    padding:10px;
+  }
+
   .footer{
-    margin-top:6px;
-    font-size:10px;
+    margin-top:5px;
+    font-size:9.5px;
   }
+
+  /* COMPACTACIÓN EXTRA SOLO PARA PERIOD */
+.page.period-mode .topbar{
+  margin-bottom:6px;
 }
 
+.page.period-mode .section-grid{
+  margin-bottom:6px;
+  gap:6px;
+}
+
+.page.period-mode .card{
+  min-height:52px;
+  padding:6px 7px;
+}
+
+.page.period-mode .items-header{
+  padding:5px 9px;
+}
+
+.page.period-mode .period-wrap{
+  padding:4px 8px 6px;
+}
+
+.page.period-mode .period-wo-section{
+  padding:4px 0 6px;
+}
+
+.page.period-mode .period-wo-title-row{
+  margin-bottom:3px;
+  gap:6px;
+}
+
+.page.period-mode .period-wo-title-left{
+  font-size:10.8px;
+  line-height:1.15;
+}
+
+.page.period-mode .period-wo-customer{
+  font-size:9.8px;
+}
+
+.page.period-mode .period-wo-table thead th{
+  padding:4px 5px;
+  font-size:9.4px;
+}
+
+.page.period-mode .period-wo-table tbody td{
+  padding:4px 5px;
+}
+
+.period-wo-summary-line{
+  display:flex;
+  justify-content:flex-end;
+  gap:14px;
+  margin-top:4px;
+  font-size:10.5px;
+  color:var(--text);
+  flex-wrap:nowrap;
+  text-align:right;
+}
+
+.period-wo-summary-line span{
+  white-space:nowrap;
+}
+
+.page.period-mode .summary{
+  margin-top:4px;
+  width:100%;
+  justify-content:flex-end;
+}
+
+.page.period-mode .totals{
+  width:255px;
+  margin-left:auto;
+}
+
+.page.period-mode .totals-row{
+  padding:6px 9px;
+}
+}
 /* MUY IMPORTANTE:
    dejamos márgenes al motor PDF (Playwright),
    no duplicamos con @page margin aquí. */
@@ -877,12 +1219,26 @@ tr{
   .totals{
     width:100%;
   }
+
+  .period-wo-line{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .period-wo-customer{
+    text-align:left;
+    white-space:normal;
+  }
+
+  .period-wo-inline-totals{
+    justify-content:flex-start;
+  }
 }
 </style>
 </head>
 
 <body>
-<div class="page">
+<div class="page ${isPeriodInvoice ? "period-mode" : ""}">
 
   <div class="topbar">
     <div>
@@ -936,16 +1292,38 @@ tr{
 
     <div class="card">
       <h3>Service Address</h3>
-      ${invoice.billing_address ? escHtml(invoice.billing_address) : "—"}
+      ${isPeriodInvoice
+      ? `${includedWorkOrders.length} work order${includedWorkOrders.length === 1 ? "" : "s"} included`
+      : (invoice.billing_address ? escHtml(invoice.billing_address) : "—")
+    }
     </div>
 
     <div class="card">
       <h3>Service Details</h3>
-      ${workOrderDisplay ? `<div><strong>Work Order:</strong> ${escHtml(workOrderDisplay)}</div>` : ""}
+      ${isPeriodInvoice
+      ? `<div><strong>Invoice Type:</strong> Period Billing</div>`
+      : (workOrderDisplay ? `<div><strong>Work Order:</strong> ${escHtml(workOrderDisplay)}</div>` : "")
+    }
       ${invoice.tax_name ? `<div><strong>Tax:</strong> ${escHtml(invoice.tax_name)}</div>` : ""}
     </div>
   </div>
 
+    ${isPeriodInvoice ? `
+  <div class="items-card">
+    <div class="items-header">Included Work Orders</div>
+    <div class="period-wrap">
+      ${groupedPeriodSections || `
+        <table>
+          <tbody>
+            <tr>
+              <td colspan="4" class="empty">No included work orders</td>
+            </tr>
+          </tbody>
+        </table>
+      `}
+    </div>
+  </div>
+  ` : `
   <div class="items-card">
     <div class="items-header">Invoice Items</div>
 
@@ -963,6 +1341,7 @@ tr{
       </tbody>
     </table>
   </div>
+  `}
 
   <div class="summary">
     <div class="totals">

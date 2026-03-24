@@ -1,9 +1,11 @@
 "use client";
 
+import { CompanyGuard } from "../components/CompanyGuard";
+
 export default function ControlCenterLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <CompanyGuard>{children}</CompanyGuard>;
 }

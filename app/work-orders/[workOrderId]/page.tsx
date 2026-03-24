@@ -7,6 +7,13 @@ import { safeStatus, type WorkOrderStatus } from "../../../lib/supabase/workOrde
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { createInvoiceFromWorkOrder } from "../../../lib/invoices";
+import WorkOrderCustomerSection from "../components/WorkOrderCustomerSection";
+import WorkOrderSummarySection from "../components/WorkOrderSummarySection";
+import WorkOrderItemsHeader from "../components/WorkOrderItemsHeader";
+import WorkOrderNewItemForm from "../components/WorkOrderNewItemForm";
+import WorkOrderItemsTable from "../components/WorkOrderItemsTable";
+import WorkOrderDetailHeader from "../components/WorkOrderDetailHeader";
+
 
 type WorkOrder = {
     work_order_id: string;
@@ -208,6 +215,53 @@ export default function WorkOrderDetailPage() {
         setInvoiceStatus((data as any)?.status ?? null);
     }, []);
 
+    const loadItemsForWorkOrder = useCallback(async () => {
+        if (!workOrderId) return [] as WorkOrderItem[];
+
+        const { data, error } = await supabase
+            .from("work_order_items")
+            .select(
+                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
+            )
+            .eq("work_order_id", workOrderId)
+            .order("created_at", { ascending: true });
+
+        if (error) throw error;
+
+        return ((data as any) ?? []) as WorkOrderItem[];
+    }, [workOrderId]);
+
+    const syncDraftInvoiceIfNeeded = useCallback(async () => {
+        const currentInvoiceId = woRef.current?.invoice_id;
+
+        if (!currentInvoiceId) return;
+
+        const { data: invRow, error: invErr } = await supabase
+            .from("invoices")
+            .select("status")
+            .eq("invoice_id", currentInvoiceId)
+            .maybeSingle();
+
+        if (invErr) {
+            console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
+            return;
+        }
+
+        const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
+
+        if (currentInvoiceStatus !== "draft") {
+            console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
+            return;
+        }
+
+        try {
+            await createInvoiceFromWorkOrder(workOrderId);
+            await loadInvoiceStatus(currentInvoiceId);
+        } catch (syncErr: any) {
+            console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+        }
+    }, [workOrderId, loadInvoiceStatus]);
+
     const onSyncInvoice = useCallback(async () => {
         if (!workOrderId) return;
         if (syncingInvoice) return;
@@ -277,16 +331,8 @@ export default function WorkOrderDetailPage() {
 
             await loadInvoiceStatus(mapped.invoice_id);
 
-            const { data: itemRows, error: itemErr } = await supabase
-                .from("work_order_items")
-                .select(
-                    "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
-                )
-                .eq("work_order_id", workOrderId)
-                .order("created_at", { ascending: true });
-
-            if (itemErr) throw itemErr;
-            setItems((itemRows as any) ?? []);
+            const itemRows = await loadItemsForWorkOrder();
+            setItems(itemRows);
         } catch (e: any) {
             setErr(e?.message ?? "Error cargando Work Order");
             setWo(null);
@@ -295,7 +341,7 @@ export default function WorkOrderDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [workOrderId, loadInvoiceStatus]);
+    }, [workOrderId, loadInvoiceStatus, loadItemsForWorkOrder]);
 
     useEffect(() => {
         loadRole();
@@ -314,25 +360,17 @@ export default function WorkOrderDetailPage() {
     const refreshItemsOnly = useCallback(async () => {
         if (!workOrderId) return;
 
-        const { data: itemRows, error: itemErr } = await supabase
-            .from("work_order_items")
-            .select(
-                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
-            )
-            .eq("work_order_id", workOrderId)
-            .order("created_at", { ascending: true });
+        try {
+            const itemRows = await loadItemsForWorkOrder();
+            setItems(itemRows);
 
-        if (itemErr) {
-            alert(`No se pudieron recargar items: ${itemErr.message}`);
-            return;
+            if (woRef.current?.invoice_id) {
+                await loadInvoiceStatus(woRef.current.invoice_id);
+            }
+        } catch (e: any) {
+            alert(`No se pudieron recargar items: ${e?.message ?? e}`);
         }
-
-        setItems((itemRows as any) ?? []);
-
-        if (woRef.current?.invoice_id) {
-            await loadInvoiceStatus(woRef.current.invoice_id);
-        }
-    }, [workOrderId, loadInvoiceStatus]);
+    }, [workOrderId, loadItemsForWorkOrder, loadInvoiceStatus]);
 
     const updateQtyDone = useCallback(
         async (itemId: string, newQtyDone: number | null) => {
@@ -366,36 +404,9 @@ export default function WorkOrderDetailPage() {
 
             await refreshItemsOnly();
 
-            if ((woRef.current as any)?.invoice_id) {
-                const currentInvoiceId = (woRef.current as any)?.invoice_id as string;
-
-                const { data: invRow, error: invErr } = await supabase
-                    .from("invoices")
-                    .select("status")
-                    .eq("invoice_id", currentInvoiceId)
-                    .maybeSingle();
-
-                if (invErr) {
-                    console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
-                    return;
-                }
-
-                const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
-
-                if (currentInvoiceStatus !== "draft") {
-                    console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
-                    return;
-                }
-
-                try {
-                    await createInvoiceFromWorkOrder(workOrderId);
-                    await loadInvoiceStatus(currentInvoiceId);
-                } catch (syncErr: any) {
-                    console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
-                }
-            }
+            await syncDraftInvoiceIfNeeded();
         },
-        [items, isAdmin, refreshItemsOnly, workOrderId, loadInvoiceStatus]
+        [items, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]
     );
 
     const priceItem = useCallback(
@@ -419,52 +430,15 @@ export default function WorkOrderDetailPage() {
                     return;
                 }
 
-                if ((woRef.current as any)?.invoice_id) {
-                    const currentInvoiceId = (woRef.current as any)?.invoice_id as string;
+                await syncDraftInvoiceIfNeeded();
 
-                    const { data: invRow, error: invErr } = await supabase
-                        .from("invoices")
-                        .select("status")
-                        .eq("invoice_id", currentInvoiceId)
-                        .maybeSingle();
+                await refreshItemsOnly();
 
-                    if (invErr) {
-                        console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
-                    } else {
-                        const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
-
-                        if (currentInvoiceStatus === "draft") {
-                            try {
-                                await createInvoiceFromWorkOrder(workOrderId);
-                                await loadInvoiceStatus(currentInvoiceId);
-                            } catch (syncErr: any) {
-                                console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
-                            }
-                        } else {
-                            console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
-                        }
-                    }
-                }
-
-                const { data: itemRows, error: itemErr } = await supabase
-                    .from("work_order_items")
-                    .select(
-                        "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
-                    )
-                    .eq("work_order_id", workOrderId)
-                    .order("created_at", { ascending: true });
-
-                if (itemErr) {
-                    alert(`No se pudieron recargar items: ${itemErr.message}`);
-                    return;
-                }
-
-                setItems(itemRows ?? []);
             } finally {
                 setSavingPrice((s) => ({ ...s, [itemId]: false }));
             }
         },
-        [priceDraft, workOrderId, loadInvoiceStatus]
+        [priceDraft, refreshItemsOnly, syncDraftInvoiceIfNeeded]
     );
 
     const saveCustomerInfo = useCallback(async () => {
@@ -578,32 +552,7 @@ export default function WorkOrderDetailPage() {
             const { error } = await supabase.from("work_order_items").insert(payload);
             if (error) throw error;
 
-            if ((woRef.current as any)?.invoice_id) {
-                const currentInvoiceId = (woRef.current as any)?.invoice_id as string;
-
-                const { data: invRow, error: invErr } = await supabase
-                    .from("invoices")
-                    .select("status")
-                    .eq("invoice_id", currentInvoiceId)
-                    .maybeSingle();
-
-                if (invErr) {
-                    console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
-                } else {
-                    const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
-
-                    if (currentInvoiceStatus === "draft") {
-                        try {
-                            await createInvoiceFromWorkOrder(workOrderId);
-                            await loadInvoiceStatus(currentInvoiceId);
-                        } catch (syncErr: any) {
-                            console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
-                        }
-                    } else {
-                        console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
-                    }
-                }
-            }
+            await syncDraftInvoiceIfNeeded();
 
             await refreshItemsOnly();
 
@@ -614,131 +563,32 @@ export default function WorkOrderDetailPage() {
         } finally {
             setSavingItem(false);
         }
-    }, [roleLoading, myRole, newItem, wo, workOrderId, isAdmin, refreshItemsOnly, loadInvoiceStatus]);
+    }, [roleLoading, myRole, newItem, wo, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]);
 
     return (
         <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <button
-                    onClick={() => setShowForm((s) => !s)}
-                    style={{
-                        padding: "6px 10px",
-                        borderRadius: 8,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        cursor: "pointer",
-                        fontSize: 12,
-                        fontWeight: 700,
-                    }}
-                >
-                    {showForm ? "Cancelar" : "+ Agregar item"}
-                </button>
-
-                <div style={{ textAlign: "center" }}>
-                    <h1 style={{ margin: 0 }}>Work Order</h1>
-                    <div style={{ opacity: 0.7, fontFamily: "monospace" }}>{workOrderId}</div>
-
-                    <div style={{ opacity: 0.75, marginTop: 4, fontSize: 12 }}>
-                        Rol: <b>{myRole ?? "—"}</b>
-
-                        {wo?.invoice_id ? (
-                            <>
-                                {" "}
-                                · Invoice:{" "}
-                                <span style={{ fontFamily: "monospace" }}>{String(wo.invoice_id).slice(0, 8)}</span>
-                            </>
-                        ) : null}
-
-                        {wo?.invoice_id && invoiceStatus ? (
-                            <>
-                                {" "}
-                                · Estado invoice:{" "}
-                                <span
-                                    style={{
-                                        display: "inline-block",
-                                        padding: "3px 8px",
-                                        borderRadius: 999,
-                                        fontSize: 11,
-                                        fontWeight: 900,
-                                        letterSpacing: 0.3,
-                                        ...invoiceBadgeStyle(invoiceStatus),
-                                    }}
-                                >
-                                    {prettyInvoiceStatus(invoiceStatus)}
-                                </span>
-                            </>
-                        ) : null}
-
-                        {isAdmin ? (
-                            <span style={{ marginLeft: 10, display: "inline-flex", gap: 8, alignItems: "center" }}>
-                                {wo?.invoice_id ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => router.push(`/invoices/${wo.invoice_id}?fromWorkOrder=${workOrderId}`)}
-                                        style={{
-                                            padding: "4px 8px",
-                                            borderRadius: 8,
-                                            border: "1px solid #ddd",
-                                            background: "white",
-                                            cursor: "pointer",
-                                            fontWeight: 900,
-                                            fontSize: 12,
-                                        }}
-                                    >
-                                        Open
-                                    </button>
-                                ) : null}
-                                <button
-                                    type="button"
-                                    onClick={onSyncInvoice}
-                                    disabled={syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)}
-                                    title={
-                                        anyPendingPricing
-                                            ? "Aprueba los Pending pricing primero"
-                                            : hasInvoice && !invoiceIsDraft
-                                                ? `La invoice está en ${prettyInvoiceStatus(invoiceStatus)} y ya no permite Sync`
-                                                : "Sincroniza items priced hacia la invoice"
-                                    }
-                                    style={{
-                                        padding: "4px 8px",
-                                        borderRadius: 8,
-                                        border: "1px solid #111",
-                                        background: hasInvoice && !invoiceIsDraft ? "#999" : "#111",
-                                        color: "white",
-                                        cursor:
-                                            syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
-                                                ? "not-allowed"
-                                                : "pointer",
-                                        fontWeight: 900,
-                                        fontSize: 12,
-                                        opacity:
-                                            syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
-                                                ? 0.6
-                                                : 1,
-                                    }}
-                                >
-                                    {syncingInvoice ? "Syncing..." : "Sync"}
-                                </button>
-                            </span>
-                        ) : null}
-                    </div>
-                </div>
-
-                <button
-                    onClick={() => router.push("/work-orders")}
-                    style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        height: "fit-content",
-                    }}
-                >
-                    ← Back to Work Orders
-                </button>
-            </div>
+            <WorkOrderDetailHeader
+                workOrderId={workOrderId}
+                myRole={myRole}
+                invoiceId={wo?.invoice_id}
+                invoiceStatus={invoiceStatus}
+                isAdmin={isAdmin}
+                syncingInvoice={syncingInvoice}
+                anyPendingPricing={anyPendingPricing}
+                hasInvoice={hasInvoice}
+                invoiceIsDraft={invoiceIsDraft}
+                prettyInvoiceStatus={prettyInvoiceStatus}
+                invoiceBadgeStyle={invoiceBadgeStyle}
+                onOpenInvoice={() => {
+                    if (wo?.invoice_id) {
+                        router.push(`/invoices/${wo.invoice_id}?fromWorkOrder=${workOrderId}`);
+                    }
+                }}
+                onSyncInvoice={onSyncInvoice}
+                onBack={() => router.push("/work-orders")}
+                showForm={showForm}
+                onToggleForm={() => setShowForm((s) => !s)}
+            />
 
             {loading ? <div style={{ marginTop: 16 }}>Cargando…</div> : null}
 
@@ -770,484 +620,49 @@ export default function WorkOrderDetailPage() {
                     }}
                 >
                     <div style={{ display: "grid", gap: 8 }}>
-                        <div style={{ fontSize: 18, fontWeight: 900 }}>{wo.job_type}</div>
-                        <div style={{ opacity: 0.8 }}>{wo.description}</div>
+                        <WorkOrderSummarySection
+                            wo={wo}
+                            googleMapsUrl={googleMapsUrl}
+                            invoiceIsLocked={invoiceIsLocked}
+                            invoiceStatus={invoiceStatus}
+                            prettyInvoiceStatus={prettyInvoiceStatus}
+                        />
 
-                        {wo.customer_name ? (
-                            <div style={{ fontSize: 14, opacity: 0.85 }}>
-                                <b>Customer:</b> {wo.customer_name}
-                            </div>
-                        ) : null}
-
-                        {wo.service_address ? (
-                            <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
-                                <div style={{ fontSize: 14, opacity: 0.85 }}>
-                                    <b>Address:</b> {wo.service_address}
-                                </div>
-
-                                {googleMapsUrl ? (
-                                    <div>
-                                        <a
-                                            href={googleMapsUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            style={{
-                                                display: "inline-block",
-                                                padding: "8px 12px",
-                                                borderRadius: 10,
-                                                border: "1px solid #111",
-                                                textDecoration: "none",
-                                                color: "#111",
-                                                fontWeight: 700,
-                                            }}
-                                        >
-                                            Abrir en Google Maps
-                                        </a>
-                                    </div>
-                                ) : null}
-                            </div>
-                        ) : null}
-
-                        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
-                            <div>
-                                <b>Status:</b> {wo.status}
-                            </div>
-                            <div>
-                                <b>Priority:</b> {wo.priority}
-                            </div>
-                            <div>
-                                <b>Assigned to:</b>{" "}
-                                <span style={{ fontFamily: "monospace" }}>{(wo.assigned_to ?? "—").slice(0, 8)}</span>
-                            </div>
-                        </div>
-
-                        {invoiceIsLocked ? (
-                            <div
-                                style={{
-                                    marginTop: 10,
-                                    padding: 10,
-                                    borderRadius: 10,
-                                    background: "#fff7e6",
-                                    border: "1px solid #ffe1a8",
-                                    fontWeight: 700,
-                                }}
-                            >
-                                Esta Work Order tiene una invoice en estado <b>{prettyInvoiceStatus(invoiceStatus)}</b>. Puedes seguir
-                                trabajando la WO, pero ya no se hará Sync automático ni manual sobre esa invoice.
-                            </div>
-                        ) : null}
-
+                        <WorkOrderCustomerSection
+                            customerForm={customerForm}
+                            setCustomerForm={setCustomerForm}
+                            saveCustomerInfo={saveCustomerInfo}
+                            savingCustomer={savingCustomer}
+                        />
                         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
-                            <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 10 }}>Customer</div>
-
-                            <div style={{ display: "grid", gap: 10, maxWidth: 620 }}>
-                                <label style={{ display: "grid", gap: 6 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Customer Name</span>
-                                    <input
-                                        value={customerForm.customer_name}
-                                        onChange={(e) =>
-                                            setCustomerForm((s) => ({ ...s, customer_name: e.target.value }))
-                                        }
-                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-                                    />
-                                </label>
-
-                                <label style={{ display: "grid", gap: 6 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Customer Email</span>
-                                    <input
-                                        value={customerForm.customer_email}
-                                        onChange={(e) =>
-                                            setCustomerForm((s) => ({ ...s, customer_email: e.target.value }))
-                                        }
-                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-                                    />
-                                </label>
-
-                                <label style={{ display: "grid", gap: 6 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Customer Phone</span>
-                                    <input
-                                        value={customerForm.customer_phone}
-                                        onChange={(e) =>
-                                            setCustomerForm((s) => ({ ...s, customer_phone: e.target.value }))
-                                        }
-                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-                                    />
-                                </label>
-
-                                <label style={{ display: "grid", gap: 6 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 700 }}>Service Address</span>
-                                    <input
-                                        value={customerForm.service_address}
-                                        onChange={(e) =>
-                                            setCustomerForm((s) => ({ ...s, service_address: e.target.value }))
-                                        }
-                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-                                    />
-                                </label>
-
-                                <div>
-                                    <button
-                                        type="button"
-                                        onClick={saveCustomerInfo}
-                                        disabled={savingCustomer}
-                                        style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 10,
-                                            border: "1px solid #111",
-                                            background: "#111",
-                                            color: "white",
-                                            cursor: savingCustomer ? "not-allowed" : "pointer",
-                                            fontWeight: 900,
-                                            opacity: savingCustomer ? 0.7 : 1,
-                                        }}
-                                    >
-                                        {savingCustomer ? "Saving..." : "Save Customer Info"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: 12,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ fontWeight: 900, fontSize: 16 }}>Items</div>
-
-                                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                    <div style={{ opacity: 0.7, fontSize: 13 }}>
-                                        Total items: <b>{items.length}</b>
-                                    </div>
-
-                                    <button
-                                        onClick={() => setShowForm((s) => !s)}
-                                        style={{
-                                            padding: "10px 12px",
-                                            borderRadius: 10,
-                                            border: "1px solid #ddd",
-                                            background: "white",
-                                            cursor: "pointer",
-                                            fontWeight: 900,
-                                        }}
-                                    >
-                                        {showForm ? "Cerrar" : "+ Agregar item"}
-                                    </button>
-                                </div>
-                            </div>
+                            <WorkOrderItemsHeader
+                                itemsCount={items.length}
+                                showForm={showForm}
+                                setShowForm={setShowForm}
+                            />
 
                             {showForm ? (
-                                <div
-                                    style={{
-                                        marginTop: 12,
-                                        padding: 12,
-                                        border: "1px solid #eee",
-                                        borderRadius: 12,
-                                        background: "#fafafa",
-                                        display: "grid",
-                                        gap: 10,
-                                        maxWidth: 620,
-                                    }}
-                                >
-                                    <div style={{ fontWeight: 900 }}>Nuevo item</div>
-
-                                    <input
-                                        placeholder="Descripción (ej: Piso laminado 20m2)"
-                                        value={newItem.description}
-                                        onChange={(e) => setNewItem((s) => ({ ...s, description: e.target.value }))}
-                                        style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
-                                    />
-
-                                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                        <div style={{ display: "grid", gap: 6 }}>
-                                            <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>
-                                                {isAdmin ? "Cantidad planificada" : "Cantidad realizada (extra)"}
-                                            </div>
-                                            <input
-                                                placeholder="Ej: 10"
-                                                type="number"
-                                                value={newItem.quantity}
-                                                onChange={(e) =>
-                                                    setNewItem((s) => ({ ...s, quantity: Number(e.target.value) }))
-                                                }
-                                                style={{
-                                                    padding: 10,
-                                                    borderRadius: 10,
-                                                    border: "1px solid #ddd",
-                                                    width: 200,
-                                                }}
-                                            />
-                                        </div>
-
-                                        {isAdmin ? (
-                                            <div style={{ display: "grid", gap: 6 }}>
-                                                <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>Precio unitario</div>
-                                                <input
-                                                    placeholder="Ej: 8.00"
-                                                    type="number"
-                                                    value={newItem.unit_price}
-                                                    onChange={(e) =>
-                                                        setNewItem((s) => ({ ...s, unit_price: Number(e.target.value) }))
-                                                    }
-                                                    style={{
-                                                        padding: 10,
-                                                        borderRadius: 10,
-                                                        border: "1px solid #ddd",
-                                                        width: 200,
-                                                    }}
-                                                />
-                                            </div>
-                                        ) : null}
-                                    </div>
-
-                                    {isAdmin ? (
-                                        <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={newItem.taxable}
-                                                onChange={(e) => setNewItem((s) => ({ ...s, taxable: e.target.checked }))}
-                                            />
-                                            Taxable
-                                        </label>
-                                    ) : (
-                                        <div style={{ fontSize: 12, opacity: 0.8 }}>
-                                            Como técnico: este item queda <b>pending_pricing</b> para que el admin lo apruebe.
-                                        </div>
-                                    )}
-
-                                    {isAdmin ? (
-                                        <div style={{ fontWeight: 900, marginTop: 4, opacity: 0.9 }}>
-                                            Total item: ${(Number(newItem.quantity ?? 0) * Number(newItem.unit_price ?? 0)).toFixed(2)}
-                                        </div>
-                                    ) : null}
-
-                                    <div style={{ display: "flex", gap: 10 }}>
-                                        <button
-                                            type="button"
-                                            disabled={savingItem || roleLoading || !myRole}
-                                            onClick={onCreateItem}
-                                            style={{
-                                                padding: "10px 12px",
-                                                borderRadius: 10,
-                                                border: "1px solid #111",
-                                                background: "#111",
-                                                color: "white",
-                                                cursor: savingItem ? "not-allowed" : "pointer",
-                                                fontWeight: 900,
-                                                opacity: savingItem ? 0.6 : 1,
-                                            }}
-                                        >
-                                            {savingItem ? "Guardando..." : isAdmin ? "Guardar planned" : "Guardar extra"}
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowForm(false)}
-                                            style={{
-                                                padding: "10px 12px",
-                                                borderRadius: 10,
-                                                border: "1px solid #ddd",
-                                                background: "white",
-                                                cursor: "pointer",
-                                                fontWeight: 800,
-                                            }}
-                                        >
-                                            Cancelar
-                                        </button>
-                                    </div>
-                                </div>
+                                <WorkOrderNewItemForm
+                                    isAdmin={isAdmin}
+                                    newItem={newItem}
+                                    setNewItem={setNewItem}
+                                    savingItem={savingItem}
+                                    roleLoading={roleLoading}
+                                    myRole={myRole}
+                                    onCreateItem={onCreateItem}
+                                    setShowForm={setShowForm}
+                                />
                             ) : null}
 
-                            {items.length === 0 ? (
-                                <div style={{ marginTop: 10, opacity: 0.7 }}>No hay items todavía.</div>
-                            ) : (
-                                <div style={{ marginTop: 10, overflowX: "auto" }}>
-                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                        <thead>
-                                            <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
-                                                <th style={{ padding: "8px 6px" }}>Descripción</th>
-                                                <th style={{ padding: "8px 6px" }}>Tipo</th>
-                                                <th style={{ padding: "8px 6px" }}>Estado</th>
-                                                <th style={{ padding: "8px 6px" }}>Plan</th>
-                                                <th style={{ padding: "8px 6px" }}>Done</th>
-                                                {isAdmin ? <th style={{ padding: "8px 6px" }}>Valor</th> : null}
-                                                <th style={{ padding: "8px 6px" }}>Taxable</th>
-                                                {isAdmin ? <th style={{ padding: "8px 6px" }}>Total</th> : null}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {items.map((it) => {
-                                                const hasPlanned = it.qty_planned !== null && it.qty_planned !== undefined;
-
-                                                const qtyPlanned = hasPlanned ? Number(it.qty_planned ?? 0) : null;
-
-                                                const qtyDone =
-                                                    it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
-
-                                                const qtyToPrice = Number((qtyDone ?? qtyPlanned ?? 0) ?? 0);
-
-                                                const unit = Number(it.unit_price ?? 0);
-                                                const lineTotal = qtyToPrice * unit;
-
-                                                const isPendingPricing =
-                                                    it.pricing_status === "pending_pricing" || it.pending_pricing === true;
-
-                                                const tipo = hasPlanned ? "Planned" : "Extra";
-
-                                                return (
-                                                    <tr key={it.item_id} style={{ borderBottom: "1px solid #f2f2f2" }}>
-                                                        <td style={{ padding: "8px 6px" }}>{it.description ?? "—"}</td>
-
-                                                        <td style={{ padding: "8px 6px" }}>
-                                                            <span
-                                                                style={{
-                                                                    display: "inline-block",
-                                                                    padding: "4px 8px",
-                                                                    borderRadius: 999,
-                                                                    fontSize: 12,
-                                                                    fontWeight: 900,
-                                                                    border: "1px solid #ddd",
-                                                                    background: tipo === "Extra" ? "#f0f9ff" : "#fafafa",
-                                                                    color: "#111",
-                                                                    whiteSpace: "nowrap",
-                                                                }}
-                                                            >
-                                                                {tipo}
-                                                            </span>
-                                                        </td>
-
-                                                        <td style={{ padding: "8px 6px" }}>
-                                                            <span
-                                                                style={{
-                                                                    display: "inline-block",
-                                                                    padding: "4px 8px",
-                                                                    borderRadius: 999,
-                                                                    fontSize: 12,
-                                                                    fontWeight: 900,
-                                                                    border: "1px solid",
-                                                                    borderColor: isPendingPricing ? "#f5c542" : "#22c55e",
-                                                                    background: isPendingPricing ? "#fff7e6" : "#ecfdf5",
-                                                                    color: isPendingPricing ? "#8a5a00" : "#065f46",
-                                                                    whiteSpace: "nowrap",
-                                                                }}
-                                                                title={
-                                                                    isPendingPricing
-                                                                        ? "Este item necesita aprobación de precio"
-                                                                        : "Precio aprobado"
-                                                                }
-                                                            >
-                                                                {isPendingPricing ? "Pending pricing" : "Approved"}
-                                                            </span>
-                                                        </td>
-
-                                                        <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
-                                                            {hasPlanned ? qtyPlanned : "—"}
-                                                        </td>
-
-                                                        <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
-                                                            {isAdmin ? (
-                                                                <span style={{ opacity: 0.85 }}>{qtyDone ?? 0}</span>
-                                                            ) : (
-                                                                <input
-                                                                    type="number"
-                                                                    value={qtyDone ?? ""}
-                                                                    placeholder="0"
-                                                                    style={{ width: 90, padding: "6px 8px" }}
-                                                                    onChange={(e) => {
-                                                                        const v = e.target.value;
-                                                                        const n = v === "" ? null : Number(v);
-                                                                        updateQtyDone(it.item_id, n);
-                                                                    }}
-                                                                />
-                                                            )}
-                                                        </td>
-
-                                                        {isAdmin ? (
-                                                            <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
-                                                                {isPendingPricing ? (
-                                                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                                                        <input
-                                                                            type="number"
-                                                                            value={priceDraft[it.item_id] ?? ""}
-                                                                            placeholder="Precio"
-                                                                            style={{ width: 100, padding: "6px 8px" }}
-                                                                            onChange={(e) =>
-                                                                                setPriceDraft((s) => ({
-                                                                                    ...s,
-                                                                                    [it.item_id]: e.target.value === "" ? 0 : Number(e.target.value),
-                                                                                }))
-                                                                            }
-                                                                        />
-                                                                        <button
-                                                                            type="button"
-                                                                            disabled={
-                                                                                savingPrice[it.item_id] ||
-                                                                                Number(priceDraft[it.item_id] ?? 0) <= 0
-                                                                            }
-                                                                            onClick={() => {
-                                                                                const v = Number(priceDraft[it.item_id] ?? 0);
-                                                                                if (!Number.isFinite(v) || v <= 0) {
-                                                                                    alert("Debes colocar un precio mayor a 0 antes de Set $");
-                                                                                    return;
-                                                                                }
-                                                                                priceItem(it.item_id);
-                                                                            }}
-                                                                            style={{
-                                                                                padding: "6px 10px",
-                                                                                borderRadius: 8,
-                                                                                border: "1px solid #111",
-                                                                                background: "#111",
-                                                                                color: "white",
-                                                                                cursor: savingPrice[it.item_id] ? "not-allowed" : "pointer",
-                                                                                fontWeight: 800,
-                                                                                opacity: savingPrice[it.item_id] ? 0.6 : 1,
-                                                                            }}
-                                                                        >
-                                                                            {savingPrice[it.item_id] ? "..." : "Set $"}
-                                                                        </button>
-                                                                    </div>
-                                                                ) : (
-                                                                    <>${unit.toFixed(2)}</>
-                                                                )}
-                                                            </td>
-                                                        ) : null}
-
-                                                        <td style={{ padding: "8px 6px" }}>{it.taxable ? "✅" : "—"}</td>
-
-                                                        {isAdmin ? (
-                                                            <td style={{ padding: "8px 6px", fontFamily: "monospace" }}>
-                                                                ${lineTotal.toFixed(2)}
-                                                            </td>
-                                                        ) : null}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-
-                                    {isAdmin ? (
-                                        <div style={{ marginTop: 10, textAlign: "right", fontWeight: 900 }}>
-                                            Total: $
-                                            {items
-                                                .reduce((acc, it) => {
-                                                    const hasPlanned = it.qty_planned !== null && it.qty_planned !== undefined;
-                                                    const qtyPlanned = hasPlanned ? Number(it.qty_planned ?? 0) : null;
-                                                    const qtyDone =
-                                                        it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
-
-                                                    const qtyToPrice = Number((qtyDone ?? qtyPlanned ?? 0) ?? 0);
-                                                    const unit = Number(it.unit_price ?? 0);
-                                                    return acc + qtyToPrice * unit;
-                                                }, 0)
-                                                .toFixed(2)}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            )}
+                            <WorkOrderItemsTable
+                                items={items}
+                                isAdmin={isAdmin}
+                                priceDraft={priceDraft}
+                                setPriceDraft={setPriceDraft}
+                                savingPrice={savingPrice}
+                                updateQtyDone={updateQtyDone}
+                                priceItem={priceItem}
+                            />
                         </div>
                     </div>
                 </div>

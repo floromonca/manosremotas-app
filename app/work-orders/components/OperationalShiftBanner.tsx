@@ -30,19 +30,18 @@ export default function OperationalShiftBanner({
             }}
         >
             <div>
-                <b>Operación:</b>{" "}
+                <b>Shift:</b>{" "}
                 {shiftLoading ? (
-                    <span style={{ opacity: 0.75 }}>validando jornada…</span>
+                    <span style={{ opacity: 0.75 }}>Checking shift…</span>
                 ) : canOperate ? (
-                    <span>Jornada activa ✅ Puedes operar órdenes.</span>
+                    <span>Shift active ✅ You can work on assigned orders.</span>
                 ) : (
                     <span>
-                        Jornada cerrada ⚠️ Para cambiar estados, comentar o facturar debes hacer{" "}
-                        <b>Check-in</b> en <b>Control Center</b>.
+                        Shift closed ⚠️ To change status or continue operating, complete your{" "}
+                        <b>check-in</b>.
                     </span>
                 )}
             </div>
-
             <div style={{ display: "flex", gap: 10 }}>
                 <button
                     onClick={onRefreshShift}
@@ -55,7 +54,7 @@ export default function OperationalShiftBanner({
                         fontWeight: 700,
                     }}
                 >
-                    Refresh jornada
+                    Refresh shift
                 </button>
 
                 {!canOperate ? (
@@ -71,7 +70,7 @@ export default function OperationalShiftBanner({
                             fontWeight: 800,
                         }}
                     >
-                        Ir a Check-in →
+                        Go to check-in →
                     </button>
                 ) : null}
             </div>

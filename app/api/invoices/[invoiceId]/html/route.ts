@@ -32,6 +32,15 @@ export async function GET(
       return new NextResponse("Invoice no encontrada", { status: 404 });
     }
 
+    console.log("=== get_invoice_full data ===");
+    console.dir(data, { depth: null });
+
+    console.log("=== invoice_work_orders ===");
+    console.dir(data?.invoice_work_orders, { depth: null });
+
+    console.log("=== items ===");
+    console.dir(data?.items, { depth: null });
+
     const baseHtml = renderInvoiceHtml(data);
 
     const actionBarHtml = `

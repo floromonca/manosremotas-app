@@ -75,7 +75,6 @@ export default function ControlCenterCompanyPage() {
                     return;
                 }
 
-                // 1) Validar rol
                 const { data: member, error: memberErr } = await supabase
                     .from("company_members")
                     .select("role")
@@ -93,7 +92,6 @@ export default function ControlCenterCompanyPage() {
                     return;
                 }
 
-                // 2) Cargar company
                 const { data, error } = await supabase
                     .from("companies")
                     .select(
@@ -232,43 +230,77 @@ export default function ControlCenterCompanyPage() {
     };
 
     return (
-        <div style={{ padding: 24, maxWidth: 980 }}>
-            <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 13, opacity: 0.7 }}>Control Center / Company</div>
-                <h1 style={{ fontSize: 28, fontWeight: 650, margin: "6px 0" }}>
-                    {companyName && companyName.trim() ? companyName : "Company"} — Company Settings
+        <div
+            style={{
+                width: "100%",
+                maxWidth: 1040,
+                padding: "6px 0 32px 0",
+            }}
+        >
+            <div style={{ marginBottom: 22 }}>
+                <div
+                    style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#6b7280",
+                        marginBottom: 10,
+                    }}
+                >
+                    Settings / Company
+                </div>
+
+                <h1
+                    style={{
+                        fontSize: 40,
+                        lineHeight: 1.08,
+                        fontWeight: 750,
+                        letterSpacing: "-0.03em",
+                        color: "#111827",
+                        margin: 0,
+                    }}
+                >
+                    {companyName && companyName.trim() ? companyName : "Company"}
                 </h1>
-                <div style={{ opacity: 0.7 }}>
-                    Manage your business identity and regional settings.
+
+                <div
+                    style={{
+                        marginTop: 10,
+                        fontSize: 16,
+                        color: "#6b7280",
+                        lineHeight: 1.6,
+                        maxWidth: 760,
+                    }}
+                >
+                    Manage your business identity, address, currency, timezone, and default payment terms.
                 </div>
             </div>
 
             {errorMsg ? (
                 <div
                     style={{
-                        marginBottom: 16,
-                        padding: 10,
-                        border: "1px solid #f3caca",
+                        marginBottom: 18,
+                        padding: "12px 14px",
+                        border: "1px solid #fecaca",
                         background: "#fff5f5",
-                        borderRadius: 8,
-                        color: "#a40000",
-                        fontSize: 13,
+                        borderRadius: 12,
+                        color: "#991b1b",
+                        fontSize: 14,
                     }}
                 >
-                    <b>Error:</b> {errorMsg}
+                    <strong>Error:</strong> {errorMsg}
                 </div>
             ) : null}
 
             {okMsg ? (
                 <div
                     style={{
-                        marginBottom: 16,
-                        padding: 10,
-                        border: "1px solid #cfe8cf",
-                        background: "#f3fff3",
-                        borderRadius: 8,
-                        color: "#0b6b0b",
-                        fontSize: 13,
+                        marginBottom: 18,
+                        padding: "12px 14px",
+                        border: "1px solid #bbf7d0",
+                        background: "#f0fdf4",
+                        borderRadius: 12,
+                        color: "#166534",
+                        fontSize: 14,
                     }}
                 >
                     {okMsg}
@@ -276,152 +308,175 @@ export default function ControlCenterCompanyPage() {
             ) : null}
 
             {loading ? (
-                <div style={{ opacity: 0.7 }}>Loading company settings...</div>
+                <div
+                    style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 16,
+                        background: "#fff",
+                        padding: 20,
+                        color: "#6b7280",
+                    }}
+                >
+                    Loading company settings...
+                </div>
             ) : role && !["owner", "admin"].includes(role) ? (
-                <div style={{ opacity: 0.7 }}>Access denied.</div>
+                <div
+                    style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 16,
+                        background: "#fff",
+                        padding: 20,
+                        color: "#6b7280",
+                    }}
+                >
+                    Access denied.
+                </div>
             ) : (
-                <div style={{ display: "grid", gap: 18 }}>
-                    <SectionCard title="Company Information">
-                        <Field
-                            label="Company Name"
-                            value={form.company_name}
-                            onChange={(v) => setField("company_name", v)}
-                        />
-                        <Field
-                            label="Email"
-                            value={form.company_email}
-                            onChange={(v) => setField("company_email", v)}
-                        />
-                        <Field
-                            label="Phone"
-                            value={form.company_phone}
-                            onChange={(v) => setField("company_phone", v)}
-                        />
-                        <Field
-                            label="Website"
-                            value={form.company_website}
-                            onChange={(v) => setField("company_website", v)}
-                        />
+                <div style={{ display: "grid", gap: 20 }}>
+                    <SectionCard
+                        title="Company Information"
+                        description="Basic business identity and public contact details."
+                    >
+                        <TwoColumnGrid>
+                            <Field
+                                label="Company Name"
+                                value={form.company_name}
+                                onChange={(v) => setField("company_name", v)}
+                            />
+                            <Field
+                                label="Email"
+                                value={form.company_email}
+                                onChange={(v) => setField("company_email", v)}
+                            />
+                            <Field
+                                label="Phone"
+                                value={form.company_phone}
+                                onChange={(v) => setField("company_phone", v)}
+                            />
+                            <Field
+                                label="Website"
+                                value={form.company_website}
+                                onChange={(v) => setField("company_website", v)}
+                            />
+                        </TwoColumnGrid>
                     </SectionCard>
 
-                    <SectionCard title="Address">
-                        <Field
-                            label="Address Line 1"
-                            value={form.address_line_1}
-                            onChange={(v) => setField("address_line_1", v)}
-                        />
-                        <Field
-                            label="Address Line 2"
-                            value={form.address_line_2}
-                            onChange={(v) => setField("address_line_2", v)}
-                        />
-                        <Field label="City" value={form.city} onChange={(v) => setField("city", v)} />
-                        <Field
-                            label="State / Province"
-                            value={form.state_province}
-                            onChange={(v) => setField("state_province", v)}
-                        />
-                        <Field
-                            label="Postal Code"
-                            value={form.postal_code}
-                            onChange={(v) => setField("postal_code", v)}
-                        />
-                        <Field
-                            label="Country"
-                            value={form.country_code}
-                            onChange={(v) => setField("country_code", v)}
-                        />
+                    <SectionCard
+                        title="Address"
+                        description="Company location used for documents, identity, and regional defaults."
+                    >
+                        <TwoColumnGrid>
+                            <Field
+                                label="Address Line 1"
+                                value={form.address_line_1}
+                                onChange={(v) => setField("address_line_1", v)}
+                            />
+                            <Field
+                                label="Address Line 2"
+                                value={form.address_line_2}
+                                onChange={(v) => setField("address_line_2", v)}
+                            />
+                            <Field
+                                label="City"
+                                value={form.city}
+                                onChange={(v) => setField("city", v)}
+                            />
+                            <Field
+                                label="State / Province"
+                                value={form.state_province}
+                                onChange={(v) => setField("state_province", v)}
+                            />
+                            <Field
+                                label="Postal Code"
+                                value={form.postal_code}
+                                onChange={(v) => setField("postal_code", v)}
+                            />
+                            <Field
+                                label="Country"
+                                value={form.country_code}
+                                onChange={(v) => setField("country_code", v)}
+                            />
+                        </TwoColumnGrid>
                     </SectionCard>
 
-                    <SectionCard title="Regional Settings">
-                        {/* Currency */}
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600 }}>Currency</span>
-
-                            <select
+                    <SectionCard
+                        title="Regional Settings"
+                        description="Defaults used for invoices, work orders, and company-level behavior."
+                    >
+                        <TwoColumnGrid>
+                            <SelectField
+                                label="Currency"
+                                helper="Default currency used for invoices."
                                 value={form.currency_code}
-                                onChange={(e) => setField("currency_code", e.target.value)}
-                                style={{
-                                    padding: "10px 12px",
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                    background: "white",
-                                    fontSize: 14,
-                                }}
-                            >
-                                <option value="CAD">Canadian Dollar (CAD)</option>
-                                <option value="USD">US Dollar (USD)</option>
-                                <option value="COP">Colombian Peso (COP)</option>
-                            </select>
+                                onChange={(v) => setField("currency_code", v)}
+                                options={[
+                                    { value: "CAD", label: "Canadian Dollar (CAD)" },
+                                    { value: "USD", label: "US Dollar (USD)" },
+                                    { value: "COP", label: "Colombian Peso (COP)" },
+                                ]}
+                            />
 
-                            <span style={{ fontSize: 12, opacity: 0.7 }}>
-                                Default currency used for invoices.
-                            </span>
-                        </label>
-
-                        {/* Timezone */}
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600 }}>Timezone</span>
-
-                            <select
+                            <SelectField
+                                label="Timezone"
+                                helper="Used for invoices, work orders, and reports."
                                 value={form.timezone}
-                                onChange={(e) => setField("timezone", e.target.value)}
-                                style={{
-                                    padding: "10px 12px",
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                    background: "white",
-                                    fontSize: 14,
-                                }}
-                            >
-                                <option value="America/Toronto">Toronto (Canada Eastern Time)</option>
-                                <option value="America/New_York">New York (US Eastern Time)</option>
-                                <option value="America/Bogota">Bogotá (Colombia Time)</option>
-                            </select>
+                                onChange={(v) => setField("timezone", v)}
+                                options={[
+                                    { value: "America/Toronto", label: "Toronto (Canada Eastern Time)" },
+                                    { value: "America/New_York", label: "New York (US Eastern Time)" },
+                                    { value: "America/Bogota", label: "Bogotá (Colombia Time)" },
+                                ]}
+                            />
 
-                            <span style={{ fontSize: 12, opacity: 0.7 }}>
-                                Used for invoices, work orders, and reports.
-                            </span>
-                        </label>
-
-                        {/* Payment Terms */}
-                        <label style={{ display: "grid", gap: 6 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600 }}>Payment Terms (days)</span>
-
-                            <input
+                            <Field
+                                label="Payment Terms (days)"
                                 type="number"
                                 min={0}
                                 step={1}
                                 value={form.payment_terms_days}
-                                onChange={(e) => setField("payment_terms_days", e.target.value)}
-                                style={{
-                                    height: 40,
-                                    borderRadius: 8,
-                                    border: "1px solid #ddd",
-                                    padding: "0 12px",
-                                    outline: "none",
-                                    background: "white",
-                                }}
+                                onChange={(v) => setField("payment_terms_days", v)}
+                                helper="Default number of days used to calculate invoice due date."
                             />
-
-                            <span style={{ fontSize: 12, opacity: 0.7 }}>
-                                Default number of days used to calculate invoice due date.
-                            </span>
-                        </label>
+                        </TwoColumnGrid>
                     </SectionCard>
 
-                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 16,
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 16,
+                            background: "#ffffff",
+                            padding: 16,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 14,
+                                color: "#6b7280",
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            Save your company defaults before moving to Billing, Taxes, or Preferences.
+                        </div>
+
                         <button
                             type="button"
                             onClick={handleSave}
                             disabled={saving}
                             style={{
-                                padding: "10px 16px",
+                                height: 42,
+                                padding: "0 18px",
                                 borderRadius: 10,
-                                border: "1px solid #ddd",
-                                background: saving ? "#f5f5f5" : "white",
+                                border: "1px solid #d1d5db",
+                                background: saving ? "#f3f4f6" : "#111827",
+                                color: saving ? "#6b7280" : "#ffffff",
                                 cursor: saving ? "not-allowed" : "pointer",
-                                fontWeight: 800,
+                                fontWeight: 700,
+                                fontSize: 14,
+                                boxShadow: saving ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
                             }}
                         >
                             {saving ? "Saving..." : "Save Changes"}
@@ -435,22 +490,64 @@ export default function ControlCenterCompanyPage() {
 
 function SectionCard({
     title,
+    description,
     children,
 }: {
     title: string;
+    description?: string;
     children: React.ReactNode;
 }) {
     return (
-        <div
+        <section
             style={{
-                border: "1px solid #e5e5e5",
-                borderRadius: 12,
-                background: "#fff",
-                padding: 16,
+                border: "1px solid #e5e7eb",
+                borderRadius: 16,
+                background: "#ffffff",
+                padding: 22,
+                boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
             }}
         >
-            <div style={{ fontSize: 18, fontWeight: 650, marginBottom: 14 }}>{title}</div>
-            <div style={{ display: "grid", gap: 12 }}>{children}</div>
+            <div style={{ marginBottom: 18 }}>
+                <div
+                    style={{
+                        fontSize: 22,
+                        fontWeight: 700,
+                        color: "#111827",
+                        marginBottom: description ? 6 : 0,
+                        letterSpacing: "-0.02em",
+                    }}
+                >
+                    {title}
+                </div>
+
+                {description ? (
+                    <div
+                        style={{
+                            fontSize: 14,
+                            color: "#6b7280",
+                            lineHeight: 1.55,
+                        }}
+                    >
+                        {description}
+                    </div>
+                ) : null}
+            </div>
+
+            {children}
+        </section>
+    );
+}
+
+function TwoColumnGrid({ children }: { children: React.ReactNode }) {
+    return (
+        <div
+            style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 16,
+            }}
+        >
+            {children}
         </div>
     );
 }
@@ -459,26 +556,121 @@ function Field({
     label,
     value,
     onChange,
+    helper,
+    type = "text",
+    min,
+    step,
 }: {
     label: string;
     value: string;
     onChange: (value: string) => void;
+    helper?: string;
+    type?: string;
+    min?: number;
+    step?: number;
 }) {
     return (
-        <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
+        <label style={{ display: "grid", gap: 8 }}>
+            <span
+                style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#374151",
+                }}
+            >
+                {label}
+            </span>
+
             <input
+                type={type}
+                min={min}
+                step={step}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 style={{
-                    height: 40,
-                    borderRadius: 8,
-                    border: "1px solid #ddd",
-                    padding: "0 12px",
+                    height: 44,
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    padding: "0 14px",
                     outline: "none",
-                    background: "white",
+                    background: "#ffffff",
+                    fontSize: 14,
+                    color: "#111827",
                 }}
             />
+
+            {helper ? (
+                <span
+                    style={{
+                        fontSize: 12,
+                        color: "#6b7280",
+                        lineHeight: 1.45,
+                    }}
+                >
+                    {helper}
+                </span>
+            ) : null}
+        </label>
+    );
+}
+
+function SelectField({
+    label,
+    value,
+    onChange,
+    helper,
+    options,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    helper?: string;
+    options: { value: string; label: string }[];
+}) {
+    return (
+        <label style={{ display: "grid", gap: 8 }}>
+            <span
+                style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "#374151",
+                }}
+            >
+                {label}
+            </span>
+
+            <select
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                style={{
+                    height: 44,
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    padding: "0 14px",
+                    outline: "none",
+                    background: "#ffffff",
+                    fontSize: 14,
+                    color: "#111827",
+                }}
+            >
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+
+            {helper ? (
+                <span
+                    style={{
+                        fontSize: 12,
+                        color: "#6b7280",
+                        lineHeight: 1.45,
+                    }}
+                >
+                    {helper}
+                </span>
+            ) : null}
         </label>
     );
 }

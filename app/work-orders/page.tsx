@@ -70,6 +70,11 @@ type LocationRow = {
     label?: string | null;
     address: string;
 };
+type MemberRow = {
+    user_id: string;
+    role: string;
+    full_name?: string | null;
+};
 
 export default function WorkOrdersPage() {
     const router = useRouter();
@@ -103,7 +108,7 @@ export default function WorkOrdersPage() {
         router.replace("/auth");
     }, [router]);
 
-    const { companyId, companyName, isLoadingCompany, refreshCompany } = useActiveCompany();
+    const { companyId, companyName, myRole, isLoadingCompany, refreshCompany } = useActiveCompany();
 
 
 
@@ -152,9 +157,13 @@ export default function WorkOrdersPage() {
 
 
     // ✅ Rol del usuario en la compañía (owner/admin/tech/viewer)
-    const [myRole, setMyRole] = useState<WorkOrderRole>(null);
+    const [workOrderRole, setWorkOrderRole] = useState<WorkOrderRole>(null);
 
-    type MemberRow = { user_id: string; role: string };
+    type MemberRow = {
+        user_id: string;
+        role: string;
+        full_name?: string | null;
+    };
 
     const [members, setMembers] = useState<MemberRow[]>([]);
     const techMembers = members.filter((m) => m.role === "tech");
@@ -166,7 +175,7 @@ export default function WorkOrdersPage() {
     const [openShiftId, setOpenShiftId] = useState<string | null>(null);
     const [shiftLoading, setShiftLoading] = useState(false);
 
-    const canOperate = !!openShiftId;
+    const canOperate = true;
 
     const refreshShift = useCallback(async (cid: string) => {
         setShiftLoading(true);
@@ -175,10 +184,63 @@ export default function WorkOrdersPage() {
             if (error) throw error;
             setOpenShiftId((data as any)?.shift_id ?? null);
         } catch (e: any) {
-            // Si hay RLS o no hay shift abierto, simplemente queda null
             setOpenShiftId(null);
         } finally {
             setShiftLoading(false);
+        }
+    }, []);
+
+    const refreshMembers = useCallback(async (cid: string) => {
+        setMembersLoading(true);
+        try {
+            const { data: membersData, error: membersError } = await supabase
+                .from("company_members")
+                .select("user_id, role, full_name")
+                .eq("company_id", cid);
+
+            console.log("refreshMembers membersData", { cid, membersData, membersError });
+
+            if (membersError) throw membersError;
+
+            const baseMembers =
+                (membersData as { user_id: string; role: string; full_name: string | null }[] | null) ?? [];
+
+            const missingNameIds = baseMembers
+                .filter((m) => !m.full_name?.trim())
+                .map((m) => m.user_id);
+
+            if (missingNameIds.length === 0) {
+                setMembers(baseMembers);
+                return;
+            }
+
+            const { data: profilesData, error: profilesError } = await supabase
+                .from("profiles")
+                .select("user_id, full_name")
+                .in("user_id", missingNameIds);
+
+            console.log("refreshMembers profilesData", { profilesData, profilesError });
+
+            const profilesMap = new Map(
+                ((profilesData as { user_id: string; full_name: string | null }[] | null) ?? []).map((p) => [
+                    p.user_id,
+                    p.full_name,
+                ])
+            );
+
+            const merged: MemberRow[] = baseMembers.map((m) => ({
+                user_id: m.user_id,
+                role: m.role,
+                full_name: m.full_name?.trim() || profilesMap.get(m.user_id) || null,
+            }));
+
+            console.log("refreshMembers merged", merged);
+            setMembers(merged);
+        } catch (e: any) {
+            console.log("refreshMembers ERROR:", e?.message ?? e);
+            setMembers([]);
+        } finally {
+            setMembersLoading(false);
         }
     }, []);
 
@@ -259,7 +321,7 @@ export default function WorkOrdersPage() {
 
             const uid = u.user?.id;
             if (!uid) {
-                setMyRole(null);
+                setWorkOrderRole(null);
                 return;
             }
 
@@ -272,30 +334,13 @@ export default function WorkOrdersPage() {
 
             if (error) throw error;
 
-            setMyRole((data?.role as any) ?? null);
+            setWorkOrderRole((data?.role as any) ?? null);
         } catch (e) {
-            setMyRole(null);
+            setWorkOrderRole(null);
         }
     }, []);
 
-    const refreshMembers = useCallback(async (cid: string) => {
-        setMembersLoading(true);
-        try {
-            const { data, error } = await supabase
-                .from("company_members")
-                .select("user_id, role")
-                .eq("company_id", cid);
 
-            if (error) throw error;
-
-            setMembers((data as any) ?? []);
-        } catch (e: any) {
-            console.log("refreshMembers ERROR:", e?.message ?? e);
-            setMembers([]);
-        } finally {
-            setMembersLoading(false);
-        }
-    }, []);
     const signOut = useCallback(async () => {
         await supabase.auth.signOut();
         router.replace("/auth");
@@ -457,6 +502,28 @@ export default function WorkOrdersPage() {
 
     }, [rows, user?.id, woFilter]);
 
+    const isTechView = myRole === "tech";
+    const currentUserId = user?.id ?? null;
+
+    const techRows = useMemo(() => {
+        if (!isTechView || !currentUserId) return [];
+        return rows.filter((w) => w.assigned_to === currentUserId);
+    }, [rows, isTechView, currentUserId]);
+
+    const visibleRows = isTechView ? techRows : filtered;
+
+    const techAssignedCount = techRows.filter((w) => w.status === "new").length;
+    const techInProgressCount = techRows.filter((w) => w.status === "in_progress").length;
+    const techCompletedCount = techRows.filter(
+        (w) => w.status === "resolved" || w.status === "closed"
+    ).length;
+
+    const techAssignedRows = techRows.filter((w) => w.status === "new");
+    const techInProgressRows = techRows.filter((w) => w.status === "in_progress");
+    const techCompletedRows = techRows.filter(
+        (w) => w.status === "resolved" || w.status === "closed"
+    );
+
     const loadAuditTimeline = useCallback(async (workOrderId: string) => {
         setAuditLoadingFor((s) => ({ ...s, [workOrderId]: true }));
         try {
@@ -612,6 +679,60 @@ export default function WorkOrdersPage() {
         },
         [auditOpenFor, loadAuditTimeline]
     );
+    const renderTechSection = (title: string, sectionRows: WorkOrder[]) => (
+        <section style={{ marginTop: 18 }}>
+            <div
+                style={{
+                    marginBottom: 10,
+                    fontSize: 16,
+                    fontWeight: 900,
+                    color: "#111827",
+                }}
+            >
+                {title}
+            </div>
+
+            {sectionRows.length === 0 ? (
+                <div
+                    style={{
+                        padding: "14px 2px",
+                        color: "#6b7280",
+                        fontSize: 14,
+                    }}
+                >
+                    No work orders in this section.
+                </div>
+            ) : (
+                <WorkOrdersList
+                    rows={sectionRows}
+                    companyId={companyId}
+                    isAdminOrOwner={isAdminOrOwner}
+                    techMembers={techMembers}
+                    canChangeStatus={canChangeStatus}
+                    myRole={myRole}
+                    allowedStatusesForRole={allowedStatusesForRole}
+                    auditOpenFor={auditOpenFor}
+                    auditLoadingFor={auditLoadingFor}
+                    auditByWo={auditByWo}
+                    onAssignTech={handleAssignTech}
+                    onChangeStatus={handleChangeStatus}
+                    onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
+                    onToggleAudit={handleToggleAudit}
+                    onOpenInvoice={(invoiceId) => router.push(`/invoices/${invoiceId}`)}
+                    onCreateInvoice={async (woId) => {
+                        try {
+                            const invoiceId = await createInvoiceFromWorkOrder(woId);
+                            router.push(`/invoices/${invoiceId}`);
+                        } catch (e: any) {
+                            alert("Error creando factura: " + (e?.message ?? e));
+                        }
+                    }}
+                    AuditPanel={WorkOrderAuditPanel}
+                />
+            )}
+        </section>
+    );
+
     // ✅ Login UI embebido (visible)
     const AuthBox = (
         <div
@@ -886,20 +1007,21 @@ export default function WorkOrdersPage() {
                                 Crear mi empresa
                             </button>
 
-                            <button
-                                onClick={() => router.replace("/control-center")}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: 10,
-                                    border: "1px solid #ddd",
-                                    background: "white",
-                                    cursor: "pointer",
-                                    fontWeight: 700,
-                                }}
-                            >
-                                Ir a Control Center →
-                            </button>
-                        </div>
+                            {(myRole === "owner" || myRole === "admin") ? (
+                                <button
+                                    onClick={() => router.replace("/control-center")}
+                                    style={{
+                                        padding: "10px 14px",
+                                        borderRadius: 10,
+                                        border: "1px solid #ddd",
+                                        background: "white",
+                                        cursor: "pointer",
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    Ir a Control Center →
+                                </button>
+                            ) : null}                        </div>
 
                         <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
                             Debug: activeCompanyId ={" "}
@@ -912,32 +1034,151 @@ export default function WorkOrdersPage() {
                     </div>
                 ) : (
                     <>
-                        <header style={{ marginBottom: 18 }}>
-                            <h1 style={{ margin: 0, fontSize: 28 }}>
-                                {companyName} — Work Orders
+                        <header
+                            style={{
+                                marginBottom: 18,
+                                padding: "18px 20px",
+                                borderRadius: 16,
+                                border: "1px solid #e5e7eb",
+                                background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 1,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                    marginBottom: 6,
+                                }}
+                            >
+                                {isTechView ? "My Day" : "Operations"}
+                            </div>
+
+                            <h1
+                                style={{
+                                    margin: 0,
+                                    fontSize: 30,
+                                    lineHeight: 1.1,
+                                    fontWeight: 900,
+                                    letterSpacing: "-0.03em",
+                                    color: "#111827",
+                                }}
+                            >
+                                {isTechView ? "My Work Orders" : `${companyName} — Work Orders`}
                             </h1>
-                            <div style={{ opacity: 0.7, marginTop: 6 }}>
-                                Mostrando: <b>{filtered.length}</b> · Total: <b>{rows.length}</b> ·
-                                Filter: <b>{woFilter}</b> · myUserId:{" "}
-                                <b>{user?.id ? user.id.slice(0, 8) : "null"}</b> · myRole:{" "}
-                                <b>{myRole ?? "null"}</b> · canOperate: <b>{canOperate ? "true" : "false"}</b>{" "}
-                                · openShiftId: <b>{openShiftId ? openShiftId.slice(0, 8) : "null"}</b>
-                                · members: <b>{membersLoading ? "loading..." : members.length}</b>
+
+                            <div
+                                style={{
+                                    marginTop: 10,
+                                    display: "flex",
+                                    gap: 10,
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
+                                }}
+                            >
+                                {isTechView ? (
+                                    <>
+                                        <span
+                                            style={{
+                                                padding: "6px 10px",
+                                                borderRadius: 999,
+                                                background: "#f9fafb",
+                                                border: "1px solid #e5e7eb",
+                                                fontSize: 13,
+                                                color: "#374151",
+                                            }}
+                                        >
+                                            Assigned: <b>{techAssignedCount}</b>
+                                        </span>
+
+                                        <span
+                                            style={{
+                                                padding: "6px 10px",
+                                                borderRadius: 999,
+                                                background: "#f9fafb",
+                                                border: "1px solid #e5e7eb",
+                                                fontSize: 13,
+                                                color: "#374151",
+                                            }}
+                                        >
+                                            In progress: <b>{techInProgressCount}</b>
+                                        </span>
+
+                                        <span
+                                            style={{
+                                                padding: "6px 10px",
+                                                borderRadius: 999,
+                                                background: "#f9fafb",
+                                                border: "1px solid #e5e7eb",
+                                                fontSize: 13,
+                                                color: "#374151",
+                                            }}
+                                        >
+                                            Completed: <b>{techCompletedCount}</b>
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span
+                                            style={{
+                                                padding: "6px 10px",
+                                                borderRadius: 999,
+                                                background: "#f9fafb",
+                                                border: "1px solid #e5e7eb",
+                                                fontSize: 13,
+                                                color: "#374151",
+                                            }}
+                                        >
+                                            Showing: <b>{filtered.length}</b>
+                                        </span>
+
+                                        <span
+                                            style={{
+                                                padding: "6px 10px",
+                                                borderRadius: 999,
+                                                background: "#f9fafb",
+                                                border: "1px solid #e5e7eb",
+                                                fontSize: 13,
+                                                color: "#374151",
+                                            }}
+                                        >
+                                            Total: <b>{rows.length}</b>
+                                        </span>
+
+                                        <span
+                                            style={{
+                                                padding: "6px 10px",
+                                                borderRadius: 999,
+                                                background: "#f9fafb",
+                                                border: "1px solid #e5e7eb",
+                                                fontSize: 13,
+                                                color: "#374151",
+                                            }}
+                                        >
+                                            Filter: <b>{woFilter}</b>
+                                        </span>
+                                    </>
+                                )}
                             </div>
                         </header>
 
                         {/* filtros */}
-                        <WorkOrdersToolbar
-                            woFilter={woFilter}
-                            setWoFilterAndUrl={setWoFilterAndUrl}
-                            isAdminOrOwner={isAdminOrOwner}
-                            showNewWO={showNewWO}
-                            onToggleNewWO={() => setShowNewWO((s) => !s)}
-                            onRefresh={() => {
-                                if (companyId) loadOrders(companyId);
-                            }}
-                            onGoControlCenter={() => router.replace("/control-center")}
-                        />
+                        {!isTechView ? (
+                            <WorkOrdersToolbar
+                                woFilter={woFilter}
+                                setWoFilterAndUrl={setWoFilterAndUrl}
+                                isAdminOrOwner={isAdminOrOwner}
+                                showNewWO={showNewWO}
+                                onToggleNewWO={() => setShowNewWO((s) => !s)}
+                                onRefresh={() => {
+                                    if (companyId) loadOrders(companyId);
+                                }}
+                                onGoControlCenter={() => router.replace("/control-center")}
+                            />
+                        ) : null}
 
                         {isAdminOrOwner && showNewWO ? (
                             <div
@@ -1151,11 +1392,21 @@ export default function WorkOrdersPage() {
 
                         {loadingWO ? (
                             <div style={{ opacity: 0.7 }}>Cargando órdenes…</div>
-                        ) : filtered.length === 0 ? (
+                        ) : isTechView ? (
+                            visibleRows.length === 0 ? (
+                                <div style={{ opacity: 0.6 }}>No tienes órdenes asignadas.</div>
+                            ) : (
+                                <>
+                                    {renderTechSection("Assigned to me", techAssignedRows)}
+                                    {renderTechSection("In progress", techInProgressRows)}
+                                    {renderTechSection("Recently completed", techCompletedRows)}
+                                </>
+                            )
+                        ) : visibleRows.length === 0 ? (
                             <div style={{ opacity: 0.6 }}>No hay órdenes que mostrar.</div>
                         ) : (
                             <WorkOrdersList
-                                rows={filtered}
+                                rows={visibleRows}
                                 companyId={companyId}
                                 isAdminOrOwner={isAdminOrOwner}
                                 techMembers={techMembers}
@@ -1180,8 +1431,7 @@ export default function WorkOrdersPage() {
                                 }}
                                 AuditPanel={WorkOrderAuditPanel}
                             />
-                        )}
-                    </>
+                        )}                   </>
                 )}
             </div>
         </CompanyGuard>

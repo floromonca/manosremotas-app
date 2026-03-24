@@ -9,6 +9,7 @@ type AuditItem = {
     message: string | null;
 };
 
+
 type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
 
 type WorkOrder = {
@@ -28,7 +29,11 @@ type WorkOrder = {
     invoiced_at?: string | null;
 };
 
-type MemberRow = { user_id: string; role: string };
+type MemberRow = {
+    user_id: string;
+    role: string;
+    full_name?: string | null;
+};
 
 type Props = {
     wo: WorkOrder;
@@ -53,6 +58,10 @@ type Props = {
     AuditPanel: React.ComponentType<{ loading: boolean; items: AuditItem[] }>;
 };
 
+function prettyStatus(status: WorkOrderStatus) {
+    return status.replaceAll("_", " ");
+}
+
 export default function WorkOrderCard({
     wo,
     companyId,
@@ -72,27 +81,45 @@ export default function WorkOrderCard({
     onCreateInvoice,
     AuditPanel,
 }: Props) {
+    const assignedShort = wo.assigned_to ? wo.assigned_to.slice(0, 8) : null;
+    const assignedMember = techMembers.find((m) => m.user_id === wo.assigned_to);
+
+    const assignedLabel = assignedMember?.full_name?.trim()
+        || assignedShort
+        || "Unassigned";
+
     return (
         <div
             style={{
-                padding: 14,
-                border: "1px solid #eee",
-                borderRadius: 12,
+                padding: 18,
+                border: "1px solid #e5e7eb",
+                borderRadius: 16,
                 background: "white",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 14,
+                display: "grid",
+                gridTemplateColumns: "1.4fr 0.9fr",
+                gap: 18,
+                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
             }}
         >
             <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontWeight: 700 }}>{wo.job_type}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                    <div
+                        style={{
+                            fontWeight: 900,
+                            fontSize: 20,
+                            lineHeight: 1.15,
+                            letterSpacing: "-0.03em",
+                            color: "#111827",
+                        }}
+                    >
+                        {wo.job_type}
+                    </div>
 
                     {wo.invoice_id ? (
                         <span
                             style={{
                                 display: "inline-block",
-                                padding: "4px 8px",
+                                padding: "5px 10px",
                                 borderRadius: 999,
                                 fontSize: 12,
                                 fontWeight: 900,
@@ -108,32 +135,103 @@ export default function WorkOrderCard({
                     ) : null}
                 </div>
 
-                <div style={{ opacity: 0.7, marginTop: 4 }}>{wo.description}</div>
-
-                {wo.customer_name ? (
-                    <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
-                        <b>Customer:</b> {wo.customer_name}
+                {wo.description ? (
+                    <div
+                        style={{
+                            fontSize: 14,
+                            lineHeight: 1.55,
+                            color: "#4b5563",
+                            marginBottom: 12,
+                            maxWidth: 760,
+                        }}
+                    >
+                        {wo.description}
                     </div>
                 ) : null}
 
-                {wo.service_address ? (
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>
-                        <b>Location:</b> {wo.service_address}
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: 10,
+                    }}
+                >
+                    <div
+                        style={{
+                            padding: 12,
+                            borderRadius: 12,
+                            border: "1px solid #e5e7eb",
+                            background: "#fcfcfd",
+                        }}
+                    >
+                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 5 }}>
+                            Customer
+                        </div>
+                        <div style={{ fontWeight: 800, color: "#111827" }}>
+                            {wo.customer_name || "—"}
+                        </div>
                     </div>
-                ) : null}
 
-                <div style={{ fontFamily: "monospace", opacity: 0.7, marginTop: 6 }}>
-                    <div>
-                        <b>wo_id:</b> {wo.work_order_id}
+                    <div
+                        style={{
+                            padding: 12,
+                            borderRadius: 12,
+                            border: "1px solid #e5e7eb",
+                            background: "#fcfcfd",
+                        }}
+                    >
+                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 5 }}>
+                            Location
+                        </div>
+                        <div style={{ fontWeight: 700, color: "#111827" }}>
+                            {wo.service_address || "—"}
+                        </div>
                     </div>
-                    <div>
-                        <b>assigned_to:</b> {wo.assigned_to ?? "—"}
+
+                    <div
+                        style={{
+                            padding: 12,
+                            borderRadius: 12,
+                            border: "1px solid #e5e7eb",
+                            background: "#fcfcfd",
+                        }}
+                    >
+                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 5 }}>
+                            Assigned to
+                        </div>
+                        <div
+                            style={{
+                                fontWeight: 800,
+                                color: "#111827",
+                                fontFamily: assignedMember?.full_name?.trim() ? undefined : assignedShort ? "monospace" : undefined,
+                            }}
+                        >
+                            {assignedLabel}
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            padding: 12,
+                            borderRadius: 12,
+                            border: "1px solid #e5e7eb",
+                            background: "#fcfcfd",
+                        }}
+                    >
+                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 5 }}>
+                            Reference
+                        </div>
+                        <div style={{ fontWeight: 800, color: "#111827", fontFamily: "monospace" }}>
+                            {wo.work_order_id.slice(0, 8)}
+                        </div>
                     </div>
                 </div>
 
-                {!wo.assigned_to && isAdminOrOwner && (
-                    <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
-                        <label style={{ fontSize: 12, opacity: 0.7 }}>Asignar a técnico</label>
+                {!wo.assigned_to && isAdminOrOwner ? (
+                    <div style={{ marginTop: 14, maxWidth: 320, display: "grid", gap: 6 }}>
+                        <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
+                            Assign technician
+                        </label>
 
                         <select
                             defaultValue=""
@@ -147,93 +245,120 @@ export default function WorkOrderCard({
                                 await onAssignTech(wo.work_order_id, techId);
                             }}
                             style={{
-                                padding: "6px 8px",
-                                borderRadius: 8,
-                                border: "1px solid #ddd",
-                                fontSize: 12,
+                                padding: "10px 12px",
+                                borderRadius: 10,
+                                border: "1px solid #d1d5db",
+                                fontSize: 13,
+                                background: "white",
                             }}
                         >
-                            <option value="">Seleccionar tech...</option>
+                            <option value="">Select technician...</option>
                             {techMembers.map((m) => (
                                 <option key={m.user_id} value={m.user_id}>
-                                    {m.user_id.slice(0, 8)}
+                                    {m.full_name?.trim() || m.user_id.slice(0, 8)}
                                 </option>
                             ))}
                         </select>
                     </div>
-                )}
+                ) : null}
             </div>
 
-            <div style={{ display: "grid", gap: 8, justifyItems: "end" }}>
+            <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
                 <div
                     style={{
-                        alignSelf: "flex-start",
-                        padding: "4px 10px",
+                        justifySelf: "end",
+                        padding: "6px 12px",
                         borderRadius: 999,
-                        border: "1px solid #ddd",
-                        background: "#f7f7f7",
+                        background:
+                            wo.status === "closed"
+                                ? "#f3f4f6"
+                                : wo.status === "resolved"
+                                    ? "#ecfdf5"
+                                    : wo.status === "in_progress"
+                                        ? "#eff6ff"
+                                        : "#fff7ed",
+                        border:
+                            wo.status === "closed"
+                                ? "1px solid #d1d5db"
+                                : wo.status === "resolved"
+                                    ? "1px solid #86efac"
+                                    : wo.status === "in_progress"
+                                        ? "1px solid #93c5fd"
+                                        : "1px solid #fdba74",
+                        color:
+                            wo.status === "closed"
+                                ? "#374151"
+                                : wo.status === "resolved"
+                                    ? "#166534"
+                                    : wo.status === "in_progress"
+                                        ? "#1d4ed8"
+                                        : "#9a3412",
                         fontSize: 12,
-                        fontWeight: 700,
+                        fontWeight: 900,
+                        textTransform: "capitalize",
                     }}
                 >
-                    {wo.status}
+                    {prettyStatus(wo.status)}
                 </div>
 
-                <label style={{ fontSize: 12, opacity: 0.8 }}>Cambiar status</label>
+                <div style={{ display: "grid", gap: 6 }}>
+                    <label style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
+                        Change status
+                    </label>
 
-                <select
-                    value={wo.status}
-                    disabled={!canChangeStatus(wo)}
-                    onChange={async (e) => {
-                        const next = e.target.value as WorkOrderStatus;
+                    <select
+                        value={wo.status}
+                        disabled={!canChangeStatus(wo)}
+                        onChange={async (e) => {
+                            const next = e.target.value as WorkOrderStatus;
 
-                        if (!companyId) {
-                            alert("No hay companyId activo");
-                            return;
-                        }
+                            if (!companyId) {
+                                alert("No hay companyId activo");
+                                return;
+                            }
 
-                        if (!canChangeStatus(wo)) {
-                            alert(
-                                isAdminOrOwner
-                                    ? "No tienes permiso para cambiar esta orden."
-                                    : "Para cambiar status necesitas jornada activa y la orden asignada a ti."
-                            );
-                            return;
-                        }
+                            if (!canChangeStatus(wo)) {
+                                alert(
+                                    isAdminOrOwner
+                                        ? "No tienes permiso para cambiar esta orden."
+                                        : "Para cambiar status necesitas jornada activa y la orden asignada a ti."
+                                );
+                                return;
+                            }
 
-                        await onChangeStatus(wo.work_order_id, next);
-                    }}
-                    style={{
-                        padding: "8px 10px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "white",
-                        fontWeight: 700,
-                        cursor: canChangeStatus(wo) ? "pointer" : "not-allowed",
-                        opacity: canChangeStatus(wo) ? 1 : 0.6,
-                        minWidth: 160,
-                    }}
-                >
-                    {allowedStatusesForRole(myRole ?? null, wo.status).map((s) => (
-                        <option key={s} value={s}>
-                            {s}
-                        </option>
-                    ))}
-                </select>
+                            await onChangeStatus(wo.work_order_id, next);
+                        }}
+                        style={{
+                            padding: "10px 12px",
+                            borderRadius: 12,
+                            border: "1px solid #d1d5db",
+                            background: "white",
+                            fontWeight: 700,
+                            cursor: canChangeStatus(wo) ? "pointer" : "not-allowed",
+                            opacity: canChangeStatus(wo) ? 1 : 0.6,
+                            minWidth: 180,
+                        }}
+                    >
+                        {allowedStatusesForRole(myRole ?? null, wo.status).map((s) => (
+                            <option key={s} value={s}>
+                                {prettyStatus(s)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
 
-                <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "end", marginTop: 8 }}>
                     <button
                         type="button"
                         onClick={() => onOpenWorkOrder(wo.work_order_id)}
                         style={{
-                            padding: "6px 10px",
+                            padding: "8px 12px",
                             borderRadius: 10,
-                            border: "1px solid #ddd",
+                            border: "1px solid #d1d5db",
                             background: "white",
                             cursor: "pointer",
                             fontSize: 12,
-                            fontWeight: 700,
-                            marginRight: 8,
+                            fontWeight: 800,
                         }}
                     >
                         Abrir
@@ -245,13 +370,13 @@ export default function WorkOrderCard({
                             await onToggleAudit(wo.work_order_id);
                         }}
                         style={{
-                            padding: "6px 10px",
+                            padding: "8px 12px",
                             borderRadius: 10,
-                            border: "1px solid #ddd",
+                            border: "1px solid #d1d5db",
                             background: "white",
                             cursor: "pointer",
                             fontSize: 12,
-                            fontWeight: 700,
+                            fontWeight: 800,
                         }}
                     >
                         {auditOpenFor === wo.work_order_id ? "Ocultar historial" : "Ver historial"}
@@ -262,14 +387,13 @@ export default function WorkOrderCard({
                             type="button"
                             onClick={() => onOpenInvoice(wo.invoice_id!)}
                             style={{
-                                padding: "6px 10px",
+                                padding: "8px 12px",
                                 borderRadius: 10,
-                                border: "1px solid #ddd",
+                                border: "1px solid #d1d5db",
                                 background: "white",
                                 cursor: "pointer",
                                 fontSize: 12,
                                 fontWeight: 800,
-                                marginLeft: 8,
                             }}
                             title="Abrir la factura existente"
                         >
@@ -282,29 +406,30 @@ export default function WorkOrderCard({
                                 await onCreateInvoice(wo.work_order_id);
                             }}
                             style={{
-                                padding: "6px 10px",
+                                padding: "8px 12px",
                                 borderRadius: 10,
-                                border: "1px solid #111",
-                                background: "#111",
+                                border: "1px solid #111827",
+                                background: "#111827",
                                 color: "white",
                                 cursor: "pointer",
                                 fontSize: 12,
                                 fontWeight: 800,
-                                marginLeft: 8,
                             }}
                             title="Crear factura desde esta orden"
                         >
                             Crear factura
                         </button>
                     ) : null}
+                </div>
 
-                    {auditOpenFor === wo.work_order_id ? (
+                {auditOpenFor === wo.work_order_id ? (
+                    <div style={{ marginTop: 6 }}>
                         <AuditPanel
                             loading={!!auditLoadingFor[wo.work_order_id]}
                             items={auditByWo[wo.work_order_id] ?? []}
                         />
-                    ) : null}
-                </div>
+                    </div>
+                ) : null}
             </div>
         </div>
     );
