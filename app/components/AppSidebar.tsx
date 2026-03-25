@@ -50,6 +50,7 @@ export default function AppSidebar() {
 
             <Item href="/my-day" label="My Day" />
             <Item href="/work-orders" label="Work Orders" />
+            <Item href="/profile" label="Profile" />
 
             {isAdmin ? (
                 <>

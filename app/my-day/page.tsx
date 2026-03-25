@@ -4,8 +4,23 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
-import { checkIn, checkOut, getOpenShift, type ShiftRow } from "../../lib/supabase/shifts";
+
 import { fetchWorkOrders, safeStatus } from "../../lib/supabase/workOrders";
+import ShiftStatusCard from "./components/ShiftStatusCard";
+import CurrentWorkCard from "./components/CurrentWorkCard";
+import TodayAtAGlanceCard from "./components/TodayAtAGlanceCard";
+import RecentWorkOrdersCard from "./components/RecentWorkOrdersCard";
+
+
+import {
+    checkIn,
+    checkOut,
+    formatDurationHHMMSS,
+    getOpenShift,
+    getTodayShiftSummary,
+    type ShiftRow,
+    type ShiftSummary,
+} from "../../lib/supabase/shifts";
 
 
 type WorkOrder = {
@@ -25,24 +40,65 @@ export default function MyDayPage() {
 
     const [loading, setLoading] = useState(true);
     const [openShift, setOpenShift] = useState<ShiftRow | null>(null);
+
     const [shiftBusy, setShiftBusy] = useState(false);
     const [shiftMsg, setShiftMsg] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
     const [mounted, setMounted] = useState(false);
     const [prettyDate, setPrettyDate] = useState("");
+    const [shiftElapsed, setShiftElapsed] = useState("00:00:00");
+    const [todayShiftSummary, setTodayShiftSummary] = useState<ShiftSummary | null>(null);
+    const [shiftSummaryLoading, setShiftSummaryLoading] = useState(false);
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
     const [workOrdersLoading, setWorkOrdersLoading] = useState(false);
-
 
     useEffect(() => {
         setMounted(true);
         setPrettyDate(new Date().toLocaleDateString());
     }, []);
+    useEffect(() => {
+        if (!openShift?.check_in_at) {
+            setShiftElapsed("00:00:00");
+            return;
+        }
+
+        const updateElapsed = () => {
+            const start = new Date(openShift.check_in_at).getTime();
+            const now = Date.now();
+            const diffMs = Math.max(0, now - start);
+
+            const totalSeconds = Math.floor(diffMs / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            const hh = String(hours).padStart(2, "0");
+            const mm = String(minutes).padStart(2, "0");
+            const ss = String(seconds).padStart(2, "0");
+
+            setShiftElapsed(`${hh}:${mm}:${ss}`);
+        };
+
+        updateElapsed();
+        const interval = window.setInterval(updateElapsed, 1000);
+
+        return () => window.clearInterval(interval);
+    }, [openShift?.check_in_at]);
 
     const refreshShift = useCallback(async (cid: string) => {
         const { data, error } = await getOpenShift(cid);
         if (error) throw error;
         setOpenShift((data as ShiftRow | null) ?? null);
+    }, []);
+
+    const refreshTodayShiftSummary = useCallback(async (cid: string) => {
+        setShiftSummaryLoading(true);
+        try {
+            const summary = await getTodayShiftSummary(cid);
+            setTodayShiftSummary(summary);
+        } finally {
+            setShiftSummaryLoading(false);
+        }
     }, []);
 
     const refreshWorkOrders = useCallback(async (cid: string) => {
@@ -93,6 +149,7 @@ export default function MyDayPage() {
                 }
 
                 await refreshShift(companyId);
+                await refreshTodayShiftSummary(companyId);
                 await refreshWorkOrders(companyId);
 
             } catch (e: any) {
@@ -108,7 +165,18 @@ export default function MyDayPage() {
         return () => {
             cancelled = true;
         };
-    }, [authLoading, user?.id, isLoadingCompany, companyId, refreshShift, router, user]);
+
+    }, [
+        authLoading,
+        user?.id,
+        isLoadingCompany,
+        companyId,
+        refreshShift,
+        refreshTodayShiftSummary,
+        refreshWorkOrders,
+        router,
+        user,
+    ]);
 
     const handleCheckIn = useCallback(async () => {
         if (!companyId) return;
@@ -123,12 +191,14 @@ export default function MyDayPage() {
 
             setOpenShift((data as ShiftRow) ?? null);
             setShiftMsg("Shift started successfully.");
+            await refreshTodayShiftSummary(companyId);
+
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
         } finally {
             setShiftBusy(false);
         }
-    }, [companyId]);
+    }, [companyId, refreshTodayShiftSummary]);
 
     const handleCheckOut = useCallback(async () => {
         if (!companyId || !openShift?.shift_id) return;
@@ -143,12 +213,14 @@ export default function MyDayPage() {
 
             setShiftMsg("Shift ended successfully.");
             await refreshShift(companyId);
+            await refreshTodayShiftSummary(companyId);
+
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
         } finally {
             setShiftBusy(false);
         }
-    }, [companyId, openShift?.shift_id, refreshShift]);
+    }, [companyId, openShift?.shift_id, refreshShift, refreshTodayShiftSummary]);
 
     const myRows = useMemo(() => {
         const uid = user?.id ?? null;
@@ -161,11 +233,26 @@ export default function MyDayPage() {
     const completedCount = myRows.filter(
         (w) => w.status === "resolved" || w.status === "closed"
     ).length;
+    const workedTodayLabel = useMemo(() => {
+        if (!todayShiftSummary) return "00:00:00";
+        return formatDurationHHMMSS(todayShiftSummary.totalSeconds);
+    }, [todayShiftSummary]);
+
+    const operationalMessage = openShift
+        ? "You are checked in and ready to operate."
+        : "Shift is closed. You can review your work, but actions are disabled until you start your shift.";
 
     const currentWork =
         myRows.find((w) => w.status === "in_progress") ??
         myRows.find((w) => w.status === "new") ??
         null;
+
+    const currentWorkMessage = currentWork
+        ? openShift
+            ? "You can continue this work order now."
+            : "Start your shift to operate this work order."
+        : "No active work right now.";
+
     const recentWorkRows = [...myRows]
         .sort((a, b) => {
             const rank = (status: WorkOrder["status"]) => {
@@ -222,71 +309,20 @@ export default function MyDayPage() {
                 </div>
             ) : null}
 
-            <div
-                style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 16,
-                    background: "#ffffff",
-                    padding: 20,
-                    marginBottom: 18,
-                }}
-            >
-                <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-                    Shift
-                </div>
-
-                <div style={{ fontSize: 14, color: "#4b5563", marginBottom: 14 }}>
-                    {loading
-                        ? "Checking shift..."
-                        : !companyId
-                            ? "No company selected."
-                            : openShift
-                                ? `Shift active — checked in at ${new Date(openShift.check_in_at).toLocaleString()}`
-                                : "Shift closed — you are not checked in yet."}
-                </div>
-
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    {!openShift ? (
-                        <button
-                            type="button"
-                            onClick={handleCheckIn}
-                            disabled={shiftBusy || loading || !companyId}
-                            style={primaryButtonStyle}
-                        >
-                            {shiftBusy ? "Processing..." : "Start shift"}
-                        </button>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={handleCheckOut}
-                            disabled={shiftBusy || loading}
-                            style={secondaryButtonStyle}
-                        >
-                            {shiftBusy ? "Processing..." : "End shift"}
-                        </button>
-                    )}
-
-                    <button
-                        type="button"
-                        onClick={() => router.push("/work-orders")}
-                        style={secondaryButtonStyle}
-                    >
-                        Go to Work Orders
-                    </button>
-                </div>
-
-                {shiftMsg ? (
-                    <div
-                        style={{
-                            marginTop: 12,
-                            fontSize: 13,
-                            color: "#374151",
-                        }}
-                    >
-                        {shiftMsg}
-                    </div>
-                ) : null}
-            </div>
+            <ShiftStatusCard
+                loading={loading}
+                companyId={companyId}
+                openShift={openShift}
+                operationalMessage={operationalMessage}
+                shiftElapsed={shiftElapsed}
+                shiftSummaryLoading={shiftSummaryLoading}
+                workedTodayLabel={workedTodayLabel}
+                shiftBusy={shiftBusy}
+                shiftMsg={shiftMsg}
+                onCheckIn={handleCheckIn}
+                onCheckOut={handleCheckOut}
+                onViewWorkOrders={() => router.push("/work-orders")}
+            />
 
             <div
                 style={{
@@ -296,255 +332,28 @@ export default function MyDayPage() {
                     padding: 20,
                 }}
             >
-                <div
-                    style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 16,
-                        background: "#ffffff",
-                        padding: 20,
-                        marginBottom: 18,
-                    }}
-                >
-                    <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                        Current work
-                    </div>
+                <CurrentWorkCard
+                    currentWork={currentWork}
+                    currentWorkMessage={currentWorkMessage}
+                    openShift={!!openShift}
+                    shiftBusy={shiftBusy}
+                    loading={loading}
+                    companyId={companyId}
+                    onResumeWork={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+                    onStartShift={handleCheckIn}
+                />
 
-                    {!currentWork ? (
-                        <div style={{ color: "#6b7280", fontSize: 14 }}>
-                            No active work right now.
-                        </div>
-                    ) : (
-                        <>
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                    gap: 12,
-                                    marginTop: 14,
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        padding: 16,
-                                        background: "#fcfcfd",
-                                    }}
-                                >
-                                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                                        Job type
-                                    </div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>
-                                        {currentWork.job_type || "Work order"}
-                                    </div>
-                                </div>
+                <TodayAtAGlanceCard
+                    loading={workOrdersLoading}
+                    assignedCount={assignedCount}
+                    inProgressCount={inProgressCount}
+                    completedCount={completedCount}
+                />
 
-                                <div
-                                    style={{
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        padding: 16,
-                                        background: "#fcfcfd",
-                                    }}
-                                >
-                                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                                        Customer
-                                    </div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>
-                                        {currentWork.customer_name || "—"}
-                                    </div>
-                                </div>
-
-                                <div
-                                    style={{
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        padding: 16,
-                                        background: "#fcfcfd",
-                                    }}
-                                >
-                                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                                        Location
-                                    </div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>
-                                        {currentWork.service_address || "—"}
-                                    </div>
-                                </div>
-
-                                <div
-                                    style={{
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        padding: 16,
-                                        background: "#fcfcfd",
-                                    }}
-                                >
-                                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                                        Status
-                                    </div>
-                                    <div style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>
-                                        {currentWork.status.replaceAll("_", " ")}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style={{ marginTop: 14 }}>
-                                <button
-                                    type="button"
-                                    onClick={() => router.push(`/work-orders/${currentWork.work_order_id}`)}
-                                    style={secondaryButtonStyle}
-                                >
-                                    Open work order
-                                </button>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                <div
-                    style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 16,
-                        background: "#ffffff",
-                        padding: 20,
-                        marginBottom: 18,
-                    }}
-                >
-                    <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                        Today at a glance
-                    </div>
-
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                            gap: 12,
-                            marginTop: 14,
-                        }}
-                    >
-                        <div
-                            style={{
-                                border: "1px solid #e5e7eb",
-                                borderRadius: 14,
-                                padding: 16,
-                                background: "#fcfcfd",
-                            }}
-                        >
-                            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                                Assigned
-                            </div>
-                            <div style={{ fontSize: 28, fontWeight: 900, color: "#111827" }}>
-                                {workOrdersLoading ? "…" : assignedCount}
-                            </div>
-                        </div>
-
-                        <div
-                            style={{
-                                border: "1px solid #e5e7eb",
-                                borderRadius: 14,
-                                padding: 16,
-                                background: "#fcfcfd",
-                            }}
-                        >
-                            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                                In progress
-                            </div>
-                            <div style={{ fontSize: 28, fontWeight: 900, color: "#111827" }}>
-                                {workOrdersLoading ? "…" : inProgressCount}
-                            </div>
-                        </div>
-
-                        <div
-                            style={{
-                                border: "1px solid #e5e7eb",
-                                borderRadius: 14,
-                                padding: 16,
-                                background: "#fcfcfd",
-                            }}
-                        >
-                            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                                Completed
-                            </div>
-                            <div style={{ fontSize: 28, fontWeight: 900, color: "#111827" }}>
-                                {workOrdersLoading ? "…" : completedCount}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div
-                    style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 16,
-                        background: "#ffffff",
-                        padding: 20,
-                    }}
-                >
-                    <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                        Recent work orders
-                    </div>
-
-                    {recentWorkRows.length === 0 ? (
-                        <div style={{ color: "#6b7280", fontSize: 14 }}>
-                            No recent work orders.
-                        </div>
-                    ) : (
-                        <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
-                            {recentWorkRows.map((wo) => (
-                                <div
-                                    key={wo.work_order_id}
-                                    style={{
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        padding: 16,
-                                        background: "#fcfcfd",
-                                        display: "grid",
-                                        gridTemplateColumns: "1.2fr 1fr 0.8fr auto",
-                                        gap: 12,
-                                        alignItems: "center",
-                                    }}
-                                >
-                                    <div>
-                                        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 4 }}>
-                                            Job type
-                                        </div>
-                                        <div style={{ fontSize: 16, fontWeight: 800, color: "#111827" }}>
-                                            {wo.job_type || "Work order"}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 4 }}>
-                                            Customer
-                                        </div>
-                                        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>
-                                            {wo.customer_name || "—"}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 4 }}>
-                                            Status
-                                        </div>
-                                        <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>
-                                            {wo.status.replaceAll("_", " ")}
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <button
-                                            type="button"
-                                            onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
-                                            style={secondaryButtonStyle}
-                                        >
-                                            Open
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
+                <RecentWorkOrdersCard
+                    rows={recentWorkRows}
+                    onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+                />
 
 
 
@@ -553,22 +362,4 @@ export default function MyDayPage() {
     );
 }
 
-const primaryButtonStyle: React.CSSProperties = {
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 700,
-};
 
-const secondaryButtonStyle: React.CSSProperties = {
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111827",
-    cursor: "pointer",
-    fontWeight: 600,
-};
