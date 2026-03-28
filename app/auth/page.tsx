@@ -45,6 +45,7 @@ export default function AuthPage() {
       company_id: companyId,
       user_id: userId,
       role: "owner",
+      email: email.trim().toLowerCase(),
     });
 
     if (cmErr) throw cmErr;

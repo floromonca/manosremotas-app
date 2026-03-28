@@ -102,6 +102,16 @@ export default function OnboardingProfilePage() {
                 if (insErr) throw insErr;
             }
 
+            const { error: memberErr } = await supabase
+                .from("company_members")
+                .update({
+                    full_name: name,
+                })
+                .eq("user_id", user.id)
+                .eq("company_id", companyId);
+
+            if (memberErr) throw memberErr;
+
             // 3) refrescar estado + salir
             refreshCompany();
             router.replace("/work-orders");

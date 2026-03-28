@@ -19,6 +19,13 @@ type Props = {
     invoiceIsLocked: boolean;
     invoiceStatus: string | null;
     prettyInvoiceStatus: (status: string | null | undefined) => string;
+    myRole: string | null;
+    isAdmin: boolean;
+    myUserId: string | null;
+    onChangeStatus: (next: WorkOrderStatus) => Promise<void>;
+    allowedStatuses: WorkOrderStatus[];
+    canChangeStatus: boolean;
+    assignedTechName: string | null;
 };
 
 function niceLabel(value: string | null | undefined) {
@@ -33,6 +40,13 @@ export default function WorkOrderSummarySection({
     invoiceIsLocked,
     invoiceStatus,
     prettyInvoiceStatus,
+    myRole,
+    isAdmin,
+    myUserId,
+    onChangeStatus,
+    allowedStatuses,
+    canChangeStatus,
+    assignedTechName,
 }: Props) {
     return (
         <div
@@ -165,11 +179,43 @@ export default function WorkOrderSummarySection({
                     <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
                         Status
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", textTransform: "capitalize" }}>
-                        {niceLabel(wo.status)}
-                    </div>
-                </div>
 
+                    <select
+                        value={wo.status}
+                        disabled={!canChangeStatus}
+                        onChange={async (e) => {
+                            const next = e.target.value as WorkOrderStatus;
+                            await onChangeStatus(next);
+                        }}
+                        style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            borderRadius: 10,
+                            border: "1px solid #d1d5db",
+                            background: "white",
+                            fontSize: 14,
+                            fontWeight: 800,
+                            color: "#111827",
+                            cursor: canChangeStatus ? "pointer" : "not-allowed",
+                            opacity: canChangeStatus ? 1 : 0.65,
+                            textTransform: "capitalize",
+                        }}
+                    >
+                        {allowedStatuses.map((status) => (
+                            <option key={status} value={status}>
+                                {niceLabel(status)}
+                            </option>
+                        ))}
+                    </select>
+
+                    {!canChangeStatus ? (
+                        <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280", lineHeight: 1.4 }}>
+                            {isAdmin
+                                ? "No puedes cambiar el estado de esta orden en este momento."
+                                : "El cambio de estado solo está disponible cuando la orden está operativamente habilitada para ti."}
+                        </div>
+                    ) : null}
+                </div>
                 <div
                     style={{
                         padding: 12,
@@ -197,8 +243,8 @@ export default function WorkOrderSummarySection({
                     <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
                         Assigned to
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", fontFamily: "monospace" }}>
-                        {(wo.assigned_to ?? "—").slice(0, 8)}
+                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                        {assignedTechName || "—"}
                     </div>
                 </div>
             </div>

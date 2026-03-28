@@ -39,7 +39,7 @@ type Props = {
     canChangeStatus: (wo: WorkOrder) => boolean;
     myRole: WorkOrderRole;
     allowedStatusesForRole: (
-        role: string | null,
+        role: WorkOrderRole,
         current: WorkOrderStatus
     ) => WorkOrderStatus[];
     auditOpenFor: string | null;

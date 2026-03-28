@@ -1,5 +1,7 @@
 import { supabase } from "../supabaseClient";
 
+
+
 export type ShiftRow = {
   shift_id: string;
   company_id: string;
@@ -146,6 +148,99 @@ export function formatDurationHHMMSS(totalSeconds: number) {
   ].join(":");
 }
 
+async function getShiftsBetweenForUser(
+  companyId: string,
+  userId: string,
+  startIso: string,
+  endIso: string
+) {
+  if (!companyId) throw new Error("companyId requerido");
+  if (!userId) throw new Error("userId requerido");
+
+  return await supabase
+    .from("shifts")
+    .select(SHIFT_SELECT)
+    .eq("company_id", companyId)
+    .eq("user_id", userId)
+    .lt("check_in_at", endIso)
+    .or(`check_out_at.is.null,check_out_at.gt.${startIso}`)
+    .order("check_in_at", { ascending: false });
+}
+
+export async function getOpenShiftForUser(companyId: string, userId: string) {
+  if (!companyId) throw new Error("companyId requerido");
+  if (!userId) throw new Error("userId requerido");
+
+  return await supabase
+    .from("shifts")
+    .select(SHIFT_SELECT)
+    .eq("company_id", companyId)
+    .eq("user_id", userId)
+    .is("check_out_at", null)
+    .order("check_in_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
+export async function getLastShiftForUser(companyId: string, userId: string) {
+  if (!companyId) throw new Error("companyId requerido");
+  if (!userId) throw new Error("userId requerido");
+
+  return await supabase
+    .from("shifts")
+    .select(SHIFT_SELECT)
+    .eq("company_id", companyId)
+    .eq("user_id", userId)
+    .order("check_in_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
+export async function getTodayShiftSummaryForUser(
+  companyId: string,
+  userId: string
+) {
+  const { startIso, endIso } = getLocalDayBounds();
+  const rangeStart = new Date(startIso);
+  const rangeEnd = new Date(endIso);
+
+  const { data, error } = await getShiftsBetweenForUser(
+    companyId,
+    userId,
+    startIso,
+    endIso
+  );
+
+  if (error) throw error;
+
+  return buildShiftSummary((data ?? []) as ShiftRow[], {
+    rangeStart,
+    rangeEnd,
+  });
+}
+
+export async function getWeekShiftSummaryForUser(
+  companyId: string,
+  userId: string
+) {
+  const { startIso, endIso } = getLocalWeekBounds();
+  const rangeStart = new Date(startIso);
+  const rangeEnd = new Date(endIso);
+
+  const { data, error } = await getShiftsBetweenForUser(
+    companyId,
+    userId,
+    startIso,
+    endIso
+  );
+
+  if (error) throw error;
+
+  return buildShiftSummary((data ?? []) as ShiftRow[], {
+    rangeStart,
+    rangeEnd,
+  });
+}
 export async function getOpenShift(companyId: string) {
   const uid = await getCurrentUserId();
 

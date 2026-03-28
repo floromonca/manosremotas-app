@@ -13,7 +13,7 @@ import { CompanyGuard } from "../components/CompanyGuard";
 import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
 import OperationalShiftBanner from "./components/OperationalShiftBanner";
 import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
-import WorkOrderCard from "./components/WorkOrderCard";
+
 import WorkOrdersList from "./components/WorkOrdersList";
 
 import {
@@ -131,6 +131,9 @@ export default function WorkOrdersPage() {
     );
     const [auditByWo, setAuditByWo] = useState<Record<string, AuditItem[]>>({});
 
+    const [adminExpandedSections, setAdminExpandedSections] = useState<
+        Record<string, boolean>
+    >({});
 
     // ✅ Crear Work Order (UI)
     const [showNewWO, setShowNewWO] = useState(false);
@@ -517,6 +520,153 @@ export default function WorkOrdersPage() {
     const techCompletedCount = techRows.filter(
         (w) => w.status === "resolved" || w.status === "closed"
     ).length;
+    const nowMs = Date.now();
+
+    const adminNeedsAttentionRows = useMemo(() => {
+        return rows.filter((w) => {
+            const delayed = isWorkOrderDelayed({
+                status: w.status,
+                createdAt: w.created_at,
+                nowMs,
+            });
+
+            return w.status === "new" || !w.assigned_to || delayed;
+        });
+    }, [rows, nowMs]);
+
+    const adminActiveRows = useMemo(() => {
+        return rows.filter((w) => w.status === "in_progress");
+    }, [rows]);
+
+    const adminReadyToInvoiceRows = useMemo(() => {
+        return rows.filter((w) => isWorkOrderReadyToInvoice(w.status));
+    }, [rows]);
+
+    const adminHistoryRows = useMemo(() => {
+        return rows.filter((w) => w.status === "closed");
+    }, [rows]);
+
+    const renderAdminSection = (
+        sectionKey: string,
+        title: string,
+        sectionRows: WorkOrder[],
+        emptyMessage: string
+    ) => {
+        const isExpanded = !!adminExpandedSections[sectionKey];
+        const visibleRows = isExpanded ? sectionRows : sectionRows.slice(0, 5);
+        const hasMore = sectionRows.length > 5;
+
+        return (
+            <section style={{ marginTop: 18 }}>
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        marginBottom: 10,
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 22,
+                                fontWeight: 900,
+                                color: "#111827",
+                                letterSpacing: "-0.02em",
+                            }}
+                        >
+                            {title}
+                        </div>
+
+                        <div
+                            style={{
+                                padding: "4px 10px",
+                                borderRadius: 999,
+                                border: "1px solid #e5e7eb",
+                                background: "#f9fafb",
+                                fontSize: 12,
+                                color: "#374151",
+                                fontWeight: 700,
+                            }}
+                        >
+                            {sectionRows.length}
+                        </div>
+                    </div>
+
+                    {hasMore ? (
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setAdminExpandedSections((prev) => ({
+                                    ...prev,
+                                    [sectionKey]: !prev[sectionKey],
+                                }))
+                            }
+                            style={{
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                border: "1px solid #d1d5db",
+                                background: "white",
+                                cursor: "pointer",
+                                fontSize: 12,
+                                fontWeight: 800,
+                            }}
+                        >
+                            {isExpanded ? "Show fewer" : `Show all (${sectionRows.length})`}
+                        </button>
+                    ) : null}
+                </div>
+
+                {sectionRows.length === 0 ? (
+                    <div
+                        style={{
+                            padding: "14px 2px",
+                            color: "#6b7280",
+                            fontSize: 14,
+                        }}
+                    >
+                        {emptyMessage}
+                    </div>
+                ) : (
+                    <WorkOrdersList
+                        rows={visibleRows}
+                        companyId={companyId}
+                        isAdminOrOwner={isAdminOrOwner}
+                        techMembers={techMembers}
+                        canChangeStatus={canChangeStatus}
+                        myRole={myRole}
+                        allowedStatusesForRole={allowedStatusesForRole}
+                        auditOpenFor={auditOpenFor}
+                        auditLoadingFor={auditLoadingFor}
+                        auditByWo={auditByWo}
+                        onAssignTech={handleAssignTech}
+                        onChangeStatus={handleChangeStatus}
+                        onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
+                        onToggleAudit={handleToggleAudit}
+                        onOpenInvoice={(invoiceId) => router.push(`/invoices/${invoiceId}`)}
+                        onCreateInvoice={async (woId) => {
+                            try {
+                                const invoiceId = await createInvoiceFromWorkOrder(woId);
+                                router.push(`/invoices/${invoiceId}`);
+                            } catch (e: any) {
+                                alert("Error creando factura: " + (e?.message ?? e));
+                            }
+                        }}
+                        AuditPanel={WorkOrderAuditPanel}
+                    />
+                )}
+            </section>
+        );
+    };
 
     const techAssignedRows = techRows.filter((w) => w.status === "new");
     const techInProgressRows = techRows.filter((w) => w.status === "in_progress");
@@ -684,9 +834,10 @@ export default function WorkOrdersPage() {
             <div
                 style={{
                     marginBottom: 10,
-                    fontSize: 16,
+                    fontSize: 20,
                     fontWeight: 900,
                     color: "#111827",
+                    letterSpacing: "-0.02em",
                 }}
             >
                 {title}
@@ -1397,40 +1548,43 @@ export default function WorkOrdersPage() {
                                 <div style={{ opacity: 0.6 }}>No tienes órdenes asignadas.</div>
                             ) : (
                                 <>
-                                    {renderTechSection("Assigned to me", techAssignedRows)}
-                                    {renderTechSection("In progress", techInProgressRows)}
-                                    {renderTechSection("Recently completed", techCompletedRows)}
+                                    {renderTechSection("My Active Work", techInProgressRows)}
+                                    {renderTechSection("My Assigned Work", techAssignedRows)}
+                                    {renderTechSection("Recent Completed", techCompletedRows)}
                                 </>
                             )
-                        ) : visibleRows.length === 0 ? (
+                        ) : rows.length === 0 ? (
                             <div style={{ opacity: 0.6 }}>No hay órdenes que mostrar.</div>
                         ) : (
-                            <WorkOrdersList
-                                rows={visibleRows}
-                                companyId={companyId}
-                                isAdminOrOwner={isAdminOrOwner}
-                                techMembers={techMembers}
-                                canChangeStatus={canChangeStatus}
-                                myRole={myRole}
-                                allowedStatusesForRole={allowedStatusesForRole}
-                                auditOpenFor={auditOpenFor}
-                                auditLoadingFor={auditLoadingFor}
-                                auditByWo={auditByWo}
-                                onAssignTech={handleAssignTech}
-                                onChangeStatus={handleChangeStatus}
-                                onOpenWorkOrder={(woId) => router.push(`/work-orders/${woId}`)}
-                                onToggleAudit={handleToggleAudit}
-                                onOpenInvoice={(invoiceId) => router.push(`/invoices/${invoiceId}`)}
-                                onCreateInvoice={async (woId) => {
-                                    try {
-                                        const invoiceId = await createInvoiceFromWorkOrder(woId);
-                                        router.push(`/invoices/${invoiceId}`);
-                                    } catch (e: any) {
-                                        alert("Error creando factura: " + (e?.message ?? e));
-                                    }
-                                }}
-                                AuditPanel={WorkOrderAuditPanel}
-                            />
+                            <>
+                                {renderAdminSection(
+                                    "needs_attention",
+                                    "Needs Attention",
+                                    adminNeedsAttentionRows,
+                                    "No work orders need attention."
+                                )}
+
+                                {renderAdminSection(
+                                    "active_work",
+                                    "Active Work",
+                                    adminActiveRows,
+                                    "No active work orders."
+                                )}
+
+                                {renderAdminSection(
+                                    "ready_to_invoice",
+                                    "Ready to Invoice",
+                                    adminReadyToInvoiceRows,
+                                    "No work orders ready to invoice."
+                                )}
+
+                                {renderAdminSection(
+                                    "history",
+                                    "History",
+                                    adminHistoryRows,
+                                    "No closed work orders yet."
+                                )}
+                            </>
                         )}                   </>
                 )}
             </div>

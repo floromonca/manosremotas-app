@@ -3,7 +3,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
-import { safeStatus, type WorkOrderStatus } from "../../../lib/supabase/workOrders";
+import {
+    safeStatus,
+    setWorkOrderStatus,
+    type WorkOrderStatus,
+} from "../../../lib/supabase/workOrders";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { createInvoiceFromWorkOrder } from "../../../lib/invoices";
@@ -12,7 +16,12 @@ import WorkOrderSummarySection from "../components/WorkOrderSummarySection";
 import WorkOrderItemsHeader from "../components/WorkOrderItemsHeader";
 import WorkOrderNewItemForm from "../components/WorkOrderNewItemForm";
 import WorkOrderItemsTable from "../components/WorkOrderItemsTable";
+import {
+    allowedStatusesForRole,
+    canChangeWorkOrderStatus,
+} from "../../../lib/work-orders/policies";
 import WorkOrderDetailHeader from "../components/WorkOrderDetailHeader";
+
 
 
 type WorkOrder = {
@@ -127,6 +136,7 @@ export default function WorkOrderDetailPage() {
 
     const [wo, setWo] = useState<WorkOrder | null>(null);
     const woRef = useRef<WorkOrder | null>(null);
+    const [assignedTechName, setAssignedTechName] = useState<string | null>(null);
 
     useEffect(() => {
         woRef.current = wo;
@@ -322,6 +332,33 @@ export default function WorkOrderDetailPage() {
 
             setWo(mapped);
 
+            console.log("DEBUG assigned tech input", {
+                assigned_to: mapped.assigned_to,
+                company_id: mapped.company_id,
+            });
+
+            if (mapped.assigned_to && mapped.company_id) {
+                const { data: memberRow, error: memberErr } = await supabase
+                    .from("company_members")
+                    .select("full_name")
+                    .eq("company_id", mapped.company_id)
+                    .eq("user_id", mapped.assigned_to)
+                    .maybeSingle();
+
+                console.log("DEBUG member lookup", {
+                    memberRow,
+                    memberErr,
+                });
+
+                if (!memberErr) {
+                    const fullName = (memberRow as any)?.full_name?.trim?.() || null;
+                    setAssignedTechName(fullName || mapped.assigned_to.slice(0, 8));
+                } else {
+                    setAssignedTechName(mapped.assigned_to.slice(0, 8));
+                }
+            } else {
+                setAssignedTechName(null);
+            }
             setCustomerForm({
                 customer_name: (mapped as any)?.customer_name ?? "",
                 customer_email: (mapped as any)?.customer_email ?? "",
@@ -338,6 +375,7 @@ export default function WorkOrderDetailPage() {
             setWo(null);
             setItems([]);
             setInvoiceStatus(null);
+            setAssignedTechName(null);
         } finally {
             setLoading(false);
         }
@@ -439,6 +477,39 @@ export default function WorkOrderDetailPage() {
             }
         },
         [priceDraft, refreshItemsOnly, syncDraftInvoiceIfNeeded]
+    );
+
+    const handleChangeStatus = useCallback(
+        async (next: WorkOrderStatus) => {
+            if (!wo) return;
+
+            const canChange = canChangeWorkOrderStatus({
+                userId: myUserId,
+                isAdminOrOwner: isAdmin,
+                role: myRole as any,
+                canOperate: true,
+                assignedTo: wo.assigned_to,
+            });
+
+            if (!canChange) {
+                alert(
+                    isAdmin
+                        ? "No tienes permiso para cambiar esta Work Order."
+                        : "Para cambiar status necesitas que la orden esté asignada a ti y cumplir las reglas operativas."
+                );
+                return;
+            }
+
+            const { error } = await setWorkOrderStatus(wo.work_order_id, next);
+
+            if (error) {
+                alert(`No se pudo cambiar status: ${error.message}`);
+                return;
+            }
+
+            await loadWorkOrder();
+        },
+        [wo, myUserId, isAdmin, myRole, loadWorkOrder]
     );
 
     const saveCustomerInfo = useCallback(async () => {
@@ -569,6 +640,7 @@ export default function WorkOrderDetailPage() {
         <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
             <WorkOrderDetailHeader
                 workOrderId={workOrderId}
+                title={wo?.job_type ?? "Work Order"}
                 myRole={myRole}
                 invoiceId={wo?.invoice_id}
                 invoiceStatus={invoiceStatus}
@@ -626,6 +698,19 @@ export default function WorkOrderDetailPage() {
                             invoiceIsLocked={invoiceIsLocked}
                             invoiceStatus={invoiceStatus}
                             prettyInvoiceStatus={prettyInvoiceStatus}
+                            myRole={myRole}
+                            isAdmin={isAdmin}
+                            myUserId={myUserId}
+                            onChangeStatus={handleChangeStatus}
+                            allowedStatuses={allowedStatusesForRole(myRole as any, wo.status)}
+                            canChangeStatus={canChangeWorkOrderStatus({
+                                userId: myUserId,
+                                isAdminOrOwner: isAdmin,
+                                role: myRole as any,
+                                canOperate: true,
+                                assignedTo: wo.assigned_to,
+                            })}
+                            assignedTechName={assignedTechName}
                         />
 
                         <WorkOrderCustomerSection
@@ -633,6 +718,7 @@ export default function WorkOrderDetailPage() {
                             setCustomerForm={setCustomerForm}
                             saveCustomerInfo={saveCustomerInfo}
                             savingCustomer={savingCustomer}
+                            isAdmin={isAdmin}
                         />
                         <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
                             <WorkOrderItemsHeader

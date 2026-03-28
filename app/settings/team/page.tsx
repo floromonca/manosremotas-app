@@ -4,13 +4,21 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
+import {
+    getOpenShiftForUser,
+    getTodayShiftSummaryForUser,
+    getWeekShiftSummaryForUser,
+    formatDurationHHMMSS,
+} from "../../../lib/supabase/shifts";
+import { useRouter } from "next/navigation";
+
 
 type MemberRow = {
     company_id: string;
     user_id: string;
     role: string;
+    full_name?: string | null;
     created_at?: string;
-    profiles?: { full_name?: string | null; email?: string | null } | null;
 };
 
 type InviteRow = {
@@ -24,27 +32,41 @@ type InviteRow = {
 };
 
 function getMemberDisplayName(member: MemberRow) {
-    const fullName = member.profiles?.full_name;
+    const fullName = member.full_name;
 
     if (typeof fullName === "string" && fullName.trim()) {
         return fullName.trim();
     }
 
-    return "Unnamed member";
+    return "Pending profile setup";
 }
+
 
 export default function TeamPage() {
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole } = useActiveCompany();
+    const router = useRouter();
 
     const [members, setMembers] = useState<MemberRow[]>([]);
+    const [memberStats, setMemberStats] = useState<
+        Array<{
+            user_id: string;
+            shift_status: "on_shift" | "off_shift";
+            worked_today_label: string;
+            worked_week_label: string;
+        }>
+    >([]);
     const [invites, setInvites] = useState<InviteRow[]>([]);
     const [loading, setLoading] = useState(false);
+    const [showAllMembers, setShowAllMembers] = useState(false);
 
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteRole, setInviteRole] = useState("tech");
     const [err, setErr] = useState<string | null>(null);
     const [ok, setOk] = useState<string | null>(null);
+    const [memberSearch, setMemberSearch] = useState("");
+
+
 
     const refresh = useCallback(async () => {
         if (!companyId) return;
@@ -56,34 +78,43 @@ export default function TeamPage() {
         try {
             const { data: memRows, error: memErr } = await supabase
                 .from("company_members")
-                .select("company_id, user_id, role, created_at")
+                .select("company_id, user_id, role, full_name, created_at")
                 .eq("company_id", companyId)
                 .order("created_at", { ascending: true });
 
             if (memErr) throw memErr;
 
-            const membersOnly = (memRows ?? []) as any[];
-            const ids = membersOnly.map((m) => m.user_id).filter(Boolean);
+            const membersOnly = (memRows ?? []) as MemberRow[];
 
-            let profilesMap = new Map<string, any>();
+            setMembers(membersOnly);
 
-            if (ids.length > 0) {
-                const { data: profRows, error: profErr } = await supabase
-                    .from("profiles")
-                    .select("user_id, full_name")
-                    .in("user_id", ids);
+            const stats = await Promise.all(
+                membersOnly.map(async (member) => {
+                    try {
+                        const [openShiftRes, todaySummary, weekSummary] = await Promise.all([
+                            getOpenShiftForUser(companyId, member.user_id),
+                            getTodayShiftSummaryForUser(companyId, member.user_id),
+                            getWeekShiftSummaryForUser(companyId, member.user_id),
+                        ]);
 
-                if (profErr) throw profErr;
+                        return {
+                            user_id: member.user_id,
+                            shift_status: openShiftRes.data ? "on_shift" as const : "off_shift" as const,
+                            worked_today_label: formatDurationHHMMSS(todaySummary.totalSeconds),
+                            worked_week_label: formatDurationHHMMSS(weekSummary.totalSeconds),
+                        };
+                    } catch {
+                        return {
+                            user_id: member.user_id,
+                            shift_status: "off_shift" as const,
+                            worked_today_label: "00:00:00",
+                            worked_week_label: "00:00:00",
+                        };
+                    }
+                })
+            );
 
-                profilesMap = new Map((profRows ?? []).map((p: any) => [p.user_id, p]));
-            }
-
-            const merged = membersOnly.map((m) => ({
-                ...m,
-                profiles: profilesMap.get(m.user_id) ?? null,
-            }));
-
-            setMembers(merged as MemberRow[]);
+            setMemberStats(stats);
 
             const { data: inv, error: invErr } = await supabase
                 .from("company_invites")
@@ -112,6 +143,29 @@ export default function TeamPage() {
         () => invites.filter((i) => i.status === "pending"),
         [invites]
     );
+
+    const teamOverview = useMemo(() => {
+        const totalMembers = members.length;
+        const onShiftNow = memberStats.filter((m) => m.shift_status === "on_shift").length;
+        const offShiftNow = Math.max(0, totalMembers - onShiftNow);
+        const pendingInviteCount = pendingInvites.length;
+
+        return {
+            totalMembers,
+            onShiftNow,
+            offShiftNow,
+            pendingInviteCount,
+        };
+    }, [members, memberStats, pendingInvites]);
+
+    const normalizedMemberSearch = memberSearch.trim().toLowerCase();
+
+    const filteredMembers = members.filter((m) =>
+        getMemberDisplayName(m).toLowerCase().includes(normalizedMemberSearch)
+    );
+
+    const visibleMembers = showAllMembers ? filteredMembers : filteredMembers.slice(0, 10);
+    const hasMoreThanTenMembers = filteredMembers.length > 10;
 
     const createInvite = useCallback(async () => {
         if (!companyId) return;
@@ -256,20 +310,81 @@ export default function TeamPage() {
             {ok ? <AlertBox tone="success">{ok}</AlertBox> : null}
 
             <div style={{ display: "grid", gap: 20 }}>
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                        gap: 16,
+                    }}
+                >
+                    <StatCard label="Total members" value={teamOverview.totalMembers} />
+                    <StatCard label="On shift now" value={teamOverview.onShiftNow} />
+                    <StatCard label="Off shift" value={teamOverview.offShiftNow} />
+                    <StatCard label="Pending invites" value={teamOverview.pendingInviteCount} />
+                </div>
+
+
                 <SectionCard
                     title="Members"
                     description="Active members linked to this company and their current role."
                     rightMeta={`${members.length} total`}
                 >
+                    <div style={{ marginBottom: 12 }}>
+                        <Field
+                            label="Search members"
+                            value={memberSearch}
+                            onChange={setMemberSearch}
+                            placeholder="Search by name"
+                        />
+                    </div>
                     <DataTable
-                        columns={["Name", "Role", "Created"]}
+                        columns={["Name", "Role", "Shift", "Worked today", "Worked week", "Action"]}
                         emptyMessage={loading ? "Loading members..." : "No members found."}
-                        rows={members.map((m) => [
-                            getMemberDisplayName(m),
-                            <RoleBadge key={`${m.user_id}-role`} role={m.role} />,
-                            m.created_at ? formatDateTime(m.created_at) : "—",
-                        ])}
-                    />                </SectionCard>
+                        rows={visibleMembers.map((m) => {
+                            const stats = memberStats.find((s) => s.user_id === m.user_id);
+
+                            return [
+                                getMemberDisplayName(m),
+                                <RoleBadge key={`${m.user_id}-role`} role={m.role} />,
+                                stats?.shift_status === "on_shift" ? "On shift" : "Off shift",
+                                stats?.worked_today_label ?? "00:00:00",
+                                stats?.worked_week_label ?? "00:00:00",
+                                <button
+                                    key={`${m.user_id}-view`}
+                                    onClick={() => router.push(`/settings/team/${m.user_id}`)}
+                                    style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 8,
+                                        border: "1px solid #d1d5db",
+                                        background: "#fff",
+                                        cursor: "pointer",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    View
+                                </button>,
+                            ];
+                        })}
+                    />
+
+                    {hasMoreThanTenMembers && (
+                        <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                            <button
+                                onClick={() => setShowAllMembers((prev) => !prev)}
+                                style={{
+                                    padding: "8px 12px",
+                                    borderRadius: 10,
+                                    border: "1px solid #d1d5db",
+                                    background: "#fff",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                }}
+                            >
+                                {showAllMembers ? "Show fewer" : `Show all (${filteredMembers.length})`}
+                            </button>
+                        </div>
+                    )}
+                </SectionCard>
 
                 <SectionCard
                     title="Invite New Member"
@@ -299,6 +414,7 @@ export default function TeamPage() {
                                 { value: "admin", label: "admin" },
                             ]}
                         />
+
 
                         <div style={{ display: "grid", gap: 8 }}>
                             <div style={{ height: 18 }} />
@@ -342,16 +458,56 @@ export default function TeamPage() {
                     <DataTable
                         columns={["Email", "Role", "Status", "Created"]}
                         emptyMessage={loading ? "Loading invites..." : "No pending invites."}
-                        rows={pendingInvites.map((i) => [
-                            i.email,
-                            i.role,
-                            <StatusBadge key={`${i.invite_id}-status`} status={i.status} />,
-                            formatDateTime(i.created_at),
+                        rows={pendingInvites.map((invite) => [
+                            invite.email,
+                            <RoleBadge key={`${invite.invite_id}-role`} role={invite.role} />,
+                            invite.status,
+                            invite.created_at ? formatDateTime(invite.created_at) : "—",
                         ])}
                     />
                 </SectionCard>
             </div>
         </PageShell>
+    );
+}
+
+function StatCard({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | number;
+}) {
+    return (
+        <div
+            style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
+                background: "#fff",
+                padding: 16,
+            }}
+        >
+            <div
+                style={{
+                    fontSize: 12,
+                    color: "#6b7280",
+                    fontWeight: 600,
+                    marginBottom: 8,
+                }}
+            >
+                {label}
+            </div>
+            <div
+                style={{
+                    fontSize: 28,
+                    fontWeight: 800,
+                    color: "#111827",
+                    lineHeight: 1,
+                }}
+            >
+                {value}
+            </div>
+        </div>
     );
 }
 

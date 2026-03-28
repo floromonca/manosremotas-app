@@ -1,21 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
-import { useAuthState } from "../../hooks/useAuthState";
-import { useActiveCompany } from "../../hooks/useActiveCompany";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "../../../../lib/supabaseClient";
+import { useAuthState } from "../../../../hooks/useAuthState";
+import { useActiveCompany } from "../../../../hooks/useActiveCompany";
 import {
-    getLastShift,
-    getOpenShift,
-    getTodayShiftSummary,
-    getWeekShiftSummary,
+    getLastShiftForUser,
+    getOpenShiftForUser,
+    getTodayShiftSummaryForUser,
+    getWeekShiftSummaryForUser,
     formatDurationHHMMSS,
     type ShiftRow,
     type ShiftSummary,
-} from "../../lib/supabase/shifts";
+} from "../../../../lib/supabase/shifts";
 
-type MembershipProfileRow = {
+type MemberProfileRow = {
     full_name: string | null;
+    email: string | null;
     role: "owner" | "admin" | "tech" | "viewer";
 };
 
@@ -33,23 +35,31 @@ function humanRole(role: string | null | undefined) {
     return role;
 }
 
-export default function ProfilePage() {
+export default function TeamMemberDetailPage() {
+    const params = useParams();
+    const router = useRouter();
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
+
+    const memberId = (params as any)?.memberId as string;
+
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState("");
-    const [memberProfile, setMemberProfile] = useState<MembershipProfileRow | null>(null);
 
     const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false);
     const [fullNameInput, setFullNameInput] = useState("");
+    const [roleInput, setRoleInput] = useState<"owner" | "admin" | "tech" | "viewer">("tech");
     const [savingBasicInfo, setSavingBasicInfo] = useState(false);
     const [successMsg, setSuccessMsg] = useState("");
+
+    const [memberProfile, setMemberProfile] = useState<MemberProfileRow | null>(null);
+    const [memberEmail, setMemberEmail] = useState<string>("—");
     const [openShift, setOpenShift] = useState<ShiftRow | null>(null);
     const [lastShift, setLastShift] = useState<ShiftRow | null>(null);
     const [todaySummary, setTodaySummary] = useState<ShiftSummary | null>(null);
     const [weekSummary, setWeekSummary] = useState<ShiftSummary | null>(null);
 
-    const refreshProfileData = useCallback(async (cid: string, uid: string) => {
+    const refreshData = useCallback(async (cid: string, uid: string) => {
         const [
             memberRes,
             openShiftRes,
@@ -59,32 +69,36 @@ export default function ProfilePage() {
         ] = await Promise.all([
             supabase
                 .from("company_members")
-                .select("full_name, role")
+                .select("full_name, email, role")
                 .eq("company_id", cid)
                 .eq("user_id", uid)
                 .maybeSingle(),
-            getOpenShift(cid),
-            getLastShift(cid),
-            getTodayShiftSummary(cid),
-            getWeekShiftSummary(cid),
+            getOpenShiftForUser(cid, uid),
+            getLastShiftForUser(cid, uid),
+            getTodayShiftSummaryForUser(cid, uid),
+            getWeekShiftSummaryForUser(cid, uid),
         ]);
 
         if (memberRes.error) throw memberRes.error;
         if (openShiftRes.error) throw openShiftRes.error;
         if (lastShiftRes.error) throw lastShiftRes.error;
 
-        const profileRow = (memberRes.data as MembershipProfileRow | null) ?? null;
+        const profileRow = (memberRes.data as MemberProfileRow | null) ?? null;
 
         setMemberProfile(profileRow);
         setFullNameInput(profileRow?.full_name ?? "");
+        setRoleInput((profileRow?.role ?? "tech") as "owner" | "admin" | "tech" | "viewer");
+
         setOpenShift((openShiftRes.data as ShiftRow | null) ?? null);
         setLastShift((lastShiftRes.data as ShiftRow | null) ?? null);
         setTodaySummary(todayShiftSummary);
         setWeekSummary(weekShiftSummary);
+
+        setMemberEmail(profileRow?.email ?? "—");
     }, []);
 
     const saveBasicInfo = useCallback(async () => {
-        if (!companyId || !user?.id) return;
+        if (!companyId || !memberId) return;
 
         setSavingBasicInfo(true);
         setErrorMsg("");
@@ -92,35 +106,43 @@ export default function ProfilePage() {
 
         try {
             const nextFullName = fullNameInput.trim();
+
             const { data, error } = await supabase
                 .from("company_members")
                 .update({
                     full_name: nextFullName || null,
+                    role: roleInput,
                 })
                 .eq("company_id", companyId)
-                .eq("user_id", user.id)
-                .select("user_id, company_id, full_name");
+                .eq("user_id", memberId)
+                .select("user_id, company_id, full_name, role");
 
             if (error) throw error;
 
             if (!data || data.length === 0) {
-                throw new Error("Profile update did not affect any row. Check RLS or membership match.");
+                throw new Error("Member update did not affect any row.");
             }
 
-            await refreshProfileData(companyId, user.id);
+            await refreshData(companyId, memberId);
             setIsEditingBasicInfo(false);
-            setSuccessMsg("Profile updated successfully.");
+            setSuccessMsg("Member updated successfully.");
         } catch (e: any) {
-            setErrorMsg(e?.message ?? "Could not update profile.");
+            setErrorMsg(e?.message ?? "Could not update member.");
         } finally {
             setSavingBasicInfo(false);
         }
-    }, [companyId, user?.id, fullNameInput, refreshProfileData]);
+    }, [companyId, memberId, fullNameInput, roleInput, refreshData]);
 
     useEffect(() => {
         if (authLoading || isLoadingCompany) return;
 
-        if (!user || !companyId) {
+        if (!user || !companyId || !memberId) {
+            setLoading(false);
+            return;
+        }
+
+        if (myRole !== "owner" && myRole !== "admin") {
+            setErrorMsg("You do not have access to this page.");
             setLoading(false);
             return;
         }
@@ -132,7 +154,7 @@ export default function ProfilePage() {
             setErrorMsg("");
 
             try {
-                await refreshProfileData(companyId, user.id);
+                await refreshData(companyId, memberId);
             } catch (e: any) {
                 if (!cancelled) {
                     setErrorMsg(e?.message ?? String(e));
@@ -145,7 +167,16 @@ export default function ProfilePage() {
         return () => {
             cancelled = true;
         };
-    }, [authLoading, isLoadingCompany, user?.id, companyId, refreshProfileData, user]);
+    }, [
+        authLoading,
+        isLoadingCompany,
+        user?.id,
+        companyId,
+        memberId,
+        myRole,
+        refreshData,
+        user,
+    ]);
 
     const workedTodayLabel = useMemo(() => {
         return formatDurationHHMMSS(todaySummary?.totalSeconds ?? 0);
@@ -162,16 +193,30 @@ export default function ProfilePage() {
         return formatDateTime(value);
     }, [openShift, todaySummary, lastShift]);
 
-    const profileName =
+    const displayName =
         memberProfile?.full_name?.trim() ||
-        user?.email?.split("@")[0] ||
         "Team member";
 
     return (
         <div style={{ padding: 24, maxWidth: 980 }}>
+            <button
+                onClick={() => router.push("/settings/team")}
+                style={{
+                    marginBottom: 18,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #d1d5db",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontWeight: 600,
+                }}
+            >
+                ← Back to Team
+            </button>
+
             <div style={{ marginBottom: 22 }}>
                 <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                    My account
+                    Settings / Team
                 </div>
 
                 <h1
@@ -182,11 +227,11 @@ export default function ProfilePage() {
                         letterSpacing: "-0.02em",
                     }}
                 >
-                    Profile
+                    {displayName}
                 </h1>
 
                 <div style={{ color: "#6b7280", fontSize: 15 }}>
-                    Your personal and work summary in ManosRemotas.
+                    Administrative view of this team member in {companyName || "your company"}.
                 </div>
             </div>
 
@@ -221,12 +266,8 @@ export default function ProfilePage() {
                     {successMsg}
                 </div>
             ) : null}
-            <div
-                style={{
-                    display: "grid",
-                    gap: 18,
-                }}
-            >
+
+            <div style={{ display: "grid", gap: 18 }}>
                 <section style={cardStyle}>
                     <div
                         style={{
@@ -246,6 +287,7 @@ export default function ProfilePage() {
                                     setSuccessMsg("");
                                     setIsEditingBasicInfo(true);
                                     setFullNameInput(memberProfile?.full_name ?? "");
+                                    setRoleInput((memberProfile?.role ?? "tech") as "owner" | "admin" | "tech" | "viewer");
                                 }}
                                 style={{
                                     padding: "8px 12px",
@@ -262,10 +304,10 @@ export default function ProfilePage() {
                     </div>
 
                     {loading ? (
-                        <div style={mutedTextStyle}>Loading profile...</div>
+                        <div style={mutedTextStyle}>Loading member profile...</div>
                     ) : isEditingBasicInfo ? (
                         <div style={{ display: "grid", gap: 16 }}>
-                            <div style={{ maxWidth: 420 }}>
+                            <div style={{ display: "grid", gap: 12, gridTemplateColumns: "minmax(0, 1fr) 220px" }}>
                                 <label
                                     style={{
                                         display: "grid",
@@ -279,7 +321,7 @@ export default function ProfilePage() {
                                     <input
                                         value={fullNameInput}
                                         onChange={(e) => setFullNameInput(e.target.value)}
-                                        placeholder="Enter your full name"
+                                        placeholder="Enter full name"
                                         style={{
                                             padding: "10px 12px",
                                             borderRadius: 10,
@@ -290,11 +332,41 @@ export default function ProfilePage() {
                                         }}
                                     />
                                 </label>
+
+                                <label
+                                    style={{
+                                        display: "grid",
+                                        gap: 6,
+                                        fontSize: 13,
+                                        color: "#374151",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    Role
+                                    <select
+                                        value={roleInput}
+                                        onChange={(e) =>
+                                            setRoleInput(e.target.value as "owner" | "admin" | "tech" | "viewer")
+                                        }
+                                        style={{
+                                            padding: "10px 12px",
+                                            borderRadius: 10,
+                                            border: "1px solid #d1d5db",
+                                            outline: "none",
+                                            fontSize: 14,
+                                            background: "#fff",
+                                        }}
+                                    >
+                                        <option value="owner">owner</option>
+                                        <option value="admin">admin</option>
+                                        <option value="tech">tech</option>
+                                        <option value="viewer">viewer</option>
+                                    </select>
+                                </label>
                             </div>
 
                             <div style={statsGridStyle}>
-                                <InfoCard label="Email" value={user?.email ?? "—"} />
-                                <InfoCard label="Role" value={humanRole(memberProfile?.role ?? myRole)} />
+                                <InfoCard label="Email" value={memberEmail} />
                                 <InfoCard label="Company" value={companyName || "—"} />
                             </div>
 
@@ -322,6 +394,7 @@ export default function ProfilePage() {
                                     onClick={() => {
                                         setIsEditingBasicInfo(false);
                                         setFullNameInput(memberProfile?.full_name ?? "");
+                                        setRoleInput((memberProfile?.role ?? "tech") as "owner" | "admin" | "tech" | "viewer");
                                         setSuccessMsg("");
                                     }}
                                     disabled={savingBasicInfo}
@@ -340,9 +413,9 @@ export default function ProfilePage() {
                         </div>
                     ) : (
                         <div style={statsGridStyle}>
-                            <InfoCard label="Full name" value={profileName} />
-                            <InfoCard label="Email" value={user?.email ?? "—"} />
-                            <InfoCard label="Role" value={humanRole(memberProfile?.role ?? myRole)} />
+                            <InfoCard label="Full name" value={displayName} />
+                            <InfoCard label="Email" value={memberEmail} />
+                            <InfoCard label="Role" value={humanRole(memberProfile?.role)} />
                             <InfoCard label="Company" value={companyName || "—"} />
                         </div>
                     )}
@@ -355,18 +428,9 @@ export default function ProfilePage() {
                         <div style={mutedTextStyle}>Loading work summary...</div>
                     ) : (
                         <div style={statsGridStyle}>
-                            <InfoCard
-                                label="Active shift"
-                                value={openShift ? "Yes" : "No"}
-                            />
-                            <InfoCard
-                                label="Worked today"
-                                value={workedTodayLabel}
-                            />
-                            <InfoCard
-                                label="Worked this week"
-                                value={workedWeekLabel}
-                            />
+                            <InfoCard label="Active shift" value={openShift ? "Yes" : "No"} />
+                            <InfoCard label="Worked today" value={workedTodayLabel} />
+                            <InfoCard label="Worked this week" value={workedWeekLabel} />
                             <InfoCard
                                 label="Current status"
                                 value={openShift ? "Checked in" : "Off shift"}
@@ -384,7 +448,9 @@ export default function ProfilePage() {
                         <div style={statsGridStyle}>
                             <InfoCard
                                 label="Last check-in"
-                                value={formatDateTime(todaySummary?.lastCheckIn ?? lastShift?.check_in_at ?? null)}
+                                value={formatDateTime(
+                                    todaySummary?.lastCheckIn ?? lastShift?.check_in_at ?? null
+                                )}
                             />
                             <InfoCard
                                 label="Last check-out"
@@ -401,13 +467,6 @@ export default function ProfilePage() {
                         </div>
                     )}
                 </section>
-
-                <section style={cardStyle}>
-                    <div style={sectionTitleStyle}>Account</div>
-                    <div style={mutedTextStyle}>
-                        Preferences and account tools will be available here in a future phase.
-                    </div>
-                </section>
             </div>
         </div>
     );
@@ -420,18 +479,25 @@ function InfoCard({ label, value }: { label: string; value: string }) {
                 border: "1px solid #e5e7eb",
                 borderRadius: 14,
                 padding: 16,
-                background: "#fcfcfd",
+                background: "#fff",
             }}
         >
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
+            <div
+                style={{
+                    fontSize: 12,
+                    color: "#6b7280",
+                    marginBottom: 8,
+                    fontWeight: 600,
+                }}
+            >
                 {label}
             </div>
             <div
                 style={{
-                    fontSize: 20,
-                    fontWeight: 800,
+                    fontSize: 18,
+                    fontWeight: 700,
                     color: "#111827",
-                    wordBreak: "break-word",
+                    lineHeight: 1.2,
                 }}
             >
                 {value}
@@ -443,14 +509,15 @@ function InfoCard({ label, value }: { label: string; value: string }) {
 const cardStyle: React.CSSProperties = {
     border: "1px solid #e5e7eb",
     borderRadius: 16,
-    background: "#ffffff",
-    padding: 20,
+    background: "#fff",
+    padding: 18,
 };
 
 const sectionTitleStyle: React.CSSProperties = {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 700,
     marginBottom: 14,
+    color: "#111827",
 };
 
 const mutedTextStyle: React.CSSProperties = {
@@ -460,6 +527,6 @@ const mutedTextStyle: React.CSSProperties = {
 
 const statsGridStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 12,
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 14,
 };

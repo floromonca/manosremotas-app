@@ -51,12 +51,12 @@ export default function WorkOrderDetailHeader({
             <div style={{ flex: 1, minWidth: 280 }}>
                 <div
                     style={{
-                        fontSize: 12,
+                        fontSize: 20,
                         textTransform: "uppercase",
-                        letterSpacing: 1.1,
+                        letterSpacing: 1.4,
                         color: "#6b7280",
-                        fontWeight: 800,
-                        marginBottom: 6,
+                        fontWeight: 900,
+                        marginBottom: 10,
                     }}
                 >
                     Work Order
