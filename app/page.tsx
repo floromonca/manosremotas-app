@@ -17,7 +17,7 @@ export default function Home() {
 
       if (!alive) return;
 
-      router.replace(session ? "/control-center" : "/work-orders");
+      router.replace(session ? "/control-center" : "/auth");
     })();
 
     return () => {

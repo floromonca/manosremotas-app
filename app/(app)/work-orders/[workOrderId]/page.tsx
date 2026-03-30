@@ -1,0 +1,817 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { supabase } from "../../../../lib/supabaseClient";
+import {
+    safeStatus,
+    setWorkOrderStatus,
+    type WorkOrderStatus,
+} from "../../../../lib/supabase/workOrders";
+import { useAuthState } from "../../../../hooks/useAuthState";
+import { useActiveCompany } from "../../../../hooks/useActiveCompany";
+import { createInvoiceFromWorkOrder } from "../../../../lib/invoices";
+import WorkOrderCustomerSection from "../components/WorkOrderCustomerSection";
+import WorkOrderSummarySection from "../components/WorkOrderSummarySection";
+import WorkOrderItemsHeader from "../components/WorkOrderItemsHeader";
+import WorkOrderNewItemForm from "../components/WorkOrderNewItemForm";
+import WorkOrderItemsTable from "../components/WorkOrderItemsTable";
+import {
+    allowedStatusesForRole,
+    canChangeWorkOrderStatus,
+} from "../../../../lib/work-orders/policies";
+import WorkOrderDetailHeader from "../components/WorkOrderDetailHeader";
+
+
+
+type WorkOrder = {
+    work_order_id: string;
+    company_id: string | null;
+    job_type: string;
+    description: string;
+    status: WorkOrderStatus;
+    priority: string;
+    scheduled_for: string | null;
+    created_at: string;
+    assigned_to: string | null;
+    customer_name?: string | null;
+    customer_email?: string | null;
+    customer_phone?: string | null;
+    service_address?: string | null;
+    invoice_id?: string | null;
+};
+
+type WorkOrderItem = {
+    item_id: string;
+    description: string | null;
+
+    quantity: number | null;
+
+    qty_planned: number | null;
+    qty_done: number | null;
+
+    unit_price: number | null;
+    taxable: boolean | null;
+
+    pending_pricing?: boolean | null;
+    pricing_status?: string | null;
+    tech_note?: string | null;
+};
+
+function normalizeInvoiceStatus(status: string | null | undefined) {
+    return String(status ?? "").trim().toLowerCase();
+}
+
+function prettyInvoiceStatus(status: string | null | undefined) {
+    const s = normalizeInvoiceStatus(status);
+    if (!s) return "—";
+    return s.replaceAll("_", " ").toUpperCase();
+}
+
+function invoiceBadgeStyle(status: string | null | undefined): React.CSSProperties {
+    const s = normalizeInvoiceStatus(status);
+
+    if (s === "draft") {
+        return {
+            background: "#e5e7eb",
+            color: "#374151",
+            border: "1px solid #d1d5db",
+        };
+    }
+
+    if (s === "sent") {
+        return {
+            background: "#dbeafe",
+            color: "#1d4ed8",
+            border: "1px solid #bfdbfe",
+        };
+    }
+
+    if (s === "partially_paid") {
+        return {
+            background: "#fef3c7",
+            color: "#b45309",
+            border: "1px solid #fde68a",
+        };
+    }
+
+    if (s === "paid") {
+        return {
+            background: "#dcfce7",
+            color: "#166534",
+            border: "1px solid #bbf7d0",
+        };
+    }
+
+    if (s === "overdue") {
+        return {
+            background: "#fee2e2",
+            color: "#b91c1c",
+            border: "1px solid #fecaca",
+        };
+    }
+
+    return {
+        background: "#f3f4f6",
+        color: "#111827",
+        border: "1px solid #e5e7eb",
+    };
+}
+
+export default function WorkOrderDetailPage() {
+    const router = useRouter();
+    const params = useParams();
+    const workOrderId = (params as any)?.workOrderId as string;
+
+    const { user } = useAuthState();
+    const myUserId = user?.id ?? null;
+
+    const { companyId: activeCompanyId } = useActiveCompany();
+
+    const [roleLoading, setRoleLoading] = useState(false);
+    const [myRole, setMyRole] = useState<string | null>(null);
+    const [canOperate, setCanOperate] = useState(false);
+    const [shiftLoading, setShiftLoading] = useState(false);
+
+    const isAdmin = myRole === "owner" || myRole === "admin";
+    const isTech = myRole === "tech";
+
+    const [wo, setWo] = useState<WorkOrder | null>(null);
+    const woRef = useRef<WorkOrder | null>(null);
+    const [assignedTechName, setAssignedTechName] = useState<string | null>(null);
+
+    useEffect(() => {
+        woRef.current = wo;
+    }, [wo]);
+
+    const [items, setItems] = useState<WorkOrderItem[]>([]);
+    const anyPendingPricing = items.some(
+        (it) => it.pending_pricing === true || it.pricing_status === "pending_pricing"
+    );
+
+    const [invoiceStatus, setInvoiceStatus] = useState<string | null>(null);
+
+    const [loading, setLoading] = useState(false);
+    const [err, setErr] = useState("");
+
+    const [showForm, setShowForm] = useState(false);
+    const [savingItem, setSavingItem] = useState(false);
+    const [syncingInvoice, setSyncingInvoice] = useState(false);
+    const [savingCustomer, setSavingCustomer] = useState(false);
+    const [customerForm, setCustomerForm] = useState({
+        customer_name: "",
+        customer_email: "",
+        customer_phone: "",
+        service_address: "",
+    });
+
+    const [priceDraft, setPriceDraft] = useState<Record<string, number>>({});
+    const [savingPrice, setSavingPrice] = useState<Record<string, boolean>>({});
+
+    const [newItem, setNewItem] = useState({
+        description: "",
+        quantity: 1,
+        unit_price: 0,
+        taxable: true,
+    });
+
+    const invoiceStatusNormalized = useMemo(
+        () => normalizeInvoiceStatus(invoiceStatus),
+        [invoiceStatus]
+    );
+
+    const hasInvoice = !!wo?.invoice_id;
+    const invoiceIsDraft = hasInvoice && invoiceStatusNormalized === "draft";
+    const invoiceIsLocked = hasInvoice && invoiceStatusNormalized !== "" && invoiceStatusNormalized !== "draft";
+
+    const loadRole = useCallback(async () => {
+        if (!activeCompanyId || !myUserId) return;
+        setRoleLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("company_members")
+                .select("role")
+                .eq("company_id", activeCompanyId)
+                .eq("user_id", myUserId)
+                .maybeSingle();
+
+            if (error) {
+                console.log("DEBUG role load error:", error);
+                setMyRole(null);
+                return;
+            }
+            setMyRole((data as any)?.role ?? null);
+        } finally {
+            setRoleLoading(false);
+        }
+    }, [activeCompanyId, myUserId]);
+    const loadOperateState = useCallback(async () => {
+        if (!activeCompanyId || !myUserId) {
+            setCanOperate(false);
+            return;
+        }
+
+        setShiftLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from("shifts")
+                .select("shift_id")
+                .eq("company_id", activeCompanyId)
+                .eq("user_id", myUserId)
+                .is("check_out_at", null)
+                .maybeSingle();
+
+            if (error) {
+                console.log("DEBUG loadOperateState error:", error);
+                setCanOperate(false);
+                return;
+            }
+
+            setCanOperate(!!data?.shift_id);
+        } finally {
+            setShiftLoading(false);
+        }
+    }, [activeCompanyId, myUserId]);
+
+    const loadInvoiceStatus = useCallback(async (invoiceId: string | null | undefined) => {
+        if (!invoiceId) {
+            setInvoiceStatus(null);
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from("invoices")
+            .select("status")
+            .eq("invoice_id", invoiceId)
+            .maybeSingle();
+
+        if (error) {
+            console.log("⚠️ No pude leer invoice status:", error.message);
+            setInvoiceStatus(null);
+            return;
+        }
+
+        setInvoiceStatus((data as any)?.status ?? null);
+    }, []);
+
+    const loadItemsForWorkOrder = useCallback(async () => {
+        if (!workOrderId) return [] as WorkOrderItem[];
+
+        const { data, error } = await supabase
+            .from("work_order_items")
+            .select(
+                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
+            )
+            .eq("work_order_id", workOrderId)
+            .order("created_at", { ascending: true });
+
+        if (error) throw error;
+
+        return ((data as any) ?? []) as WorkOrderItem[];
+    }, [workOrderId]);
+
+    const syncDraftInvoiceIfNeeded = useCallback(async () => {
+        const currentInvoiceId = woRef.current?.invoice_id;
+
+        if (!currentInvoiceId) return;
+
+        const { data: invRow, error: invErr } = await supabase
+            .from("invoices")
+            .select("status")
+            .eq("invoice_id", currentInvoiceId)
+            .maybeSingle();
+
+        if (invErr) {
+            console.log("⚠️ No pude validar invoice antes de auto-sync:", invErr.message);
+            return;
+        }
+
+        const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
+
+        if (currentInvoiceStatus !== "draft") {
+            console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
+            return;
+        }
+
+        try {
+            await createInvoiceFromWorkOrder(workOrderId);
+            await loadInvoiceStatus(currentInvoiceId);
+        } catch (syncErr: any) {
+            console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+        }
+    }, [workOrderId, loadInvoiceStatus]);
+
+    const onSyncInvoice = useCallback(async () => {
+        if (!workOrderId) return;
+        if (syncingInvoice) return;
+
+        if (anyPendingPricing) {
+            alert("Hay items en Pending pricing. Apruébalos primero antes de Sync.");
+            return;
+        }
+
+        if (hasInvoice && !invoiceIsDraft) {
+            alert(`La invoice asociada está en estado ${prettyInvoiceStatus(invoiceStatus)} y ya no permite Sync.`);
+            return;
+        }
+
+        setSyncingInvoice(true);
+        try {
+            const invoiceId = await createInvoiceFromWorkOrder(workOrderId);
+            await loadInvoiceStatus(invoiceId);
+            router.push(`/invoices/${invoiceId}`);
+        } catch (e: any) {
+            console.log("❌ Sync Invoice failed:", e?.message ?? e);
+            alert(`Sync Invoice failed: ${e?.message ?? e}`);
+        } finally {
+            setSyncingInvoice(false);
+        }
+    }, [
+        workOrderId,
+        anyPendingPricing,
+        syncingInvoice,
+        router,
+        hasInvoice,
+        invoiceIsDraft,
+        invoiceStatus,
+        loadInvoiceStatus,
+    ]);
+
+    const loadWorkOrder = useCallback(async () => {
+        if (!workOrderId) return;
+
+        setLoading(true);
+        setErr("");
+
+        try {
+            const { data, error } = await supabase
+                .from("work_orders")
+                .select(
+                    "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, customer_name, customer_email, customer_phone, service_address, invoice_id"
+                )
+                .eq("work_order_id", workOrderId)
+                .single();
+
+            if (error) throw error;
+
+            const mapped = {
+                ...(data as any),
+                status: safeStatus((data as any)?.status),
+            } as WorkOrder;
+
+            setWo(mapped);
+
+            console.log("DEBUG assigned tech input", {
+                assigned_to: mapped.assigned_to,
+                company_id: mapped.company_id,
+            });
+
+            if (mapped.assigned_to && mapped.company_id) {
+                const { data: memberRow, error: memberErr } = await supabase
+                    .from("company_members")
+                    .select("full_name")
+                    .eq("company_id", mapped.company_id)
+                    .eq("user_id", mapped.assigned_to)
+                    .maybeSingle();
+
+                console.log("DEBUG member lookup", {
+                    memberRow,
+                    memberErr,
+                });
+
+                if (!memberErr) {
+                    const fullName = (memberRow as any)?.full_name?.trim?.() || null;
+                    setAssignedTechName(fullName || mapped.assigned_to.slice(0, 8));
+                } else {
+                    setAssignedTechName(mapped.assigned_to.slice(0, 8));
+                }
+            } else {
+                setAssignedTechName(null);
+            }
+            setCustomerForm({
+                customer_name: (mapped as any)?.customer_name ?? "",
+                customer_email: (mapped as any)?.customer_email ?? "",
+                customer_phone: (mapped as any)?.customer_phone ?? "",
+                service_address: (mapped as any)?.service_address ?? "",
+            });
+
+            await loadInvoiceStatus(mapped.invoice_id);
+
+            const itemRows = await loadItemsForWorkOrder();
+            setItems(itemRows);
+        } catch (e: any) {
+            setErr(e?.message ?? "Error cargando Work Order");
+            setWo(null);
+            setItems([]);
+            setInvoiceStatus(null);
+            setAssignedTechName(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [workOrderId, loadInvoiceStatus, loadItemsForWorkOrder]);
+
+    useEffect(() => {
+        loadRole();
+    }, [loadRole]);
+    useEffect(() => {
+        loadOperateState();
+    }, [loadOperateState]);
+
+    useEffect(() => {
+        const refreshOperateState = () => {
+            loadOperateState();
+        };
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+                loadOperateState();
+            }
+        };
+
+        window.addEventListener("focus", refreshOperateState);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+
+        return () => {
+            window.removeEventListener("focus", refreshOperateState);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
+    }, [loadOperateState]);
+
+    useEffect(() => {
+        loadWorkOrder();
+    }, [loadWorkOrder]);
+
+    const googleMapsUrl = useMemo(() => {
+        const addr = wo?.service_address?.trim();
+        if (!addr) return null;
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
+    }, [wo?.service_address]);
+
+    const refreshItemsOnly = useCallback(async () => {
+        if (!workOrderId) return;
+
+        try {
+            const itemRows = await loadItemsForWorkOrder();
+            setItems(itemRows);
+
+            if (woRef.current?.invoice_id) {
+                await loadInvoiceStatus(woRef.current.invoice_id);
+            }
+        } catch (e: any) {
+            alert(`No se pudieron recargar items: ${e?.message ?? e}`);
+        }
+    }, [workOrderId, loadItemsForWorkOrder, loadInvoiceStatus]);
+
+    const updateQtyDone = useCallback(
+        async (itemId: string, newQtyDone: number | null) => {
+            const current = items.find((x) => x.item_id === itemId);
+
+            const hasPlanned =
+                current?.qty_planned !== null && current?.qty_planned !== undefined;
+
+            const plan = hasPlanned ? Number(current?.qty_planned ?? 0) : null;
+
+            if (!isAdmin && hasPlanned) {
+                const n = newQtyDone === null ? 0 : Number(newQtyDone);
+
+                if (Number.isFinite(n) && plan !== null && n > plan) {
+                    alert(
+                        `Este item es Planned (Plan=${plan}). Si hiciste más, crea un Extra para el excedente.`
+                    );
+                    return;
+                }
+            }
+
+            const { error } = await supabase
+                .from("work_order_items")
+                .update({ qty_done: newQtyDone })
+                .eq("item_id", itemId);
+
+            if (error) {
+                alert(`No se pudo guardar qty_done: ${error.message}`);
+                return;
+            }
+
+            await refreshItemsOnly();
+
+            await syncDraftInvoiceIfNeeded();
+        },
+        [items, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]
+    );
+
+    const priceItem = useCallback(
+        async (itemId: string) => {
+            const newPrice = Number(priceDraft[itemId] ?? 0);
+
+            setSavingPrice((s) => ({ ...s, [itemId]: true }));
+            try {
+                const { error } = await supabase
+                    .from("work_order_items")
+                    .update({
+                        unit_price: newPrice,
+                        taxable: true,
+                        pending_pricing: false,
+                        pricing_status: "priced",
+                    })
+                    .eq("item_id", itemId);
+
+                if (error) {
+                    alert(`No se pudo pricear: ${error.message}`);
+                    return;
+                }
+
+                await syncDraftInvoiceIfNeeded();
+
+                await refreshItemsOnly();
+
+            } finally {
+                setSavingPrice((s) => ({ ...s, [itemId]: false }));
+            }
+        },
+        [priceDraft, refreshItemsOnly, syncDraftInvoiceIfNeeded]
+    );
+
+    const handleChangeStatus = useCallback(
+        async (next: WorkOrderStatus) => {
+            if (!wo) return;
+
+            const canChange = canChangeWorkOrderStatus({
+                userId: myUserId,
+                isAdminOrOwner: isAdmin,
+                role: myRole as any,
+                canOperate: true,
+                assignedTo: wo.assigned_to,
+            });
+
+            if (!canChange) {
+                alert(
+                    isAdmin
+                        ? "No tienes permiso para cambiar esta Work Order."
+                        : "Para cambiar status necesitas que la orden esté asignada a ti y cumplir las reglas operativas."
+                );
+                return;
+            }
+
+            const { error } = await setWorkOrderStatus(wo.work_order_id, next);
+
+            if (error) {
+                alert(`No se pudo cambiar status: ${error.message}`);
+                return;
+            }
+
+            await loadWorkOrder();
+        },
+        [wo, myUserId, isAdmin, myRole, loadWorkOrder]
+    );
+
+    const saveCustomerInfo = useCallback(async () => {
+        if (!workOrderId) return;
+
+        setSavingCustomer(true);
+        try {
+            const payload = {
+                customer_name: customerForm.customer_name.trim() || null,
+                customer_email: customerForm.customer_email.trim() || null,
+                customer_phone: customerForm.customer_phone.trim() || null,
+                service_address: customerForm.service_address.trim() || null,
+            };
+
+            const { error } = await supabase
+                .from("work_orders")
+                .update(payload)
+                .eq("work_order_id", workOrderId);
+
+            if (error) {
+                alert("No se pudo guardar customer info: " + error.message);
+                return;
+            }
+
+            await loadWorkOrder();
+            alert("Customer info updated.");
+        } finally {
+            setSavingCustomer(false);
+        }
+    }, [workOrderId, customerForm, loadWorkOrder]);
+
+    const totals = useMemo(() => {
+        const sum = items.reduce((acc, it) => {
+            const qtyPlannedRaw =
+                it.qty_planned === null || it.qty_planned === undefined ? null : Number(it.qty_planned);
+
+            const qtyDoneRaw =
+                it.qty_done === null || it.qty_done === undefined ? null : Number(it.qty_done);
+
+            const qtyToPrice =
+                qtyPlannedRaw !== null
+                    ? Number((qtyDoneRaw ?? qtyPlannedRaw) ?? 0)
+                    : Number(qtyDoneRaw ?? 0);
+
+            const unit = Number(it.unit_price ?? 0);
+            return acc + qtyToPrice * unit;
+        }, 0);
+
+        return { sum };
+    }, [items]);
+
+    const onCreateItem = useCallback(async () => {
+        setErr("");
+
+        if (roleLoading) {
+            setErr("Cargando rol… intenta de nuevo en 1 segundo.");
+            return;
+        }
+
+        if (!myRole) {
+            setErr("No pude determinar tu rol (owner/admin/tech). Reintenta.");
+            return;
+        }
+
+        const desc = String(newItem.description ?? "").trim();
+        if (!desc) {
+            setErr("Descripción requerida");
+            return;
+        }
+
+        if (!wo?.company_id) {
+            setErr("WO sin company_id (no puedo crear items)");
+            return;
+        }
+
+        const qty = Number(newItem.quantity ?? 1);
+        if (!Number.isFinite(qty) || qty <= 0) {
+            setErr("La cantidad debe ser mayor a 0.");
+            return;
+        }
+
+        setSavingItem(true);
+        try {
+            const base = {
+                company_id: wo.company_id,
+                work_order_id: workOrderId,
+                item_type: "service",
+                description: desc,
+            };
+
+            const payload = isAdmin
+                ? {
+                    ...base,
+                    qty_planned: qty,
+                    qty_done: null,
+                    unit_price: Number(newItem.unit_price ?? 0),
+                    taxable: Boolean(newItem.taxable ?? true),
+                    pending_pricing: false,
+                    pricing_status: "priced",
+                }
+                : {
+                    ...base,
+                    qty_planned: null,
+                    qty_done: qty,
+                    unit_price: 0,
+                    taxable: true,
+                    pending_pricing: true,
+                    pricing_status: "pending_pricing",
+                };
+
+            const { error } = await supabase.from("work_order_items").insert(payload);
+            if (error) throw error;
+
+            await syncDraftInvoiceIfNeeded();
+
+            await refreshItemsOnly();
+
+            setNewItem({ description: "", quantity: 1, unit_price: 0, taxable: true });
+            setShowForm(false);
+        } catch (e: any) {
+            setErr(e?.message ?? "Error creando item");
+        } finally {
+            setSavingItem(false);
+        }
+    }, [roleLoading, myRole, newItem, wo, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]);
+
+    return (
+        <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+            <WorkOrderDetailHeader
+                workOrderId={workOrderId}
+                title={wo?.job_type ?? "Work Order"}
+                myRole={myRole}
+                invoiceId={wo?.invoice_id}
+                invoiceStatus={invoiceStatus}
+                isAdmin={isAdmin}
+                syncingInvoice={syncingInvoice}
+                anyPendingPricing={anyPendingPricing}
+                hasInvoice={hasInvoice}
+                invoiceIsDraft={invoiceIsDraft}
+                prettyInvoiceStatus={prettyInvoiceStatus}
+                invoiceBadgeStyle={invoiceBadgeStyle}
+                onOpenInvoice={() => {
+                    if (wo?.invoice_id) {
+                        router.push(`/invoices/${wo.invoice_id}?fromWorkOrder=${workOrderId}`);
+                    }
+                }}
+                onSyncInvoice={onSyncInvoice}
+                onBack={() => router.push("/work-orders")}
+                showForm={showForm}
+                onToggleForm={() => setShowForm((s) => !s)}
+            />
+
+            {loading ? <div style={{ marginTop: 16 }}>Cargando…</div> : null}
+
+            {err ? (
+                <div
+                    style={{
+                        marginTop: 16,
+                        padding: 12,
+                        borderRadius: 10,
+                        border: "1px solid #f3caca",
+                        background: "#fff5f5",
+                        color: "#a40000",
+                        fontWeight: 700,
+                        whiteSpace: "pre-wrap",
+                    }}
+                >
+                    {err}
+                </div>
+            ) : null}
+
+            {wo ? (
+                <div
+                    style={{
+                        marginTop: 16,
+                        padding: 14,
+                        borderRadius: 12,
+                        border: "1px solid #eee",
+                        background: "white",
+                    }}
+                >
+                    <div style={{ display: "grid", gap: 8 }}>
+                        <WorkOrderSummarySection
+                            wo={wo}
+                            googleMapsUrl={googleMapsUrl}
+                            invoiceIsLocked={invoiceIsLocked}
+                            invoiceStatus={invoiceStatus}
+                            prettyInvoiceStatus={prettyInvoiceStatus}
+                            myRole={myRole}
+                            isAdmin={isAdmin}
+                            myUserId={myUserId}
+                            onChangeStatus={handleChangeStatus}
+                            allowedStatuses={allowedStatusesForRole(myRole as any, wo.status)}
+                            canChangeStatus={canChangeWorkOrderStatus({
+                                userId: myUserId,
+                                isAdminOrOwner: isAdmin,
+                                role: myRole as any,
+                                canOperate,
+                                assignedTo: wo.assigned_to,
+                            })}
+                            statusChangeReason={
+                                isAdmin
+                                    ? null
+                                    : !canOperate
+                                        ? "no_shift"
+                                        : null
+                            }
+                            assignedTechName={assignedTechName}
+                        />
+
+                        <WorkOrderCustomerSection
+                            customerForm={customerForm}
+                            setCustomerForm={setCustomerForm}
+                            saveCustomerInfo={saveCustomerInfo}
+                            savingCustomer={savingCustomer}
+                            isAdmin={isAdmin}
+                        />
+                        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
+                            <WorkOrderItemsHeader
+                                itemsCount={items.length}
+                                showForm={showForm}
+                                setShowForm={setShowForm}
+                            />
+
+                            {showForm ? (
+                                <WorkOrderNewItemForm
+                                    isAdmin={isAdmin}
+                                    newItem={newItem}
+                                    setNewItem={setNewItem}
+                                    savingItem={savingItem}
+                                    roleLoading={roleLoading}
+                                    myRole={myRole}
+                                    onCreateItem={onCreateItem}
+                                    setShowForm={setShowForm}
+                                />
+                            ) : null}
+
+                            <WorkOrderItemsTable
+                                items={items}
+                                isAdmin={isAdmin}
+                                priceDraft={priceDraft}
+                                setPriceDraft={setPriceDraft}
+                                savingPrice={savingPrice}
+                                updateQtyDone={updateQtyDone}
+                                priceItem={priceItem}
+                            />
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    );
+}
