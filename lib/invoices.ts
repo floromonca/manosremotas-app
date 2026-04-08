@@ -363,15 +363,17 @@ function escHtml(value: string | null | undefined) {
 function joinCompanyAddress(company?: InvoiceHtmlData["company"]) {
   const cityProvince = [company?.city, company?.province]
     .filter(Boolean)
+    .map((part) => escHtml(String(part)))
     .join(", ");
 
   const postalCountry = [company?.postal_code, company?.country]
     .filter(Boolean)
+    .map((part) => escHtml(String(part)))
     .join(" ");
 
   return [
-    company?.address_line1,
-    company?.address_line2,
+    company?.address_line1 ? escHtml(company.address_line1) : null,
+    company?.address_line2 ? escHtml(company.address_line2) : null,
     cityProvince || null,
     postalCountry || null,
   ]
@@ -491,7 +493,9 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
 
   const paymentsReceived =
     payments.length > 0
-      ? payments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0)
+      ? Math.round(
+        payments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0) * 100
+      ) / 100
       : Math.max(0, total - balanceDue);
 
   const invoiceType = invoice.invoice_type ?? "standard";
@@ -523,21 +527,30 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
           (item) => (item.work_order_id ?? null) === (wo.work_order_id ?? null)
         );
 
-        const computedSubtotal = woItems.reduce((acc, item) => {
-          const lineSubtotal =
-            item.line_subtotal != null
-              ? Number(item.line_subtotal)
-              : Number(item.line_total ?? 0) - Number(item.line_tax ?? 0);
-          return acc + lineSubtotal;
-        }, 0);
+        const computedSubtotal =
+          Math.round(
+            woItems.reduce((acc, item) => {
+              const lineSubtotal =
+                item.line_subtotal != null
+                  ? Number(item.line_subtotal)
+                  : Number(item.line_total ?? 0) - Number(item.line_tax ?? 0);
+              return acc + lineSubtotal;
+            }, 0) * 100
+          ) / 100;
 
-        const computedTax = woItems.reduce((acc, item) => {
-          return acc + Number(item.line_tax ?? 0);
-        }, 0);
+        const computedTax =
+          Math.round(
+            woItems.reduce((acc, item) => {
+              return acc + Number(item.line_tax ?? 0);
+            }, 0) * 100
+          ) / 100;
 
-        const computedTotal = woItems.reduce((acc, item) => {
-          return acc + Number(item.line_total ?? 0);
-        }, 0);
+        const computedTotal =
+          Math.round(
+            woItems.reduce((acc, item) => {
+              return acc + Number(item.line_total ?? 0);
+            }, 0) * 100
+          ) / 100;
 
         const snapshotSubtotal = Number(wo.subtotal_snapshot ?? 0);
         const snapshotTax = Number(wo.tax_snapshot ?? 0);
@@ -1255,7 +1268,7 @@ tr{
     </div>
 
     <div class="invoice-panel">
-      <h2 class="invoice-title">Invoice</h2>
+     <h2 class="invoice-title">${isPeriodInvoice ? "Consolidated Invoice" : "Invoice"}</h2>
       <span class="status-pill">${escHtml(status.label)}</span>
 
       <div class="meta-grid">
@@ -1385,14 +1398,14 @@ tr{
   <div class="notes">
     <div class="notes-header">Notes</div>
     <div class="notes-body">
-      ${escHtml(invoice.notes).replaceAll("\\n", "<br/>")}
+   ${escHtml(invoice.notes).replace(/\n/g, "<br/>")}
     </div>
   </div>
   ` : ""}
 
   <div class="footer">
     ${company.invoice_footer
-      ? escHtml(company.invoice_footer).replaceAll("\\n", "<br/>")
+      ? escHtml(company.invoice_footer).replace(/\n/g, "<br/>")
       : "Thank you for your business."
     }
   </div>

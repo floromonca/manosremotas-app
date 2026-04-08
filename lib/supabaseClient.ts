@@ -1,11 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
-// ✅ SOLO DEV: exponer supabase para pruebas desde consola
+// DEV only: expose supabase in browser console for debugging
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
     (window as any).supabase = supabase;
 }

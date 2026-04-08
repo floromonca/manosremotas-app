@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
+import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
 import { renderInvoiceHtml } from "../../../../../lib/invoices";
+
+
+type MembershipRow = {
+  company_id: string;
+  role: string;
+};
 
 export async function GET(
   req: Request,
@@ -12,6 +19,40 @@ export async function GET(
     if (!invoiceId) {
       return new NextResponse("invoiceId requerido", { status: 400 });
     }
+
+    const supabase = await createServerSupabase();
+
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+
+    if (userErr) {
+      console.error("auth.getUser error:", userErr);
+      return new NextResponse("No autorizado", { status: 401 });
+    }
+
+    if (!user) {
+      return new NextResponse("No autorizado", { status: 401 });
+    }
+
+    const { data: memberships, error: membershipsErr } = await supabase
+      .from("company_members")
+      .select("company_id, role")
+      .eq("user_id", user.id);
+
+    if (membershipsErr) {
+      console.error("company_members error:", membershipsErr);
+      return new NextResponse("Error validando acceso", { status: 500 });
+    }
+
+    const membershipList = (memberships ?? []) as MembershipRow[];
+
+    if (membershipList.length === 0) {
+      return new NextResponse("Usuario sin empresa vinculada", { status: 403 });
+    }
+
+    const allowedCompanyIds = membershipList.map((m) => m.company_id);
 
     const url = new URL(req.url);
     const mode = url.searchParams.get("mode") ?? "pdf";
@@ -28,20 +69,18 @@ export async function GET(
       return new NextResponse("Error consultando invoice", { status: 500 });
     }
 
-    if (!data) {
+    if (!data?.invoice) {
       return new NextResponse("Invoice no encontrada", { status: 404 });
     }
 
-    console.log("=== get_invoice_full data ===");
-    console.dir(data, { depth: null });
+    const invoiceCompanyId = (data as any)?.invoice?.company_id ?? null;
 
-    console.log("=== invoice_work_orders ===");
-    console.dir(data?.invoice_work_orders, { depth: null });
-
-    console.log("=== items ===");
-    console.dir(data?.items, { depth: null });
+    if (!invoiceCompanyId || !allowedCompanyIds.includes(invoiceCompanyId)) {
+      return new NextResponse("Acceso denegado a esta factura", { status: 403 });
+    }
 
     const baseHtml = renderInvoiceHtml(data);
+
 
     const actionBarHtml = `
   <div class="mr-topbar no-print">
@@ -253,8 +292,10 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store, private",
       },
     });
+
   } catch (err) {
     console.error("invoice html route error:", err);
     return new NextResponse("Error interno", { status: 500 });

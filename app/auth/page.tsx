@@ -63,29 +63,72 @@ export default function AuthPage() {
           email,
           password,
         });
+
+        console.log("[AUTH] signInWithPassword result =", {
+          hasUser: !!data?.user,
+          userId: data?.user?.id ?? null,
+          hasSession: !!data?.session,
+          accessTokenPresent: !!data?.session?.access_token,
+          refreshTokenPresent: !!data?.session?.refresh_token,
+          error: error?.message ?? null,
+        });
+
         if (error) throw error;
 
-        const userId = data.user?.id;
-        if (!userId) throw new Error("No se pudo obtener userId.");
+        const immediateSession = await supabase.auth.getSession();
+        console.log("[AUTH] immediate getSession after signIn =", {
+          hasSession: !!immediateSession.data.session,
+          userId: immediateSession.data.session?.user?.id ?? null,
+          error: immediateSession.error?.message ?? null,
+        });
 
-        // 1) Primero: intentar aceptar invite pending (si existe)
+        const userId = data.user?.id;
+        if (!userId) throw new Error("Could not get userId.");
+
+        // 1) First: try to accept pending invite if it exists
         const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
           "accept_my_pending_invites"
         );
+
+        console.log("[AUTH] accept_my_pending_invites =", {
+          invitedCompanyId: invitedCompanyId ?? null,
+          error: invErr?.message ?? null,
+        });
+
         if (invErr) throw invErr;
 
         const cidFromInvite = (invitedCompanyId as string | null) ?? null;
 
         if (cidFromInvite) {
           localStorage.setItem("activeCompanyId", cidFromInvite);
-          router.replace("/work-orders");
+
+          const beforeRedirectSession = await supabase.auth.getSession();
+          console.log("[AUTH] session before redirect (invite path) =", {
+            hasSession: !!beforeRedirectSession.data.session,
+            userId: beforeRedirectSession.data.session?.user?.id ?? null,
+            error: beforeRedirectSession.error?.message ?? null,
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 400));
+          window.location.assign("/work-orders");
           return;
         }
 
-        // 2) Si no hubo invite: onboarding owner (si aplica)
+        // 2) If no invite: owner onboarding if needed
         const companyId = await ensureOwnerOnboarding(userId);
+        console.log("[AUTH] ensureOwnerOnboarding companyId =", companyId);
+
         localStorage.setItem("activeCompanyId", companyId);
-        router.replace("/work-orders");
+
+        const beforeRedirectSession = await supabase.auth.getSession();
+        console.log("[AUTH] session before redirect (owner path) =", {
+          hasSession: !!beforeRedirectSession.data.session,
+          userId: beforeRedirectSession.data.session?.user?.id ?? null,
+          error: beforeRedirectSession.error?.message ?? null,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        window.location.assign("/work-orders");
         return;
       }
 
@@ -96,12 +139,11 @@ export default function AuthPage() {
       });
       if (suErr) throw suErr;
 
-      // Si devolvió sesión, seguimos con user actual
+      // If sign up returned a session, continue with current user
       if (su.session) {
         const userId = su.user?.id;
-        if (!userId) throw new Error("No se pudo obtener userId.");
+        if (!userId) throw new Error("Could not get userId.");
 
-        // 1) Intentar aceptar invite
         const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
           "accept_my_pending_invites"
         );
@@ -111,18 +153,17 @@ export default function AuthPage() {
 
         if (cidFromInvite) {
           localStorage.setItem("activeCompanyId", cidFromInvite);
-          router.replace("/work-orders");
+          window.location.assign("/work-orders");
           return;
         }
 
-        // 2) Si no hubo invite: onboarding owner
         const companyId = await ensureOwnerOnboarding(userId);
         localStorage.setItem("activeCompanyId", companyId);
-        router.replace("/work-orders");
+        window.location.assign("/work-orders");
         return;
       }
 
-      // Si no devolvió sesión (email confirmation), hacemos login inmediato (tu fallback)
+      // If sign up did not return a session (email confirmation flow), try sign in
       const { data: si, error: siErr } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -130,9 +171,8 @@ export default function AuthPage() {
       if (siErr) throw siErr;
 
       const userId = si.user?.id;
-      if (!userId) throw new Error("No se pudo obtener userId.");
+      if (!userId) throw new Error("Could not get userId.");
 
-      // 1) Intentar aceptar invite
       const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
         "accept_my_pending_invites"
       );
@@ -142,19 +182,17 @@ export default function AuthPage() {
 
       if (cidFromInvite) {
         localStorage.setItem("activeCompanyId", cidFromInvite);
-        router.replace("/work-orders");
+        window.location.assign("/work-orders");
         return;
       }
 
-      // 2) Si no hubo invite: onboarding owner
       const companyId = await ensureOwnerOnboarding(userId);
       localStorage.setItem("activeCompanyId", companyId);
-      router.replace("/work-orders");
+      window.location.assign("/work-orders");
     } catch (e: any) {
       setMsg(e?.message ?? String(e));
     }
   };
-
   return (
     <div style={{ padding: 24, maxWidth: 520, margin: "0 auto" }}>
       <h1 style={{ fontSize: 26, fontWeight: 750, marginBottom: 8 }}>

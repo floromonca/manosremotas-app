@@ -1,111 +1,192 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+type MembershipRow = {
+  company_id: string;
+  role: string;
+};
+
 function escHtml(value: string | null | undefined) {
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 export async function POST(
-    _req: Request,
-    context: { params: Promise<{ invoiceId: string }> }
+  _req: Request,
+  context: { params: Promise<{ invoiceId: string }> }
 ) {
-    try {
-        const { invoiceId } = await context.params;
+  try {
+    const { invoiceId } = await context.params;
 
-        if (!invoiceId) {
-            return NextResponse.json(
-                { ok: false, error: "invoiceId required" },
-                { status: 400 }
-            );
-        }
+    if (!invoiceId) {
+      return NextResponse.json(
+        { ok: false, error: "Invoice ID is required" },
+        { status: 400 }
+      );
+    }
 
-        const { data, error } = await supabaseAdmin.rpc("get_invoice_full", {
-            p_invoice_id: invoiceId,
-        });
+    const supabase = await createServerSupabase();
 
-        if (error) {
-            console.error("get_invoice_full error:", error);
-            return NextResponse.json(
-                { ok: false, error: "Invoice lookup failed" },
-                { status: 500 }
-            );
-        }
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
 
-        if (!data?.invoice) {
-            return NextResponse.json(
-                { ok: false, error: "Invoice not found" },
-                { status: 404 }
-            );
-        }
+    if (userErr) {
+      console.error("auth.getUser error:", userErr);
+      return NextResponse.json(
+        { ok: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
-        const invoice = data.invoice;
-        const company = data.company ?? {};
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
-        const currentStatus = String(invoice.status ?? "").toLowerCase();
+    const { data: memberships, error: membershipsErr } = await supabase
+      .from("company_members")
+      .select("company_id, role")
+      .eq("user_id", user.id);
 
-        if (!["draft", "sent", "partial", "partially_paid"].includes(currentStatus)) {
-            return NextResponse.json(
-                { ok: false, error: "This invoice cannot be sent." },
-                { status: 400 }
-            );
-        }
+    if (membershipsErr) {
+      console.error("company_members error:", membershipsErr);
+      return NextResponse.json(
+        { ok: false, error: "Access validation failed" },
+        { status: 500 }
+      );
+    }
 
-        const customerEmail = String(invoice.customer_email ?? "").trim();
-        if (!customerEmail) {
-            return NextResponse.json(
-                { ok: false, error: "Customer email missing" },
-                { status: 400 }
-            );
-        }
+    const membershipList = (memberships ?? []) as MembershipRow[];
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-        if (!appUrl) {
-            return NextResponse.json(
-                { ok: false, error: "NEXT_PUBLIC_APP_URL missing" },
-                { status: 500 }
-            );
-        }
+    if (membershipList.length === 0) {
+      return NextResponse.json(
+        { ok: false, error: "User is not linked to any company" },
+        { status: 403 }
+      );
+    }
 
-        const invoiceHtmlUrl = `${appUrl}/api/invoices/${invoiceId}/html?mode=preview`;
-        const invoicePdfUrl = `${appUrl}/api/invoices/${invoiceId}/pdf`;
+    const allowedCompanyIds = membershipList.map((m) => m.company_id);
 
-        const companyName =
-            company.legal_name ||
-            company.company_name ||
-            "ManosRemotas";
+    const { data, error } = await supabaseAdmin.rpc("get_invoice_full", {
+      p_invoice_id: invoiceId,
+    });
 
-        const customerName = invoice.customer_name || "Customer";
-        const invoiceNumber = invoice.invoice_number || invoiceId;
-        const currency = invoice.currency_code || "CAD";
-        const invoiceDate = invoice.invoice_date || invoice.issue_date || "-";
-        const dueDate = invoice.due_date || "-";
+    if (error) {
+      console.error("get_invoice_full error:", error);
+      return NextResponse.json(
+        { ok: false, error: "Invoice lookup failed" },
+        { status: 500 }
+      );
+    }
 
-        const total = Number(invoice.total ?? 0);
-        const balanceDue = Number(invoice.balance_due ?? total);
-        const statusLabel = String(invoice.status ?? "draft")
-            .replaceAll("_", " ")
-            .toUpperCase();
+    if (!data?.invoice) {
+      return NextResponse.json(
+        { ok: false, error: "Invoice not found" },
+        { status: 404 }
+      );
+    }
 
-        const money = (value: number) =>
-            new Intl.NumberFormat(currency === "COP" ? "es-CO" : "en-CA", {
-                style: "currency",
-                currency,
-                minimumFractionDigits: currency === "COP" ? 0 : 2,
-                maximumFractionDigits: currency === "COP" ? 0 : 2,
-            }).format(value);
+    const invoice = data.invoice as any;
+    const company = (data.company ?? {}) as any;
 
-        const emailHtml = `
+    const invoiceCompanyId = invoice.company_id ?? null;
+
+    if (!invoiceCompanyId || !allowedCompanyIds.includes(invoiceCompanyId)) {
+      return NextResponse.json(
+        { ok: false, error: "Access denied for this invoice" },
+        { status: 403 }
+      );
+    }
+
+    const currentUserMembership =
+      membershipList.find((m) => m.company_id === invoiceCompanyId) ?? null;
+
+    const allowedRolesToSend = new Set(["owner", "admin"]);
+
+    if (!currentUserMembership || !allowedRolesToSend.has(currentUserMembership.role)) {
+      return NextResponse.json(
+        { ok: false, error: "You do not have permission to send invoices" },
+        { status: 403 }
+      );
+    }
+
+    const currentStatus = String(invoice.status ?? "draft").trim();
+    const allowedStatuses = new Set([
+      "draft",
+      "sent",
+      "partial",
+      "partially_paid",
+    ]);
+
+    if (!allowedStatuses.has(currentStatus)) {
+      return NextResponse.json(
+        { ok: false, error: "This invoice cannot be sent." },
+        { status: 400 }
+      );
+    }
+
+    const customerEmail = String(invoice.customer_email ?? "").trim();
+    if (!customerEmail) {
+      return NextResponse.json(
+        { ok: false, error: "Customer email missing" },
+        { status: 400 }
+      );
+    }
+
+    const appUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
+
+    if (!appUrl) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "NEXT_PUBLIC_SITE_URL or NEXT_PUBLIC_APP_URL is not configured",
+        },
+        { status: 500 }
+      );
+    }
+
+    const invoiceHtmlUrl = `${appUrl}/api/invoices/${invoiceId}/html?mode=preview`;
+    const invoicePdfUrl = `${appUrl}/api/invoices/${invoiceId}/pdf`;
+
+    const companyName =
+      company.legal_name || company.company_name || "ManosRemotas";
+
+    const customerName = invoice.customer_name || "Customer";
+    const invoiceNumber = invoice.invoice_number || invoiceId;
+    const currency = invoice.currency_code || "CAD";
+    const invoiceDate = invoice.invoice_date || invoice.issue_date || "-";
+    const dueDate = invoice.due_date || "-";
+
+    const total = Number(invoice.total ?? 0);
+    const balanceDue = Number(invoice.balance_due ?? total);
+    const statusLabel = String(invoice.status ?? "draft")
+      .replaceAll("_", " ")
+      .toUpperCase();
+
+    const money = (value: number) =>
+      new Intl.NumberFormat(currency === "COP" ? "es-CO" : "en-CA", {
+        style: "currency",
+        currency,
+        minimumFractionDigits: currency === "COP" ? 0 : 2,
+        maximumFractionDigits: currency === "COP" ? 0 : 2,
+      }).format(value);
+
+    const emailHtml = `
   <div style="margin:0; padding:24px; background:#f4f7fb; font-family:Arial, Helvetica, sans-serif; color:#1f2937;">
     <div style="max-width:680px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:16px; overflow:hidden;">
-      
       <div style="padding:24px 28px; background:linear-gradient(180deg, #fcfcfd 0%, #f8fafc 100%); border-bottom:1px solid #e5e7eb;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
           <div>
@@ -113,7 +194,7 @@ export async function POST(
               ${escHtml(companyName)}
             </div>
             <h1 style="margin:0; font-size:28px; line-height:1.1; color:#111827;">
-              Invoice / Factura ${escHtml(invoiceNumber)}
+              Invoice ${escHtml(invoiceNumber)}
             </h1>
           </div>
 
@@ -126,38 +207,32 @@ export async function POST(
           Hello ${escHtml(customerName)},<br/>
           Please find your invoice details below.
         </p>
-
-        <p style="margin:12px 0 0; font-size:15px; line-height:1.6; color:#344054;">
-          Hola ${escHtml(customerName)},<br/>
-          A continuación encontrarás los detalles de tu factura.
-        </p>
       </div>
 
       <div style="padding:24px 28px;">
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
           <div style="border:1px solid #e5e7eb; border-radius:12px; padding:16px; background:#ffffff;">
             <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#667085; font-weight:800; margin-bottom:10px;">
-              Invoice Details / Detalles de la Factura
+              Invoice Details
             </div>
-            <div style="margin-bottom:6px;"><strong>Invoice Number / Número:</strong> ${escHtml(invoiceNumber)}</div>
-            <div style="margin-bottom:6px;"><strong>Issue Date / Fecha de emisión:</strong> ${escHtml(invoiceDate)}</div>
-            <div><strong>Due Date / Fecha de vencimiento:</strong> ${escHtml(dueDate)}</div>
+            <div style="margin-bottom:6px;"><strong>Invoice Number:</strong> ${escHtml(invoiceNumber)}</div>
+            <div style="margin-bottom:6px;"><strong>Issue Date:</strong> ${escHtml(invoiceDate)}</div>
+            <div><strong>Due Date:</strong> ${escHtml(dueDate)}</div>
           </div>
 
           <div style="border:1px solid #e5e7eb; border-radius:12px; padding:16px; background:#ffffff;">
             <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#667085; font-weight:800; margin-bottom:10px;">
-              Summary / Resumen
+              Summary
             </div>
-            <div style="margin-bottom:6px;"><strong>Company / Empresa:</strong> ${escHtml(companyName)}</div>
+            <div style="margin-bottom:6px;"><strong>Company:</strong> ${escHtml(companyName)}</div>
             <div style="margin-bottom:6px;"><strong>Total:</strong> ${money(total)}</div>
-            <div><strong>Balance Due / Saldo pendiente:</strong> ${money(balanceDue)}</div>
+            <div><strong>Balance Due:</strong> ${money(balanceDue)}</div>
           </div>
         </div>
 
         <div style="border:1px solid #e5e7eb; border-radius:14px; padding:18px; background:#f9fafb; margin-bottom:22px;">
           <div style="font-size:13px; color:#475467; margin-bottom:12px; line-height:1.6;">
-            You can review the invoice online or download the PDF using the buttons below.<br/>
-            Puedes revisar la factura en línea o descargar el PDF usando los botones de abajo.
+            You can review the invoice online or download the PDF using the buttons below.
           </div>
 
           <div style="display:flex; gap:12px; flex-wrap:wrap;">
@@ -165,21 +240,20 @@ export async function POST(
               href="${invoiceHtmlUrl}"
               style="display:inline-block; padding:12px 18px; background:#2563eb; color:#ffffff; text-decoration:none; border-radius:10px; font-weight:800; font-size:14px;"
             >
-              View Invoice / Ver Factura
+              View Invoice
             </a>
 
             <a
               href="${invoicePdfUrl}"
               style="display:inline-block; padding:12px 18px; background:#111827; color:#ffffff; text-decoration:none; border-radius:10px; font-weight:800; font-size:14px;"
             >
-              Download PDF / Descargar PDF
+              Download PDF
             </a>
           </div>
         </div>
 
         <div style="font-size:14px; line-height:1.7; color:#475467;">
-          Thank you for your business.<br/>
-          Gracias por su confianza.
+          Thank you for your business.
         </div>
 
         <div style="margin-top:20px; padding-top:16px; border-top:1px solid #e5e7eb; font-size:13px; color:#667085;">
@@ -192,59 +266,68 @@ export async function POST(
   </div>
 `;
 
-        const { error: sendError, data: sendData } = await resend.emails.send({
-            from: "ManosRemotas <onboarding@resend.dev>",
-            to: [customerEmail],
-            subject:
-                currentStatus === "draft"
-                    ? `Invoice / Factura ${invoiceNumber} – ${money(total)} from ${companyName}`
-                    : `Invoice / Factura ${invoiceNumber} (Resent) – ${money(total)} from ${companyName}`,
-            html: emailHtml,
-        });
-
-        if (sendError) {
-            console.error("resend send error:", sendError);
-            return NextResponse.json(
-                {
-                    ok: false,
-                    error: sendError.message || "Email send failed",
-                },
-                { status: 500 }
-            );
-        }
-
-        const nextStatus = currentStatus === "draft" ? "sent" : invoice.status;
-
-        const { error: updateError } = await supabaseAdmin
-            .from("invoices")
-            .update({
-                status: nextStatus,
-                updated_at: new Date().toISOString(),
-            })
-            .eq("invoice_id", invoiceId);
-
-        if (updateError) {
-            console.error("invoice status update error:", updateError);
-            return NextResponse.json(
-                {
-                    ok: false,
-                    error: "Email sent but invoice status update failed",
-                },
-                { status: 500 }
-            );
-        }
-
-        return NextResponse.json({
-            ok: true,
-            message: "Invoice email sent",
-            resendId: sendData?.id ?? null,
-            status: nextStatus,
-        });
-    } catch (err) {
-        console.error("send invoice route error:", err);
-        return NextResponse.json(
-            { ok: false, error: "Server error" },
-            { status: 500 }
-        );
+    const resendFrom = process.env.RESEND_FROM_EMAIL;
+    if (!resendFrom) {
+      return NextResponse.json(
+        { ok: false, error: "RESEND_FROM_EMAIL missing" },
+        { status: 500 }
+      );
     }
+
+    const { error: sendError, data: sendData } = await resend.emails.send({
+      from: resendFrom,
+      to: [customerEmail],
+      subject:
+        currentStatus === "draft"
+          ? `Invoice ${invoiceNumber} – ${money(total)} from ${companyName}`
+          : `Invoice ${invoiceNumber} (Resent) – ${money(total)} from ${companyName}`,
+      html: emailHtml,
+    });
+
+    if (sendError) {
+      console.error("resend send error:", sendError);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: sendError.message || "Email send failed",
+        },
+        { status: 500 }
+      );
+    }
+
+    const nextStatus = currentStatus === "draft" ? "sent" : invoice.status;
+
+    const { error: updateError } = await supabaseAdmin
+      .from("invoices")
+      .update({
+        status: nextStatus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("invoice_id", invoiceId)
+      .eq("company_id", invoiceCompanyId);
+
+    if (updateError) {
+      console.error("invoice status update error:", updateError);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Email sent but invoice status update failed",
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: "Invoice email sent",
+      resendId: sendData?.id ?? null,
+      status: nextStatus,
+    });
+  } catch (err) {
+    console.error("send invoice route error:", err);
+    return NextResponse.json(
+      { ok: false, error: "Server error" },
+      { status: 500 }
+    );
+  }
 }
