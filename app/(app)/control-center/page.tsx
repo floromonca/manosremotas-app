@@ -13,6 +13,7 @@ import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { checkIn, checkOut, getOpenShift, type ShiftRow } from "../../../lib/supabase/shifts";
 
+
 export default function ControlCenterPage() {
     const router = useRouter();
 
@@ -243,260 +244,390 @@ export default function ControlCenterPage() {
         })}`;
 
     return (
-        <div style={{ padding: 24, maxWidth: 1400 }}>
-            <div style={{ marginBottom: 22 }}>
-                {mounted && prettyDate ? (
-                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                        {prettyDate}
-                    </div>
-                ) : null}
-
-                <h1
+        <div
+            style={{
+                minHeight: "100vh",
+                background: "#f8fafc",
+                padding: 24,
+            }}
+        >
+            <div
+                style={{
+                    maxWidth: 1280,
+                    margin: "0 auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 28,
+                }}
+            >
+                <section
                     style={{
-                        fontSize: 32,
-                        fontWeight: 700,
-                        margin: "0 0 8px 0",
-                        letterSpacing: "-0.02em",
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 18,
+                        padding: 24,
+                        boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
                     }}
                 >
-                    {(companyName && companyName.trim()
-                        ? companyName
-                        : "Your Business")}{" "}
-                    — Control Center
-                </h1>
-
-                <div style={{ color: "#6b7280", fontSize: 15 }}>
-                    {companyId
-                        ? "Live overview of your field operations."
-                        : "No company selected."}
-                </div>
-
-                {!companyId ? (
-                    <button onClick={createCompanyBootstrap} style={primaryButtonStyle}>
-                        + Crear Company (Bootstrap)
-                    </button>
-                ) : null}
-
-                {errorMsg ? (
                     <div
                         style={{
-                            marginTop: 14,
-                            padding: 12,
-                            border: "1px solid #f3caca",
-                            background: "#fff5f5",
-                            borderRadius: 10,
-                            color: "#a40000",
-                            fontSize: 13,
-                        }}
-                    >
-                        <b>Error:</b> {errorMsg}
-                    </div>
-                ) : null}
-
-                {companyId ? (
-                    <div
-                        style={{
-                            marginTop: 16,
-                            marginBottom: 8,
                             display: "flex",
-                            gap: 10,
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 20,
                             flexWrap: "wrap",
                         }}
                     >
-                        <button
-                            type="button"
-                            onClick={() => go("/work-orders")}
-                            style={secondaryButtonStyle}
-                        >
-                            Work Orders
-                        </button>
+                        <div style={{ minWidth: 280, flex: 1 }}>
+                            <div
+                                style={{
+                                    fontSize: 16,
+                                    fontWeight: 700,
+                                    letterSpacing: "-0.01em",
+                                    color: "#2563eb",
+                                    marginBottom: 8,
+                                    lineHeight: 1.2,
+                                }}
+                            >
+                                {companyName || "ManosRemotas"}
+                            </div>
 
-                        <button
-                            type="button"
-                            onClick={() => go("/settings/team")}
-                            style={secondaryButtonStyle}
+                            <h1
+                                style={{
+                                    margin: 0,
+                                    fontSize: 32,
+                                    lineHeight: 1.1,
+                                    fontWeight: 800,
+                                    color: "#0f172a",
+                                }}
+                            >
+                                Control Center
+                            </h1>
+
+                            <p
+                                style={{
+                                    margin: "10px 0 0 0",
+                                    fontSize: 15,
+                                    lineHeight: 1.6,
+                                    color: "#475569",
+                                    maxWidth: 760,
+                                }}
+                            >
+                                Daily visibility across work orders, field activity,
+                                invoicing, and team operations.
+                            </p>
+                        </div>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 10,
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                            }}
                         >
-                            Team
-                        </button>
+                            <button
+                                onClick={() => go("/work-orders")}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #2563eb",
+                                    background: "#2563eb",
+                                    color: "#ffffff",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                    boxShadow: "0 1px 2px rgba(37, 99, 235, 0.18)",
+                                }}
+                            >
+                                Open Work Orders
+                            </button>
+
+                            <button
+                                onClick={() => go("/invoices")}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #dbeafe",
+                                    background: "#eff6ff",
+                                    color: "#1d4ed8",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                }}
+                            >
+                                Open Invoices
+                            </button>
+                        </div>
                     </div>
-                ) : null}
-                {companyId ? (
+                </section>
+
+                <section
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: 16,
+                    }}
+                >
+                    <KpiCard
+                        title="Active Work Orders"
+                        value={loading ? "…" : String(kpis.activeWorkOrders)}
+                        accentColor="#2563eb"
+                        onClick={() => go("/work-orders")}
+                    />
+                    <KpiCard
+                        title="Technicians Working"
+                        value={loading ? "…" : String(kpis.techniciansWorking)}
+                        accentColor="#16a34a"
+                    />
+                    <KpiCard
+                        title="Delayed Orders"
+                        value={loading ? "…" : String(kpis.delayedOrders)}
+                        accentColor="#f59e0b"
+                        onClick={() => go("/work-orders")}
+                    />
+                    <KpiCard
+                        title="Ready to Invoice"
+                        value={loading ? "…" : String(kpis.readyToInvoice)}
+                        accentColor="#0ea5e9"
+                        onClick={() => go("/invoices")}
+                    />
+                    <KpiCard
+                        title="Revenue This Month"
+                        value={loading ? "…" : revenueMonthLabel}
+                        accentColor="#7c3aed"
+                        onClick={() => go("/invoices")}
+                    />
+                </section>
+
+                <section
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)",
+                        gap: 24,
+                        alignItems: "start",
+                    }}
+                >
                     <div
                         style={{
-                            marginTop: 16,
-                            marginBottom: 20,
-                            padding: 16,
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 12,
                             background: "#ffffff",
-                            maxWidth: 560,
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 18,
+                            padding: 22,
+                            boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
                         }}
                     >
-                        <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
-                            Operational Shift
+                        <div style={{ marginBottom: 18 }}>
+                            <h2
+                                style={{
+                                    margin: 0,
+                                    fontSize: 20,
+                                    fontWeight: 700,
+                                    color: "#0f172a",
+                                }}
+                            >
+                                Attention Today
+                            </h2>
+                            <p
+                                style={{
+                                    margin: "6px 0 0 0",
+                                    fontSize: 14,
+                                    color: "#64748b",
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                Priority items that may require action from office or
+                                operations.
+                            </p>
                         </div>
 
-                        <div style={{ fontSize: 14, color: "#4b5563", marginBottom: 12 }}>
-                            {shiftLoading
-                                ? "Verificando jornada..."
-                                : openShift
-                                    ? `Jornada abierta desde ${new Date(openShift.check_in_at).toLocaleString()}`
-                                    : "No tienes jornada abierta."}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                            <ListBlock
+                                title={`Unassigned (${lists.unassigned.length})`}
+                                helper="Work orders without technician assignment."
+                                onOpen={() => go("/work-orders")}
+                                items={lists.unassigned.slice(0, 4).map((x) => ({
+                                    title: x.job_type,
+                                    meta: x.work_order_id.slice(0, 8),
+                                }))}
+                            />
+
+                            <ListBlock
+                                title={`In Progress Too Long (${lists.inProgressOld.length})`}
+                                helper="Open work orders that may need attention."
+                                onOpen={() => go("/work-orders")}
+                                items={lists.inProgressOld.slice(0, 4).map((x) => ({
+                                    title: x.job_type,
+                                    meta: x.work_order_id.slice(0, 8),
+                                }))}
+                            />
+
+                            <ListBlock
+                                title={`Completed, Not Invoiced (${lists.completedNotInvoiced.length})`}
+                                helper="Finished work waiting for invoice action."
+                                onOpen={() => go("/invoices")}
+                                items={lists.completedNotInvoiced.slice(0, 4).map((x) => ({
+                                    title: x.job_type,
+                                    meta: x.work_order_id.slice(0, 8),
+                                }))}
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        style={{
+                            background: "#ffffff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 18,
+                            padding: 22,
+                            boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 18,
+                        }}
+                    >
+                        <div>
+                            <h2
+                                style={{
+                                    margin: 0,
+                                    fontSize: 20,
+                                    fontWeight: 700,
+                                    color: "#0f172a",
+                                }}
+                            >
+                                Operational Shift
+                            </h2>
+                            <p
+                                style={{
+                                    margin: "6px 0 0 0",
+                                    fontSize: 14,
+                                    color: "#64748b",
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                Track your current shift status directly from Control
+                                Center.
+                            </p>
                         </div>
 
-                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                            {!openShift ? (
-                                <button
-                                    type="button"
-                                    onClick={handleCheckIn}
-                                    disabled={shiftBusy || shiftLoading}
-                                    style={primaryButtonStyle}
-                                >
-                                    {shiftBusy ? "Procesando..." : "Check-in"}
-                                </button>
+                        <div
+                            style={{
+                                display: "inline-flex",
+                                alignSelf: "flex-start",
+                                padding: "7px 12px",
+                                borderRadius: 999,
+                                fontSize: 13,
+                                fontWeight: 700,
+                                background: openShift ? "#dcfce7" : "#e2e8f0",
+                                color: openShift ? "#166534" : "#475569",
+                            }}
+                        >
+                            {openShift ? "On Shift" : "Off Shift"}
+                        </div>
+
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 12,
+                                color: "#334155",
+                                fontSize: 14,
+                                lineHeight: 1.6,
+                            }}
+                        >
+                            {openShift ? (
+                                <>
+                                    <div>
+                                        <strong>Started:</strong>{" "}
+                                        {new Date(openShift.check_in_at).toLocaleString()}
+                                    </div>
+                                    {openShift.note ? (
+                                        <div>
+                                            <strong>Note:</strong> {openShift.note}
+                                        </div>
+                                    ) : null}
+                                </>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleCheckOut}
-                                    disabled={shiftBusy || shiftLoading}
-                                    style={secondaryButtonStyle}
-                                >
-                                    {shiftBusy ? "Procesando..." : "Check-out"}
-                                </button>
+                                <div>
+                                    No active shift right now. Start your shift when
+                                    you begin supervising or operating work.
+                                </div>
                             )}
                         </div>
 
-                        {shiftMsg ? (
-                            <div
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 10,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            {openShift ? (
+                                <button
+                                    onClick={handleCheckOut}
+                                    disabled={shiftBusy}
+                                    style={{
+                                        padding: "10px 14px",
+                                        borderRadius: 10,
+                                        border: "1px solid #dc2626",
+                                        background: "#dc2626",
+                                        color: "#ffffff",
+                                        cursor: shiftBusy ? "not-allowed" : "pointer",
+                                        fontWeight: 700,
+                                        opacity: shiftBusy ? 0.7 : 1,
+                                    }}
+                                >
+                                    {shiftBusy ? "Checking out..." : "Check Out"}
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleCheckIn}
+                                    disabled={shiftBusy}
+                                    style={{
+                                        padding: "10px 14px",
+                                        borderRadius: 10,
+                                        border: "1px solid #2563eb",
+                                        background: "#2563eb",
+                                        color: "#ffffff",
+                                        cursor: shiftBusy ? "not-allowed" : "pointer",
+                                        fontWeight: 700,
+                                        opacity: shiftBusy ? 0.7 : 1,
+                                    }}
+                                >
+                                    {shiftBusy ? "Checking in..." : "Check In"}
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => go("/my-day")}
                                 style={{
-                                    marginTop: 12,
-                                    fontSize: 13,
-                                    color: shiftMsg.toLowerCase().includes("error") ? "#a40000" : "#374151",
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #cbd5e1",
+                                    background: "#ffffff",
+                                    color: "#0f172a",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
                                 }}
                             >
-                                {shiftMsg}
-                            </div>
-                        ) : null}
+                                Open My Day
+                            </button>
+                        </div>
                     </div>
-                ) : null}
-            </div>
+                </section>
 
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                    gap: 16,
-                    marginBottom: 28,
-                }}
-            >
-                <KpiCard
-                    title="Active Work Orders"
-                    value={loading ? "…" : String(kpis.activeWorkOrders)}
-                    accentColor="#3b82f6"
-                    onClick={companyId ? () => go("/work-orders?filter=active") : undefined}
-                />
-
-                <KpiCard
-                    title="Technicians Working"
-                    value={loading ? "…" : String(kpis.techniciansWorking)}
-                    accentColor="#10b981"
-                />
-
-                <KpiCard
-                    title="Delayed Orders"
-                    value={loading ? "…" : String(kpis.delayedOrders)}
-                    accentColor={kpis.delayedOrders > 0 ? "#ef4444" : undefined}
-                    onClick={companyId ? () => go("/work-orders?filter=delayed") : undefined}
-                />
-
-                <KpiCard
-                    title="Ready to Invoice"
-                    value={loading ? "…" : String(kpis.readyToInvoice)}
-                    accentColor={kpis.readyToInvoice > 0 ? "#f59e0b" : undefined}
-                    onClick={
-                        companyId ? () => go("/work-orders?filter=ready_to_invoice") : undefined
-                    }
-                />
-
-                <KpiCard
-                    title="Completed, Not Invoiced"
-                    value={loading ? "…" : String(lists.completedNotInvoiced.length)}
-                    accentColor={lists.completedNotInvoiced.length > 0 ? "#fbbf24" : undefined}
-                    onClick={
-                        companyId ? () => go("/work-orders?filter=ready_to_invoice") : undefined
-                    }
-                />
-
-                <KpiCard
-                    title="Revenue This Month"
-                    value={revenueMonthLabel}
-                    accentColor="#14b8a6"
-                />
-            </div>
-
-            <section style={{ marginBottom: 28 }}>
-                <div style={{ marginBottom: 12 }}>
-                    <h2
-                        style={{
-                            fontSize: 20,
-                            fontWeight: 700,
-                            margin: 0,
-                            letterSpacing: "-0.01em",
-                        }}
-                    >
-                        Attention Today
-                    </h2>
-
-                    <div style={{ color: "#6b7280", fontSize: 14, marginTop: 4 }}>
-                        Review exceptions and jump into filtered work orders.
-                    </div>
+                <div
+                    style={{
+                        fontSize: 13,
+                        color: "#64748b",
+                        padding: "0 4px",
+                    }}
+                >
+                    ManosRemotas gives you a live view of work orders, team activity,
+                    and invoicing in one place.
                 </div>
-
-                {loading ? (
-                    <div style={{ color: "#6b7280" }}>Loading…</div>
-                ) : !companyId ? (
-                    <div style={{ color: "#6b7280" }}>No company selected.</div>
-                ) : (
-                    <div style={{ display: "grid", gap: 14 }}>
-                        <ListBlock
-                            title={`Unassigned (${lists.unassigned.length})`}
-                            helper="Work orders without technician assignment."
-                            onOpen={() => go("/work-orders?filter=unassigned")}
-                            items={lists.unassigned.map((x) => ({
-                                title: x.job_type,
-                                meta: x.work_order_id.slice(0, 8),
-                            }))}
-                        />
-
-                        <ListBlock
-                            title={`In progress > 3 days (${lists.inProgressOld.length})`}
-                            helper="Open work orders that may need attention."
-                            onOpen={() => go("/work-orders?filter=delayed")}
-                            items={lists.inProgressOld.map((x) => ({
-                                title: x.job_type,
-                                meta: x.work_order_id.slice(0, 8),
-                            }))}
-                        />
-
-                        <ListBlock
-                            title={`Completed, not invoiced (${lists.completedNotInvoiced.length})`}
-                            helper="Finished work waiting for invoice action."
-                            onOpen={() => go("/work-orders?filter=ready_to_invoice")}
-                            items={lists.completedNotInvoiced.map((x) => ({
-                                title: x.job_type,
-                                meta: x.work_order_id.slice(0, 8),
-                            }))}
-                        />
-                    </div>
-                )}
-            </section>
-
-            <div style={{ color: "#6b7280", fontSize: 13 }}>
-                Control Center is for supervision and navigation. Operational actions
-                should happen in Work Orders.
             </div>
         </div>
     );
+
 }
 
 function KpiCard({
@@ -516,44 +647,82 @@ function KpiCard({
         <div
             onClick={onClick}
             style={{
-                padding: 18,
-                border: "1px solid #e5e7eb",
-                borderLeft: accentColor ? `4px solid ${accentColor}` : "1px solid #e5e7eb",
-                borderRadius: 12,
-                background: "#fff",
+                padding: 20,
+                border: "1px solid #e2e8f0",
+                borderRadius: 16,
+                background: "#ffffff",
                 cursor: clickable ? "pointer" : "default",
-                transition: "all 0.15s ease",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                transition: "transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease",
+                boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+                minHeight: 118,
+                position: "relative",
+                overflow: "hidden",
             }}
             onMouseEnter={(e) => {
                 if (!clickable) return;
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow = "0 6px 18px rgba(0,0,0,0.06)";
+                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.boxShadow = "0 12px 24px rgba(15, 23, 42, 0.08)";
+                e.currentTarget.style.borderColor = "#cbd5e1";
             }}
             onMouseLeave={(e) => {
                 if (!clickable) return;
                 e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "0 1px 2px rgba(0,0,0,0.03)";
+                e.currentTarget.style.boxShadow = "0 1px 2px rgba(15, 23, 42, 0.04)";
+                e.currentTarget.style.borderColor = "#e2e8f0";
             }}
         >
-            <div style={{ fontSize: 14, color: "#6b7280", minHeight: 18 }}>
+            <div
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 4,
+                    background: accentColor || "#e2e8f0",
+                }}
+            />
+
+            <div
+                style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    lineHeight: 1.4,
+                    paddingTop: 2,
+                }}
+            >
                 {title}
             </div>
 
-            <div style={{ fontSize: 32, fontWeight: 700, marginTop: 8 }}>{value}</div>
+            <div
+                style={{
+                    fontSize: 38,
+                    lineHeight: 1,
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    letterSpacing: "-0.03em",
+                }}
+            >
+                {value}
+            </div>
 
             {clickable ? (
                 <div
                     style={{
-                        marginTop: 10,
+                        marginTop: "auto",
                         fontSize: 13,
-                        color: "#111827",
-                        fontWeight: 600,
+                        color: "#0f172a",
+                        fontWeight: 700,
                     }}
                 >
                     View →
                 </div>
-            ) : null}
+            ) : (
+                <div style={{ marginTop: "auto", height: 18 }} />
+            )}
         </div>
     );
 }
@@ -569,96 +738,187 @@ function ListBlock({
     items: { title: string; meta?: string }[];
     onOpen?: () => void;
 }) {
+    const [expanded, setExpanded] = useState(false);
+
     return (
         <div
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-                background: "#fafafa",
+                border: "1px solid #e2e8f0",
+                borderRadius: 14,
+                background: "#f8fafc",
+                overflow: "hidden",
             }}
         >
             <div
+                onClick={() => setExpanded((v) => !v)}
                 style={{
-                    marginBottom: 10,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 12,
+                    width: "100%",
+                    padding: 16,
+                    background: "transparent",
+                    cursor: "pointer",
+                    textAlign: "left",
                 }}
             >
-                <div>
-                    <div style={{ fontWeight: 700, fontSize: 18 }}>{title}</div>
-                    {helper ? (
-                        <div style={{ marginTop: 4, fontSize: 13, color: "#6b7280" }}>
-                            {helper}
-                        </div>
-                    ) : null}
-                </div>
-
-                {onOpen ? (
-                    <button onClick={onOpen} style={secondaryButtonStyle}>
-                        View →
-                    </button>
-                ) : null}
-            </div>
-
-            {items.length === 0 ? (
                 <div
                     style={{
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        background: "#fff",
-                        border: "1px solid #eee",
-                        color: "#6b7280",
-                        fontSize: 13,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 12,
+                        flexWrap: "wrap",
                     }}
                 >
-                    Nothing here ✅
-                </div>
-            ) : (
-                <div style={{ display: "grid", gap: 8 }}>
-                    {items.map((it, idx) => (
+                    <div style={{ minWidth: 220 }}>
                         <div
-                            key={idx}
-                            onClick={onOpen ? () => onOpen() : undefined}
                             style={{
-                                padding: "10px 12px",
-                                background: "#fff",
-                                border: "1px solid #eee",
-                                borderRadius: 10,
-                                cursor: onOpen ? "pointer" : "default",
-                                transition: "background 0.15s ease",
-                            }}
-                            onMouseEnter={(e) => {
-                                if (onOpen) e.currentTarget.style.background = "#f4f4f5";
-                            }}
-                            onMouseLeave={(e) => {
-                                if (onOpen) e.currentTarget.style.background = "#fff";
+                                fontWeight: 700,
+                                fontSize: 20,
+                                color: "#0f172a",
+                                lineHeight: 1.2,
                             }}
                         >
-                            <div style={{ fontWeight: 500 }}>{it.title}</div>
+                            {title}
+                        </div>
 
-                            {it.meta ? (
+                        {helper ? (
+                            <div
+                                style={{
+                                    marginTop: 6,
+                                    fontSize: 13,
+                                    color: "#64748b",
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                {helper}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            marginLeft: "auto",
+                        }}
+                    >
+                        {onOpen ? (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onOpen();
+                                }}
+                                style={{
+                                    padding: "10px 14px",
+                                    borderRadius: 10,
+                                    border: "1px solid #cbd5e1",
+                                    background: "#ffffff",
+                                    color: "#0f172a",
+                                    cursor: "pointer",
+                                    fontWeight: 700,
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                View →
+                            </button>
+                        ) : null}
+
+                        <div
+                            style={{
+                                fontSize: 18,
+                                color: "#64748b",
+                                fontWeight: 700,
+                                lineHeight: 1,
+                                padding: "6px 4px",
+                                minWidth: 18,
+                                textAlign: "center",
+                            }}
+                        >
+                            {expanded ? "−" : "+"}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {expanded ? (
+                <div style={{ padding: "0 16px 16px 16px" }}>
+                    {items.length === 0 ? (
+                        <div
+                            style={{
+                                padding: "14px 16px",
+                                borderRadius: 12,
+                                background: "#ffffff",
+                                border: "1px dashed #cbd5e1",
+                                color: "#64748b",
+                                fontSize: 13,
+                            }}
+                        >
+                            Nothing here right now.
+                        </div>
+                    ) : (
+                        <div style={{ display: "grid", gap: 10 }}>
+                            {items.map((it, idx) => (
                                 <div
+                                    key={idx}
+                                    onClick={onOpen ? () => onOpen() : undefined}
                                     style={{
-                                        marginTop: 6,
-                                        fontFamily: "monospace",
-                                        fontSize: 12,
-                                        display: "inline-block",
-                                        padding: "2px 6px",
-                                        borderRadius: 6,
-                                        background: "#f3f4f6",
-                                        color: "#374151",
+                                        padding: "14px 16px",
+                                        background: "#ffffff",
+                                        border: "1px solid #e2e8f0",
+                                        borderRadius: 12,
+                                        cursor: onOpen ? "pointer" : "default",
+                                        transition:
+                                            "background 0.15s ease, border-color 0.15s ease, transform 0.15s ease",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        if (!onOpen) return;
+                                        e.currentTarget.style.background = "#f8fafc";
+                                        e.currentTarget.style.borderColor = "#cbd5e1";
+                                        e.currentTarget.style.transform = "translateY(-1px)";
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        if (!onOpen) return;
+                                        e.currentTarget.style.background = "#ffffff";
+                                        e.currentTarget.style.borderColor = "#e2e8f0";
+                                        e.currentTarget.style.transform = "translateY(0)";
                                     }}
                                 >
-                                    WO #{it.meta}
+                                    <div
+                                        style={{
+                                            fontWeight: 600,
+                                            fontSize: 15,
+                                            color: "#0f172a",
+                                            lineHeight: 1.4,
+                                        }}
+                                    >
+                                        {it.title}
+                                    </div>
+
+                                    {it.meta ? (
+                                        <div
+                                            style={{
+                                                marginTop: 8,
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                padding: "4px 8px",
+                                                borderRadius: 999,
+                                                background: "#f1f5f9",
+                                                color: "#475569",
+                                                fontFamily: "monospace",
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                            }}
+                                        >
+                                            WO {it.meta}
+                                        </div>
+                                    ) : null}
                                 </div>
-                            ) : null}
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

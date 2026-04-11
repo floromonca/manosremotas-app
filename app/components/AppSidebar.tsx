@@ -9,7 +9,6 @@ export default function AppSidebar() {
     const { myRole } = useActiveCompany();
 
     const isAdmin = myRole === "owner" || myRole === "admin";
-    const isTech = myRole === "tech";
 
     const Item = ({ href, label }: { href: string; label: string }) => {
         const active = pathname.startsWith(href);
@@ -53,23 +52,6 @@ export default function AppSidebar() {
             <Item href="/profile" label="Profile" />
 
             {isAdmin ? (
-                <>
-                    <Item href="/customers" label="Customers" />
-                    <Item href="/invoices" label="Invoices" />
-
-                    <div
-                        style={{
-                            height: 10,
-                            opacity: 0.3,
-                            borderTop: "1px solid #475569",
-                        }}
-                    />
-
-                    <Item href="/settings" label="Settings" />
-                </>
-            ) : null}
-
-            {!isAdmin && !isTech ? (
                 <>
                     <Item href="/customers" label="Customers" />
                     <Item href="/invoices" label="Invoices" />

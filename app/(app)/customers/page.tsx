@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import Link from "next/link";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
+import { useRouter } from "next/navigation";
+import { useAuthState } from "../../../hooks/useAuthState";
 
 type Customer = {
     customer_id: string;
@@ -13,10 +15,28 @@ type Customer = {
 };
 
 export default function CustomersPage() {
-    const { companyId, companyName } = useActiveCompany();
+    const router = useRouter();
+    const { user, authLoading } = useAuthState();
+    const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
 
+
+    useEffect(() => {
+        if (authLoading) return;
+
+        if (!user) {
+            router.replace("/auth");
+            return;
+        }
+
+        if (isLoadingCompany) return;
+
+        if (myRole !== "owner" && myRole !== "admin") {
+            router.replace("/work-orders");
+            return;
+        }
+    }, [authLoading, user?.id, isLoadingCompany, myRole, router]);
     async function loadCustomers() {
         setLoading(true);
 
@@ -70,8 +90,10 @@ export default function CustomersPage() {
     }
 
     useEffect(() => {
+        if (!companyId) return;
+        if (myRole !== "owner" && myRole !== "admin") return;
         loadCustomers();
-    }, [companyId]);
+    }, [companyId, myRole]);
 
     return (
         <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>

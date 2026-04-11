@@ -58,32 +58,58 @@ export default function InvoiceDetailsCard({
     prettyStatus,
     statusBadgeStyle,
 }: Props) {
+    const totalAmount = Number(inv.total ?? totals.total ?? 0);
+    const balanceAmount = Number(inv.balance_due ?? totals.balance ?? 0);
+    const subtotalAmount = Number(inv.subtotal ?? totals.subtotal ?? 0);
+    const taxAmount = Number(inv.tax_total ?? totals.tax ?? 0);
+
+    const progressPercent =
+        totalAmount > 0
+            ? Math.min(100, Math.round((paymentsTotal / Math.max(totalAmount, 1)) * 100))
+            : 0;
+
     return (
-        <div
+        <section
             style={{
-                marginTop: 16,
-                padding: 14,
-                borderRadius: 12,
-                border: "1px solid #eee",
-                background: "white",
+                border: "1px solid #e5e7eb",
+                borderRadius: 20,
+                background: "#ffffff",
+                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                padding: 20,
             }}
         >
-            <div style={{ display: "grid", gap: 12 }}>
+            <div style={{ display: "grid", gap: 18 }}>
                 <div
                     style={{
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-start",
-                        gap: 12,
+                        gap: 16,
                         flexWrap: "wrap",
                     }}
                 >
-                    <div style={{ display: "grid", gap: 6 }}>
-                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
-                            INVOICE
+                    <div style={{ display: "grid", gap: 8 }}>
+                        <div
+                            style={{
+                                fontSize: 12,
+                                textTransform: "uppercase",
+                                letterSpacing: 1.1,
+                                color: "#6b7280",
+                                fontWeight: 800,
+                            }}
+                        >
+                            Billing & Totals
                         </div>
-                        <div style={{ fontSize: 24, fontWeight: 900, lineHeight: 1.1 }}>
-                            {inv.invoice_number ?? "—"}
+
+                        <div
+                            style={{
+                                fontSize: 24,
+                                lineHeight: 1.15,
+                                fontWeight: 900,
+                                color: "#111827",
+                            }}
+                        >
+                            Invoice Summary
                         </div>
 
                         <div
@@ -94,132 +120,98 @@ export default function InvoiceDetailsCard({
                                 alignItems: "center",
                                 color: "#4b5563",
                                 fontSize: 14,
+                                lineHeight: 1.6,
                             }}
                         >
-                            <span><b>Customer:</b> {inv.customer_name ?? "—"}</span>
-                            {inv.invoice_date ? <span>• <b>Issued:</b> {inv.invoice_date}</span> : null}
-                            {inv.due_date ? <span>• <b>Due:</b> {inv.due_date}</span> : null}
-                            <span>• <b>Currency:</b> {inv.currency_code ?? "—"}</span>
+                            <span>
+                                <b style={{ color: "#111827" }}>Customer:</b> {inv.customer_name ?? "—"}
+                            </span>
+                            <span>
+                                • <b style={{ color: "#111827" }}>Currency:</b> {inv.currency_code ?? "—"}
+                            </span>
+                            {inv.customer_phone ? (
+                                <span>
+                                    • <b style={{ color: "#111827" }}>Tel:</b> {inv.customer_phone}
+                                </span>
+                            ) : null}
                         </div>
 
-                        {(inv.customer_phone || inv.billing_address) ? (
+                        {inv.billing_address ? (
                             <div
                                 style={{
-                                    display: "flex",
-                                    gap: 8,
-                                    flexWrap: "wrap",
                                     color: "#6b7280",
                                     fontSize: 13,
+                                    lineHeight: 1.6,
+                                    maxWidth: 760,
                                 }}
                             >
-                                {inv.customer_phone ? <span><b>Tel:</b> {inv.customer_phone}</span> : null}
-                                {inv.billing_address ? <span>• <b>Address:</b> {inv.billing_address}</span> : null}
+                                <b style={{ color: "#111827" }}>Billing address:</b> {inv.billing_address}
                             </div>
                         ) : null}
                     </div>
 
-                    <span
-                        style={{
-                            padding: "6px 12px",
-                            borderRadius: 999,
-                            fontSize: 12,
-                            fontWeight: 900,
-                            letterSpacing: 0.3,
-                            whiteSpace: "nowrap",
-                            ...statusBadgeStyle(inv.status),
-                        }}
-                    >
-                        {prettyStatus(inv.status)}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "flex-start" }}>
+                        <span
+                            style={{
+                                padding: "7px 12px",
+                                borderRadius: 999,
+                                fontSize: 12,
+                                fontWeight: 900,
+                                letterSpacing: 0.3,
+                                whiteSpace: "nowrap",
+                                ...statusBadgeStyle(inv.status),
+                            }}
+                        >
+                            {prettyStatus(inv.status)}
+                        </span>
+                    </div>
                 </div>
 
                 {!isDraft ? (
                     <div
                         style={{
-                            padding: "10px 12px",
-                            borderRadius: 10,
+                            padding: "12px 14px",
+                            borderRadius: 14,
                             background: "#fff7e6",
-                            border: "1px solid #ffe1a8",
+                            border: "1px solid #fde3a7",
                             fontWeight: 700,
                             fontSize: 14,
+                            color: "#7c4a03",
                         }}
                     >
-                        This invoice is in <b>{prettyStatus(inv.status)}</b> status. It is currently read-only.
+                        This invoice is in <b>{prettyStatus(inv.status)}</b> status and is currently read-only.
                     </div>
                 ) : null}
 
                 <div
                     style={{
                         display: "grid",
-                        gap: 6,
-                        padding: 12,
-                        borderRadius: 10,
-                        border: "1px solid #eee",
-                        background: "#fafafa",
-                    }}
-                >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
-                        BILLING EMAIL
-                    </div>
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                        <input
-                            type="email"
-                            value={billingEmail}
-                            onChange={(e) => onChangeBillingEmail(e.target.value)}
-                            placeholder="customer@example.com"
-                            style={{
-                                padding: "10px 12px",
-                                borderRadius: 8,
-                                border: "1px solid #ddd",
-                                minWidth: 280,
-                                flex: "1 1 320px",
-                                background: "white",
-                            }}
-                        />
-
-                        <button
-                            type="button"
-                            onClick={onSaveBillingEmail}
-                            disabled={savingBillingEmail || !inv?.invoice_id}
-                            style={{
-                                padding: "10px 14px",
-                                borderRadius: 10,
-                                border: "1px solid #111",
-                                background: "#111",
-                                color: "white",
-                                cursor: savingBillingEmail ? "not-allowed" : "pointer",
-                                fontWeight: 800,
-                                opacity: savingBillingEmail ? 0.7 : 1,
-                                whiteSpace: "nowrap",
-                            }}
-                        >
-                            {savingBillingEmail ? "Saving..." : "Save Billing Email"}
-                        </button>
-                    </div>
-                </div>
-
-                <hr style={{ margin: "2px 0 0", border: "none", borderTop: "1px solid #eee" }} />
-
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, 1fr)",
-                        gap: 12,
-                        marginBottom: 14,
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: 14,
                     }}
                 >
                     <div
                         style={{
                             background: "#f8fafc",
-                            border: "1px solid #eee",
-                            borderRadius: 10,
-                            padding: 12,
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 14,
+                            padding: 16,
                         }}
                     >
-                        <div style={{ fontSize: 11, opacity: 0.7 }}>TOTAL</div>
-                        <div style={{ fontSize: 18, fontWeight: 900 }}>
-                            {money(inv.total ?? totals.total, inv.currency_code)}
+                        <div
+                            style={{
+                                fontSize: 11,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.8,
+                                color: "#6b7280",
+                                fontWeight: 800,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Total
+                        </div>
+                        <div style={{ fontSize: 28, fontWeight: 900, color: "#111827", lineHeight: 1.1 }}>
+                            {money(totalAmount, inv.currency_code)}
                         </div>
                     </div>
 
@@ -227,12 +219,23 @@ export default function InvoiceDetailsCard({
                         style={{
                             background: "#f0fdf4",
                             border: "1px solid #bbf7d0",
-                            borderRadius: 10,
-                            padding: 12,
+                            borderRadius: 14,
+                            padding: 16,
                         }}
                     >
-                        <div style={{ fontSize: 11, opacity: 0.7 }}>PAID</div>
-                        <div style={{ fontSize: 18, fontWeight: 900 }}>
+                        <div
+                            style={{
+                                fontSize: 11,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.8,
+                                color: "#166534",
+                                fontWeight: 800,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Paid
+                        </div>
+                        <div style={{ fontSize: 28, fontWeight: 900, color: "#111827", lineHeight: 1.1 }}>
                             {money(paymentsTotal, inv.currency_code)}
                         </div>
                     </div>
@@ -241,68 +244,235 @@ export default function InvoiceDetailsCard({
                         style={{
                             background: "#fff7ed",
                             border: "1px solid #fed7aa",
-                            borderRadius: 10,
-                            padding: 12,
+                            borderRadius: 14,
+                            padding: 16,
                         }}
                     >
-                        <div style={{ fontSize: 11, opacity: 0.7 }}>BALANCE</div>
-                        <div style={{ fontSize: 18, fontWeight: 900 }}>
-                            {money(inv.balance_due ?? totals.balance, inv.currency_code)}
+                        <div
+                            style={{
+                                fontSize: 11,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.8,
+                                color: "#9a3412",
+                                fontWeight: 800,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Balance
+                        </div>
+                        <div style={{ fontSize: 28, fontWeight: 900, color: "#111827", lineHeight: 1.1 }}>
+                            {money(balanceAmount, inv.currency_code)}
                         </div>
                     </div>
                 </div>
 
-                <div>
-                    <b>Subtotal:</b> {money(inv.subtotal ?? totals.subtotal, inv.currency_code)}
-                </div>
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(280px, 1.25fr) minmax(260px, 0.95fr)",
+                        gap: 16,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 10,
+                            padding: 16,
+                            borderRadius: 16,
+                            border: "1px solid #e5e7eb",
+                            background: "#fcfcfd",
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 12,
+                                textTransform: "uppercase",
+                                letterSpacing: 1,
+                                color: "#6b7280",
+                                fontWeight: 800,
+                            }}
+                        >
+                            Billing Email
+                        </div>
 
-                <div>
-                    <b>Tax:</b> {money(inv.tax_total ?? totals.tax, inv.currency_code)}
-                </div>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 10,
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                            }}
+                        >
+                            <input
+                                type="email"
+                                value={billingEmail}
+                                onChange={(e) => onChangeBillingEmail(e.target.value)}
+                                placeholder="customer@example.com"
+                                style={{
+                                    padding: "12px 14px",
+                                    borderRadius: 12,
+                                    border: "1px solid #d1d5db",
+                                    minWidth: 280,
+                                    flex: "1 1 320px",
+                                    background: "#ffffff",
+                                    fontSize: 14,
+                                    color: "#111827",
+                                    boxSizing: "border-box",
+                                }}
+                            />
 
-                <div>
-                    <b>Total:</b> {money(inv.total ?? totals.total, inv.currency_code)}
-                </div>
-
-                {depositRequired > 0 ? (
-                    <div>
-                        <b>Deposit Required:</b> {money(depositRequired, inv.currency_code)}
+                            <button
+                                type="button"
+                                onClick={onSaveBillingEmail}
+                                disabled={savingBillingEmail || !inv?.invoice_id}
+                                style={{
+                                    height: 44,
+                                    padding: "0 16px",
+                                    borderRadius: 12,
+                                    border: "1px solid #111827",
+                                    background: "#111827",
+                                    color: "#ffffff",
+                                    cursor: savingBillingEmail ? "not-allowed" : "pointer",
+                                    fontWeight: 800,
+                                    opacity: savingBillingEmail ? 0.7 : 1,
+                                    whiteSpace: "nowrap",
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                                }}
+                            >
+                                {savingBillingEmail ? "Saving..." : "Save Billing Email"}
+                            </button>
+                        </div>
                     </div>
-                ) : null}
 
-                {paymentsTotal > 0 ? (
-                    <div>
-                        <b>Payments Received:</b> {money(paymentsTotal, inv.currency_code)}
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 10,
+                            padding: 16,
+                            borderRadius: 16,
+                            border: "1px solid #e5e7eb",
+                            background: "#ffffff",
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 12,
+                                textTransform: "uppercase",
+                                letterSpacing: 1,
+                                color: "#6b7280",
+                                fontWeight: 800,
+                            }}
+                        >
+                            Financial Breakdown
+                        </div>
+
+                        <div
+                            style={{
+                                display: "grid",
+                                gap: 10,
+                                fontSize: 14,
+                                color: "#374151",
+                            }}
+                        >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                <span>Subtotal</span>
+                                <strong style={{ color: "#111827" }}>
+                                    {money(subtotalAmount, inv.currency_code)}
+                                </strong>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                <span>Tax</span>
+                                <strong style={{ color: "#111827" }}>
+                                    {money(taxAmount, inv.currency_code)}
+                                </strong>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                <span>Total</span>
+                                <strong style={{ color: "#111827" }}>
+                                    {money(totalAmount, inv.currency_code)}
+                                </strong>
+                            </div>
+
+                            {depositRequired > 0 ? (
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                    <span>Deposit Required</span>
+                                    <strong style={{ color: "#111827" }}>
+                                        {money(depositRequired, inv.currency_code)}
+                                    </strong>
+                                </div>
+                            ) : null}
+
+                            {paymentsTotal > 0 ? (
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                    <span>Payments Received</span>
+                                    <strong style={{ color: "#111827" }}>
+                                        {money(paymentsTotal, inv.currency_code)}
+                                    </strong>
+                                </div>
+                            ) : null}
+
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    gap: 12,
+                                    paddingTop: 10,
+                                    borderTop: "1px solid #e5e7eb",
+                                    fontSize: 15,
+                                }}
+                            >
+                                <span style={{ fontWeight: 800, color: "#111827" }}>Balance Due</span>
+                                <strong style={{ color: "#111827", fontSize: 16 }}>
+                                    {money(balanceAmount, inv.currency_code)}
+                                </strong>
+                            </div>
+                        </div>
                     </div>
-                ) : null}
-
-                <div>
-                    <b>Balance Due:</b> {money(inv.balance_due ?? totals.balance, inv.currency_code)}
                 </div>
 
-                {(inv.total ?? totals.total) > 0 ? (
-                    <div style={{ marginTop: 14 }}>
+                {totalAmount > 0 ? (
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 8,
+                            padding: 16,
+                            borderRadius: 16,
+                            border: "1px solid #e5e7eb",
+                            background: "#ffffff",
+                        }}
+                    >
                         <div
                             style={{
                                 display: "flex",
                                 justifyContent: "space-between",
                                 alignItems: "center",
-                                marginBottom: 6,
-                                fontSize: 12,
-                                fontWeight: 700,
-                                color: "#555",
+                                gap: 12,
+                                flexWrap: "wrap",
                             }}
                         >
-                            <span>Payment Progress</span>
-                            <span>
-                                {Math.min(
-                                    100,
-                                    Math.round(
-                                        (paymentsTotal / Math.max(Number(inv.total ?? totals.total), 1)) * 100
-                                    )
-                                )}
-                                %
-                            </span>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 1,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Payment Progress
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    fontWeight: 800,
+                                    color: "#374151",
+                                }}
+                            >
+                                {progressPercent}%
+                            </div>
                         </div>
 
                         <div
@@ -317,12 +487,8 @@ export default function InvoiceDetailsCard({
                             <div
                                 style={{
                                     height: "100%",
-                                    width: `${Math.min(
-                                        100,
-                                        (paymentsTotal / Math.max(Number(inv.total ?? totals.total), 1)) * 100
-                                    )}%`,
-                                    background:
-                                        (inv.balance_due ?? totals.balance) <= 0 ? "#10b981" : "#2563eb",
+                                    width: `${progressPercent}%`,
+                                    background: balanceAmount <= 0 ? "#10b981" : "#2563eb",
                                     transition: "width 0.25s ease",
                                 }}
                             />
@@ -330,6 +496,6 @@ export default function InvoiceDetailsCard({
                     </div>
                 ) : null}
             </div>
-        </div>
+        </section>
     );
 }

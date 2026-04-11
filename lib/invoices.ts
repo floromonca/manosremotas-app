@@ -1296,30 +1296,31 @@ tr{
   </div>
 
   <div class="section-grid">
-    <div class="card">
-      <h3>Bill To</h3>
-      <strong>${escHtml(invoice.customer_name || "—")}</strong>
-      ${invoice.customer_email ? `<div>${escHtml(invoice.customer_email)}</div>` : ""}
-      ${invoice.customer_phone ? `<div>${escHtml(invoice.customer_phone)}</div>` : ""}
-    </div>
+  <div class="card">
+    <h3>Bill To</h3>
+    <strong>${escHtml(invoice.customer_name || "—")}</strong>
+    ${invoice.customer_email ? `<div>${escHtml(invoice.customer_email)}</div>` : ""}
+    ${invoice.customer_phone ? `<div>${escHtml(invoice.customer_phone)}</div>` : ""}
+  </div>
 
-    <div class="card">
-      <h3>Service Address</h3>
-      ${isPeriodInvoice
+  <div class="card">
+    <h3>${isPeriodInvoice ? "Included Work Orders" : "Service Address"}</h3>
+    ${isPeriodInvoice
       ? `${includedWorkOrders.length} work order${includedWorkOrders.length === 1 ? "" : "s"} included`
       : (invoice.billing_address ? escHtml(invoice.billing_address) : "—")
     }
-    </div>
+  </div>
 
-    <div class="card">
-      <h3>Service Details</h3>
-      ${isPeriodInvoice
+  <div class="card">
+    <h3>${isPeriodInvoice ? "Billing Summary" : "Service Details"}</h3>
+    ${isPeriodInvoice
       ? `<div><strong>Invoice Type:</strong> Period Billing</div>`
       : (workOrderDisplay ? `<div><strong>Work Order:</strong> ${escHtml(workOrderDisplay)}</div>` : "")
     }
-      ${invoice.tax_name ? `<div><strong>Tax:</strong> ${escHtml(invoice.tax_name)}</div>` : ""}
-    </div>
+    ${invoice.tax_name ? `<div><strong>Tax:</strong> ${escHtml(invoice.tax_name)}</div>` : ""}
   </div>
+</div>
+
 
     ${isPeriodInvoice ? `
   <div class="items-card">

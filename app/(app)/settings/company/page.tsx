@@ -42,7 +42,7 @@ export default function ControlCenterCompanyPage() {
     const router = useRouter();
 
     const { user, authLoading } = useAuthState();
-    const { companyId, companyName, isLoadingCompany } = useActiveCompany();
+    const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -60,6 +60,10 @@ export default function ControlCenterCompanyPage() {
         }
 
         if (isLoadingCompany) return;
+        if (myRole !== "owner" && myRole !== "admin") {
+            router.replace("/work-orders");
+            return;
+        }
 
         let cancelled = false;
 
@@ -145,7 +149,7 @@ export default function ControlCenterCompanyPage() {
         return () => {
             cancelled = true;
         };
-    }, [authLoading, user?.id, isLoadingCompany, companyId, router, user]);
+    }, [authLoading, user?.id, isLoadingCompany, companyId, myRole, router, user]);
 
     const setField = (key: keyof CompanyForm, value: string) => {
         setForm((prev) => ({ ...prev, [key]: value }));
@@ -233,15 +237,24 @@ export default function ControlCenterCompanyPage() {
         <div
             style={{
                 width: "100%",
-                maxWidth: 1040,
-                padding: "6px 0 32px 0",
+                maxWidth: 1180,
+                margin: "0 auto",
+                padding: "8px 0 32px 0",
             }}
         >
-            <div style={{ marginBottom: 22 }}>
+            <div
+                style={{
+                    marginBottom: 22,
+                    paddingBottom: 16,
+                    borderBottom: "1px solid #e5e7eb",
+                }}
+            >
                 <div
                     style={{
                         fontSize: 12,
-                        fontWeight: 600,
+                        fontWeight: 700,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
                         color: "#6b7280",
                         marginBottom: 10,
                     }}
@@ -252,8 +265,8 @@ export default function ControlCenterCompanyPage() {
                 <h1
                     style={{
                         fontSize: 40,
-                        lineHeight: 1.08,
-                        fontWeight: 750,
+                        lineHeight: 1.05,
+                        fontWeight: 800,
                         letterSpacing: "-0.03em",
                         color: "#111827",
                         margin: 0,
@@ -444,43 +457,100 @@ export default function ControlCenterCompanyPage() {
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
-                            alignItems: "center",
-                            gap: 16,
+                            alignItems: "flex-start",
+                            gap: 18,
+                            flexWrap: "wrap",
                             border: "1px solid #e5e7eb",
                             borderRadius: 16,
-                            background: "#ffffff",
-                            padding: 16,
+                            background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
+                            padding: 18,
+                            boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                         }}
                     >
-                        <div
-                            style={{
-                                fontSize: 14,
-                                color: "#6b7280",
-                                lineHeight: 1.5,
-                            }}
-                        >
-                            Save your company defaults before moving to Billing, Taxes, or Preferences.
+                        <div style={{ minWidth: 260, flex: 1 }}>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.08em",
+                                    color: "#64748b",
+                                    fontWeight: 800,
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Save company settings
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 20,
+                                    fontWeight: 800,
+                                    lineHeight: 1.15,
+                                    color: "#111827",
+                                    letterSpacing: "-0.02em",
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Apply your company defaults
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 14,
+                                    color: "#6b7280",
+                                    lineHeight: 1.6,
+                                    maxWidth: 720,
+                                }}
+                            >
+                                Save your company information, regional defaults, and payment terms before moving to Billing, Taxes, or Preferences.
+                            </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={saving}
+                        <div
                             style={{
-                                height: 42,
-                                padding: "0 18px",
-                                borderRadius: 10,
-                                border: "1px solid #d1d5db",
-                                background: saving ? "#f3f4f6" : "#111827",
-                                color: saving ? "#6b7280" : "#ffffff",
-                                cursor: saving ? "not-allowed" : "pointer",
-                                fontWeight: 700,
-                                fontSize: 14,
-                                boxShadow: saving ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 10,
+                                flexWrap: "wrap",
                             }}
                         >
-                            {saving ? "Saving..." : "Save Changes"}
-                        </button>
+                            <div
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    padding: "8px 12px",
+                                    borderRadius: 999,
+                                    border: "1px solid #dbe3ef",
+                                    background: "#f8fafc",
+                                    color: "#334155",
+                                    fontSize: 13,
+                                    fontWeight: 800,
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                Company defaults
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleSave}
+                                disabled={saving}
+                                style={{
+                                    height: 44,
+                                    padding: "0 18px",
+                                    borderRadius: 10,
+                                    border: "1px solid #d1d5db",
+                                    background: saving ? "#f3f4f6" : "#111827",
+                                    color: saving ? "#6b7280" : "#ffffff",
+                                    cursor: saving ? "not-allowed" : "pointer",
+                                    fontWeight: 700,
+                                    fontSize: 14,
+                                    boxShadow: saving ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
+                                }}
+                            >
+                                {saving ? "Saving..." : "Save Changes"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

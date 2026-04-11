@@ -78,7 +78,12 @@ export default function CustomerDetailPage() {
             0
         );
 
-        const tax = subtotal * defaultTaxRate;
+        const normalizedTaxRate =
+            Number(defaultTaxRate ?? 0) > 1
+                ? Number(defaultTaxRate) / 100
+                : Number(defaultTaxRate ?? 0);
+
+        const tax = subtotal * normalizedTaxRate;
         const total = subtotal + tax;
 
         return { subtotal, tax, total };
@@ -228,38 +233,67 @@ export default function CustomerDetailPage() {
         try {
             setGeneratingPeriodInvoice(true);
 
-            const { data, error } = await supabase.rpc(
+            console.log("DEBUG generate_period_invoice_from_selection input", {
+                p_company_id: companyId,
+                p_customer_id: customerId,
+                p_work_order_ids: selectedWOs,
+            });
+
+            const response = await supabase.rpc(
                 "generate_period_invoice_from_selection",
                 {
                     p_company_id: companyId,
                     p_customer_id: customerId,
-                    p_period_start: periodStart,
-                    p_period_end: periodEnd,
                     p_work_order_ids: selectedWOs,
                 }
             );
 
-            if (error) throw error;
+            console.log("DEBUG generate_period_invoice_from_selection response", response);
+
+            const { data, error } = response;
+
+            if (error) {
+                console.error("RPC error object", error);
+                alert(
+                    error.message ||
+                    error.details ||
+                    error.hint ||
+                    JSON.stringify(error) ||
+                    "Error generating invoice"
+                );
+                return;
+            }
+
+            console.log("DEBUG invoice RPC data", data);
 
             const invoiceId =
                 typeof data === "string"
                     ? data
                     : data?.invoice_id ?? data?.id ?? null;
 
+            console.log("DEBUG resolved invoiceId", invoiceId);
+
             if (!invoiceId) {
-                alert("Invoice was created, but no invoice id was returned.");
+                alert(
+                    `Invoice was created or returned unexpectedly. Raw data: ${JSON.stringify(data)}`
+                );
                 return;
             }
 
             router.push(`/invoices/${invoiceId}`);
         } catch (error: any) {
             console.error("Error generating selected period invoice:", error);
-            alert(error?.message || "Error generating invoice");
+            alert(
+                error?.message ||
+                error?.details ||
+                error?.hint ||
+                JSON.stringify(error) ||
+                "Error generating invoice"
+            );
         } finally {
             setGeneratingPeriodInvoice(false);
         }
     }
-
     useEffect(() => {
         if (!companyId) {
             setDefaultTaxRate(0.13);
@@ -288,400 +322,560 @@ export default function CustomerDetailPage() {
         setEligibleWOs([]);
         setSelectedWOs([]);
     }, [periodStart, periodEnd]);
+
     return (
-        <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-            <button
-                onClick={() => router.push("/customers")}
-                style={{
-                    marginBottom: 18,
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    border: "1px solid #d1d5db",
-                    background: "white",
-                    cursor: "pointer",
-                    fontWeight: 800,
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                }}
-            >
-                ← Back to Customers
-            </button>
-
-            {loading ? (
-                <div
-                    style={{
-                        padding: 18,
-                        borderRadius: 14,
-                        border: "1px solid #e5e7eb",
-                        background: "white",
-                        color: "#6b7280",
-                        marginBottom: 18,
-                    }}
-                >
-                    Loading customer...
-                </div>
-            ) : null}
-
-            {customer ? (
-                <>
-                    <CustomerHeaderCard
-                        customerName={customer.name}
-                        customerId={customer.customer_id}
-                        locationsCount={locations.length}
-                    />
-
-                    <CustomerContactCard
-                        email={customer.email}
-                        phone={customer.phone}
-                        billingAddress={customer.billing_address}
-                    />
-
-                    <CustomerLocationsCard
-                        locations={locations}
-                        onAddLocation={handleAddLocation}
-                    />
-                </>
-            ) : null}
-
-            <div
-                style={{
-                    border: "1px solid #e5e7eb",
-                    padding: 18,
-                    borderRadius: 16,
-                    background: "white",
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-                }}
-            >
-                <div style={{ marginBottom: 14 }}>
-                    <div
+        <div
+            style={{
+                padding: "28px 24px 40px",
+                background: "#f8fafc",
+                minHeight: "100%",
+            }}
+        >
+            <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+                <div style={{ marginBottom: 18 }}>
+                    <button
+                        onClick={() => router.push("/customers")}
                         style={{
-                            fontSize: 12,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: "#6b7280",
+                            height: 42,
+                            padding: "0 14px",
+                            borderRadius: 12,
+                            border: "1px solid #d1d5db",
+                            background: "#ffffff",
+                            cursor: "pointer",
                             fontWeight: 800,
-                            marginBottom: 6,
+                            color: "#111827",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                         }}
                     >
-                        Customer Billing
-                    </div>
-                    <div style={{ fontWeight: 900, fontSize: 22, color: "#111827" }}>
-                        Billing
-                    </div>
+                        ← Back to Customers
+                    </button>
                 </div>
 
-                <p
-                    style={{
-                        marginTop: 0,
-                        marginBottom: 18,
-                        color: "#6b7280",
-                        fontSize: 14,
-                        lineHeight: 1.6,
-                        maxWidth: 760,
-                    }}
-                >
-                    Generate a consolidated invoice for this customer using multiple work orders within a selected date range.
-                </p>
-
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                        gap: 16,
-                        alignItems: "end",
-                    }}
-                >
-                    <div>
-                        <label
-                            htmlFor="periodStart"
-                            style={{
-                                display: "block",
-                                marginBottom: 8,
-                                fontSize: 13,
-                                fontWeight: 800,
-                                color: "#374151",
-                            }}
-                        >
-                            Start date
-                        </label>
-                        <input
-                            id="periodStart"
-                            type="date"
-                            value={periodStart}
-                            onChange={(e) => setPeriodStart(e.target.value)}
-                            style={{
-                                width: "100%",
-                                padding: "12px 14px",
-                                border: "1px solid #d1d5db",
-                                borderRadius: 12,
-                                background: "#fff",
-                                fontSize: 14,
-                                boxSizing: "border-box",
-                            }}
-                        />
-                    </div>
-
-                    <div>
-                        <label
-                            htmlFor="periodEnd"
-                            style={{
-                                display: "block",
-                                marginBottom: 8,
-                                fontSize: 13,
-                                fontWeight: 800,
-                                color: "#374151",
-                            }}
-                        >
-                            End date
-                        </label>
-                        <input
-                            id="periodEnd"
-                            type="date"
-                            value={periodEnd}
-                            onChange={(e) => setPeriodEnd(e.target.value)}
-                            style={{
-                                width: "100%",
-                                padding: "12px 14px",
-                                border: "1px solid #d1d5db",
-                                borderRadius: 12,
-                                background: "#fff",
-                                fontSize: 14,
-                                boxSizing: "border-box",
-                            }}
-                        />
-                    </div>
-
-                    <div>
-                        <button
-                            type="button"
-                            onClick={handlePreviewWorkOrders}
-                            disabled={loadingPreview || !periodStart || !periodEnd}
-                            style={{
-                                width: "100%",
-                                padding: "12px 16px",
-                                borderRadius: 12,
-                                border: "1px solid #d1d5db",
-                                background:
-                                    loadingPreview || !periodStart || !periodEnd ? "#e5e7eb" : "#ffffff",
-                                color:
-                                    loadingPreview || !periodStart || !periodEnd ? "#6b7280" : "#111827",
-                                cursor:
-                                    loadingPreview || !periodStart || !periodEnd
-                                        ? "not-allowed"
-                                        : "pointer",
-                                fontWeight: 800,
-                                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                            }}
-                        >
-                            {loadingPreview ? "Loading..." : "Preview Work Orders"}
-                        </button>
-                    </div>
-
-
-                </div>
-
-                {hasPreviewedPeriod && !loadingPreview && eligibleWOs.length === 0 ? (
+                {loading ? (
                     <div
                         style={{
-                            marginTop: 22,
-                            padding: 16,
-                            borderRadius: 14,
-                            border: "1px dashed #d1d5db",
-                            background: "#fafafa",
+                            padding: 18,
+                            borderRadius: 16,
+                            border: "1px solid #e5e7eb",
+                            background: "#ffffff",
                             color: "#6b7280",
+                            marginBottom: 18,
+                            boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                         }}
                     >
-                        No eligible work orders found for this period.
+                        Loading customer...
                     </div>
                 ) : null}
 
-                {eligibleWOs.length > 0 && (
+                {customer ? (
                     <div
                         style={{
-                            marginTop: 22,
-                            borderTop: "1px solid #ececec",
-                            paddingTop: 18,
+                            display: "grid",
+                            gap: 18,
+                            marginBottom: 24,
                         }}
                     >
-                        <div style={{ marginBottom: 12 }}>
-                            <div
-                                style={{
-                                    fontSize: 12,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 1,
-                                    color: "#6b7280",
-                                    fontWeight: 800,
-                                    marginBottom: 6,
-                                }}
-                            >
-                                Period Billing Preview
-                            </div>
-                            <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
-                                Eligible Work Orders
-                            </div>
-                        </div>
-
-                        <div style={{ display: "grid", gap: 10 }}>
-                            {eligibleWOs.map((wo) => {
-                                const checked = selectedWOs.includes(wo.work_order_id);
-
-                                return (
-                                    <label
-                                        key={wo.work_order_id}
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            gap: 12,
-                                            border: "1px solid #e5e7eb",
-                                            borderRadius: 14,
-                                            padding: 14,
-                                            background: checked ? "#f9fafb" : "#fff",
-                                            cursor: "pointer",
-                                        }}
-                                    >
-                                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={checked}
-                                                onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                        setSelectedWOs([...selectedWOs, wo.work_order_id]);
-                                                    } else {
-                                                        setSelectedWOs(
-                                                            selectedWOs.filter((id) => id !== wo.work_order_id)
-                                                        );
-                                                    }
-                                                }}
-                                            />
-
-                                            <div>
-                                                <div style={{ fontWeight: 800, color: "#111827" }}>
-                                                    {wo.job_type || "Work Order"}
-                                                </div>
-                                                <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                                                    Ref: <span style={{ fontFamily: "monospace" }}>{String(wo.work_order_id).slice(0, 8)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div style={{ textAlign: "right" }}>
-                                            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
-                                                Subtotal
-                                            </div>
-                                            <div style={{ fontWeight: 900, color: "#111827" }}>
-                                                ${Number(wo.subtotal ?? 0).toFixed(2)}
-                                            </div>
-                                        </div>
-                                    </label>
-                                );
-                            })}
-                        </div>
-
                         <div
                             style={{
-                                marginTop: 16,
-                                display: "grid",
-                                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                gap: 12,
+                                padding: 18,
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 18,
+                                background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
+                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                             }}
                         >
                             <div
                                 style={{
-                                    padding: 14,
-                                    borderRadius: 12,
-                                    border: "1px solid #e5e7eb",
-                                    background: "#fcfcfd",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: 18,
+                                    flexWrap: "wrap",
+                                    marginBottom: 18,
                                 }}
                             >
-                                <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
-                                    Subtotal
+                                <div style={{ minWidth: 280, flex: 1 }}>
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            textTransform: "uppercase",
+                                            letterSpacing: 1.2,
+                                            color: "#64748b",
+                                            fontWeight: 800,
+                                            marginBottom: 8,
+                                        }}
+                                    >
+                                        Customers
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            fontWeight: 900,
+                                            fontSize: 34,
+                                            color: "#0f172a",
+                                            lineHeight: 1.08,
+                                            letterSpacing: "-0.03em",
+                                            marginBottom: 12,
+                                        }}
+                                    >
+                                        {customer.name}
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            flexWrap: "wrap",
+                                            gap: 10,
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                padding: "7px 12px",
+                                                borderRadius: 999,
+                                                border: "1px solid #dbe3ef",
+                                                background: "#f8fafc",
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                color: "#334155",
+                                            }}
+                                        >
+                                            Customer ID: {customer.customer_id.slice(0, 8)}
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                padding: "7px 12px",
+                                                borderRadius: 999,
+                                                border: "1px solid #dbe3ef",
+                                                background: "#f8fafc",
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                color: "#334155",
+                                            }}
+                                        >
+                                            Locations: {locations.length}
+                                        </div>
+
+                                        {customer.email ? (
+                                            <div
+                                                style={{
+                                                    padding: "7px 12px",
+                                                    borderRadius: 999,
+                                                    border: "1px solid #dbe3ef",
+                                                    background: "#f8fafc",
+                                                    fontSize: 13,
+                                                    fontWeight: 700,
+                                                    color: "#334155",
+                                                }}
+                                            >
+                                                {customer.email}
+                                            </div>
+                                        ) : null}
+                                    </div>
                                 </div>
-                                <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
-                                    ${selectedPreviewTotals.subtotal.toFixed(2)}
-                                </div>
+
+                                <button
+                                    type="button"
+                                    style={{
+                                        height: 42,
+                                        padding: "0 16px",
+                                        borderRadius: 12,
+                                        border: "1px solid #d1d5db",
+                                        background: "#ffffff",
+                                        color: "#111827",
+                                        cursor: "pointer",
+                                        fontWeight: 800,
+                                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                                    }}
+                                >
+                                    Edit Customer
+                                </button>
                             </div>
 
                             <div
                                 style={{
-                                    padding: 14,
-                                    borderRadius: 12,
-                                    border: "1px solid #e5e7eb",
-                                    background: "#fcfcfd",
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                                    gap: 16,
+                                    alignItems: "start",
                                 }}
                             >
-                                <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
-                                    Tax
-                                </div>
-                                <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
-                                    ${selectedPreviewTotals.tax.toFixed(2)}
-                                </div>
+                                <CustomerContactCard
+                                    email={customer.email}
+                                    phone={customer.phone}
+                                    billingAddress={customer.billing_address}
+                                />
+
+                                <CustomerLocationsCard
+                                    locations={locations}
+                                    onAddLocation={handleAddLocation}
+                                />
                             </div>
+                        </div>
+                    </div>
+                ) : null}
 
-                            <div
-                                style={{
-                                    padding: 14,
-                                    borderRadius: 12,
-                                    border: "1px solid #d1d5db",
-                                    background: "#111827",
-                                    color: "white",
-                                }}
-                            >
-                                <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 700, marginBottom: 6 }}>
-                                    Total
-                                </div>
-
-                                <div style={{ fontWeight: 900, fontSize: 18 }}>
-                                    ${selectedPreviewTotals.total.toFixed(2)}
-                                </div>
-                            </div>
-
+                <div
+                    style={{
+                        border: "1px solid #e5e7eb",
+                        padding: 20,
+                        borderRadius: 18,
+                        background: "#ffffff",
+                        boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                    }}
+                >
+                    <div style={{ marginBottom: 14 }}>
+                        <div
+                            style={{
+                                fontSize: 12,
+                                textTransform: "uppercase",
+                                letterSpacing: 1.2,
+                                color: "#64748b",
+                                fontWeight: 800,
+                                marginBottom: 6,
+                            }}
+                        >
+                            Period Billing
                         </div>
                         <div
                             style={{
-                                marginTop: 12,
+                                fontWeight: 900,
+                                fontSize: 24,
+                                color: "#0f172a",
+                                lineHeight: 1.15,
+                                letterSpacing: "-0.02em",
+                            }}
+                        >
+                            Create Consolidated Invoice
+                        </div>
+                    </div>
+
+                    <p
+                        style={{
+                            marginTop: 0,
+                            marginBottom: 18,
+                            color: "#64748b",
+                            fontSize: 14,
+                            lineHeight: 1.6,
+                            maxWidth: 780,
+                        }}
+                    >
+                        Create one invoice for this customer by combining multiple completed work orders within a selected billing period.
+                    </p>
+
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 16,
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                                gap: 16,
+                            }}
+                        >
+                            <div>
+                                <label
+                                    htmlFor="periodStart"
+                                    style={{
+                                        display: "block",
+                                        marginBottom: 8,
+                                        fontSize: 13,
+                                        fontWeight: 800,
+                                        color: "#374151",
+                                    }}
+                                >
+                                    Start date
+                                </label>
+                                <input
+                                    id="periodStart"
+                                    type="date"
+                                    value={periodStart}
+                                    onChange={(e) => setPeriodStart(e.target.value)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "12px 14px",
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: 12,
+                                        background: "#fff",
+                                        fontSize: 14,
+                                        boxSizing: "border-box",
+                                    }}
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="periodEnd"
+                                    style={{
+                                        display: "block",
+                                        marginBottom: 8,
+                                        fontSize: 13,
+                                        fontWeight: 800,
+                                        color: "#374151",
+                                    }}
+                                >
+                                    End date
+                                </label>
+                                <input
+                                    id="periodEnd"
+                                    type="date"
+                                    value={periodEnd}
+                                    onChange={(e) => setPeriodEnd(e.target.value)}
+                                    style={{
+                                        width: "100%",
+                                        padding: "12px 14px",
+                                        border: "1px solid #d1d5db",
+                                        borderRadius: 12,
+                                        background: "#fff",
+                                        fontSize: 14,
+                                        boxSizing: "border-box",
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div
+                            style={{
                                 display: "flex",
                                 justifyContent: "flex-end",
                             }}
                         >
                             <button
-                                onClick={handleGeneratePeriodInvoice}
-                                disabled={generatingPeriodInvoice || selectedWOs.length === 0}
+                                type="button"
+                                onClick={handlePreviewWorkOrders}
+                                disabled={loadingPreview || !periodStart || !periodEnd}
                                 style={{
-                                    height: 44,
-                                    padding: "0 18px",
+                                    minWidth: 220,
+                                    padding: "12px 18px",
                                     borderRadius: 12,
-                                    border:
-                                        generatingPeriodInvoice || selectedWOs.length === 0
-                                            ? "1px solid #d1d5db"
-                                            : "1px solid #111827",
+                                    border: "1px solid #d1d5db",
                                     background:
-                                        generatingPeriodInvoice || selectedWOs.length === 0
-                                            ? "#f9fafb"
-                                            : "#111827",
+                                        loadingPreview || !periodStart || !periodEnd ? "#e5e7eb" : "#ffffff",
                                     color:
-                                        generatingPeriodInvoice || selectedWOs.length === 0
-                                            ? "#9ca3af"
-                                            : "white",
+                                        loadingPreview || !periodStart || !periodEnd ? "#6b7280" : "#111827",
                                     cursor:
-                                        generatingPeriodInvoice || selectedWOs.length === 0
+                                        loadingPreview || !periodStart || !periodEnd
                                             ? "not-allowed"
                                             : "pointer",
                                     fontWeight: 800,
-                                    fontSize: 14,
-                                    whiteSpace: "nowrap",
-                                    boxShadow:
-                                        generatingPeriodInvoice || selectedWOs.length === 0
-                                            ? "none"
-                                            : "0 1px 2px rgba(0,0,0,0.06)",
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                                 }}
                             >
-                                {generatingPeriodInvoice
-                                    ? "Generating..."
-                                    : "Generate Period Invoice"}
+                                {loadingPreview ? "Loading..." : "Preview Work Orders"}
                             </button>
                         </div>
                     </div>
-                )}
+
+                    {hasPreviewedPeriod && !loadingPreview && eligibleWOs.length === 0 ? (
+                        <div
+                            style={{
+                                marginTop: 22,
+                                padding: 16,
+                                borderRadius: 14,
+                                border: "1px dashed #d1d5db",
+                                background: "#fafafa",
+                                color: "#6b7280",
+                            }}
+                        >
+                            No eligible work orders found for this period.
+                        </div>
+                    ) : null}
+
+                    {eligibleWOs.length > 0 && (
+                        <div
+                            style={{
+                                marginTop: 22,
+                                borderTop: "1px solid #ececec",
+                                paddingTop: 18,
+                            }}
+                        >
+                            <div style={{ marginBottom: 12 }}>
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1,
+                                        color: "#6b7280",
+                                        fontWeight: 800,
+                                        marginBottom: 6,
+                                    }}
+                                >
+                                    Period Billing Preview
+                                </div>
+                                <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
+                                    Eligible Work Orders
+                                </div>
+                            </div>
+
+                            <div style={{ display: "grid", gap: 10 }}>
+                                {eligibleWOs.map((wo) => {
+                                    const checked = selectedWOs.includes(wo.work_order_id);
+
+                                    return (
+                                        <label
+                                            key={wo.work_order_id}
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                gap: 12,
+                                                border: "1px solid #e5e7eb",
+                                                borderRadius: 14,
+                                                padding: 14,
+                                                background: checked ? "#f9fafb" : "#fff",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setSelectedWOs([...selectedWOs, wo.work_order_id]);
+                                                        } else {
+                                                            setSelectedWOs(
+                                                                selectedWOs.filter((id) => id !== wo.work_order_id)
+                                                            );
+                                                        }
+                                                    }}
+                                                />
+
+                                                <div>
+                                                    <div style={{ fontWeight: 800, color: "#111827" }}>
+                                                        {wo.job_type || "Work Order"}
+                                                    </div>
+                                                    <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+                                                        Ref:{" "}
+                                                        <span style={{ fontFamily: "monospace" }}>
+                                                            {String(wo.work_order_id).slice(0, 8)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ textAlign: "right" }}>
+                                                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
+                                                    Subtotal
+                                                </div>
+                                                <div style={{ fontWeight: 900, color: "#111827" }}>
+                                                    ${Number(wo.subtotal ?? 0).toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+
+                            <div
+                                style={{
+                                    marginTop: 16,
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                                    gap: 12,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        padding: 14,
+                                        borderRadius: 12,
+                                        border: "1px solid #e5e7eb",
+                                        background: "#fcfcfd",
+                                    }}
+                                >
+                                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                                        Subtotal
+                                    </div>
+                                    <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
+                                        ${selectedPreviewTotals.subtotal.toFixed(2)}
+                                    </div>
+                                </div>
+
+                                <div
+                                    style={{
+                                        padding: 14,
+                                        borderRadius: 12,
+                                        border: "1px solid #e5e7eb",
+                                        background: "#fcfcfd",
+                                    }}
+                                >
+                                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                                        Tax
+                                    </div>
+                                    <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
+                                        ${selectedPreviewTotals.tax.toFixed(2)}
+                                    </div>
+                                </div>
+
+                                <div
+                                    style={{
+                                        padding: 14,
+                                        borderRadius: 12,
+                                        border: "1px solid #d1d5db",
+                                        background: "#111827",
+                                        color: "white",
+                                    }}
+                                >
+                                    <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 700, marginBottom: 6 }}>
+                                        Total
+                                    </div>
+
+                                    <div style={{ fontWeight: 900, fontSize: 18 }}>
+                                        ${selectedPreviewTotals.total.toFixed(2)}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                style={{
+                                    marginTop: 12,
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                }}
+                            >
+                                <button
+                                    onClick={handleGeneratePeriodInvoice}
+                                    disabled={generatingPeriodInvoice || selectedWOs.length === 0}
+                                    style={{
+                                        height: 44,
+                                        padding: "0 18px",
+                                        borderRadius: 12,
+                                        border:
+                                            generatingPeriodInvoice || selectedWOs.length === 0
+                                                ? "1px solid #d1d5db"
+                                                : "1px solid #111827",
+                                        background:
+                                            generatingPeriodInvoice || selectedWOs.length === 0
+                                                ? "#f9fafb"
+                                                : "#111827",
+                                        color:
+                                            generatingPeriodInvoice || selectedWOs.length === 0
+                                                ? "#9ca3af"
+                                                : "white",
+                                        cursor:
+                                            generatingPeriodInvoice || selectedWOs.length === 0
+                                                ? "not-allowed"
+                                                : "pointer",
+                                        fontWeight: 800,
+                                        fontSize: 14,
+                                        whiteSpace: "nowrap",
+                                        boxShadow:
+                                            generatingPeriodInvoice || selectedWOs.length === 0
+                                                ? "none"
+                                                : "0 1px 2px rgba(0,0,0,0.06)",
+                                    }}
+                                >
+                                    {generatingPeriodInvoice
+                                        ? "Generating..."
+                                        : "Generate Period Invoice"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

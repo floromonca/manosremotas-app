@@ -155,7 +155,7 @@ export default function MyDayPage() {
             } catch (e: any) {
                 if (!cancelled) {
                     setErrorMsg(e?.message ?? String(e));
-                   // setOpenShift(null);
+                    // setOpenShift(null);
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -267,26 +267,58 @@ export default function MyDayPage() {
         .slice(0, 3);
 
     return (
-        <div style={{ padding: 24, maxWidth: 980 }}>
-            <div style={{ marginBottom: 22 }}>
+        <div
+            style={{
+                width: "100%",
+                maxWidth: 1180,
+                margin: "0 auto",
+                padding: "8px 0 32px 0",
+            }}
+        >
+            <div
+                style={{
+                    marginBottom: 18,
+                    paddingBottom: 16,
+                    borderBottom: "1px solid #e5e7eb",
+                }}
+            >
                 {mounted && prettyDate ? (
-                    <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
+                    <div
+                        style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: "0.06em",
+                            textTransform: "uppercase",
+                            color: "#6b7280",
+                            marginBottom: 10,
+                        }}
+                    >
                         {prettyDate}
                     </div>
                 ) : null}
 
                 <h1
                     style={{
-                        fontSize: 32,
-                        fontWeight: 700,
-                        margin: "0 0 8px 0",
-                        letterSpacing: "-0.02em",
+                        fontSize: 40,
+                        lineHeight: 1.05,
+                        fontWeight: 800,
+                        letterSpacing: "-0.03em",
+                        color: "#111827",
+                        margin: 0,
                     }}
                 >
                     My Day
                 </h1>
 
-                <div style={{ color: "#6b7280", fontSize: 15 }}>
+                <div
+                    style={{
+                        marginTop: 10,
+                        fontSize: 16,
+                        color: "#6b7280",
+                        lineHeight: 1.6,
+                        maxWidth: 760,
+                    }}
+                >
                     {companyName?.trim()
                         ? `${companyName} — your operational hub for the day`
                         : "Your operational hub for the day."}
@@ -297,66 +329,65 @@ export default function MyDayPage() {
                 <div
                     style={{
                         marginBottom: 16,
-                        padding: 12,
+                        padding: "12px 14px",
                         border: "1px solid #fecaca",
                         background: "#fff5f5",
-                        borderRadius: 10,
+                        borderRadius: 12,
                         color: "#991b1b",
-                        fontSize: 13,
+                        fontSize: 14,
                     }}
                 >
-                    <b>Error:</b> {errorMsg}
+                    <strong>Error:</strong> {errorMsg}
                 </div>
             ) : null}
 
-            <ShiftStatusCard
-                loading={loading}
-                companyId={companyId}
-                openShift={openShift}
-                operationalMessage={operationalMessage}
-                shiftElapsed={shiftElapsed}
-                shiftSummaryLoading={shiftSummaryLoading}
-                workedTodayLabel={workedTodayLabel}
-                shiftBusy={shiftBusy}
-                shiftMsg={shiftMsg}
-                onCheckIn={handleCheckIn}
-                onCheckOut={handleCheckOut}
-                onViewWorkOrders={() => router.push("/work-orders")}
-            />
-
-            <div
-                style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 16,
-                    background: "#ffffff",
-                    padding: 20,
-                }}
-            >
-                <CurrentWorkCard
-                    currentWork={currentWork}
-                    currentWorkMessage={currentWorkMessage}
-                    openShift={!!openShift}
-                    shiftBusy={shiftBusy}
+            <div style={{ display: "grid", gap: 18 }}>
+                <ShiftStatusCard
                     loading={loading}
                     companyId={companyId}
-                    onResumeWork={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
-                    onStartShift={handleCheckIn}
+                    openShift={openShift}
+                    operationalMessage={operationalMessage}
+                    shiftElapsed={shiftElapsed}
+                    shiftSummaryLoading={shiftSummaryLoading}
+                    workedTodayLabel={workedTodayLabel}
+                    shiftBusy={shiftBusy}
+                    shiftMsg={shiftMsg}
+                    onCheckIn={handleCheckIn}
+                    onCheckOut={handleCheckOut}
+                    onViewWorkOrders={() => router.push("/work-orders")}
                 />
 
-                <TodayAtAGlanceCard
-                    loading={workOrdersLoading}
-                    assignedCount={assignedCount}
-                    inProgressCount={inProgressCount}
-                    completedCount={completedCount}
-                />
+                <div
+                    style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 16,
+                        background: "#ffffff",
+                        padding: 20,
+                    }}
+                >
+                    <CurrentWorkCard
+                        currentWork={currentWork}
+                        currentWorkMessage={currentWorkMessage}
+                        openShift={!!openShift}
+                        shiftBusy={shiftBusy}
+                        loading={loading}
+                        companyId={companyId}
+                        onResumeWork={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+                        onStartShift={handleCheckIn}
+                    />
 
-                <RecentWorkOrdersCard
-                    rows={recentWorkRows}
-                    onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
-                />
+                    <TodayAtAGlanceCard
+                        loading={workOrdersLoading}
+                        assignedCount={assignedCount}
+                        inProgressCount={inProgressCount}
+                        completedCount={completedCount}
+                    />
 
-
-
+                    <RecentWorkOrdersCard
+                        rows={recentWorkRows}
+                        onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+                    />
+                </div>
             </div>
         </div>
     );

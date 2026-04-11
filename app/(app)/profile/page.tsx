@@ -168,28 +168,59 @@ export default function ProfilePage() {
         "Team member";
 
     return (
-        <div style={{ padding: 24, maxWidth: 980 }}>
-            <div style={{ marginBottom: 22 }}>
-                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
+        <div
+            style={{
+                width: "100%",
+                maxWidth: 1180,
+                margin: "0 auto",
+                padding: "8px 0 32px 0",
+            }}
+        >
+            <div
+                style={{
+                    marginBottom: 22,
+                    paddingBottom: 16,
+                    borderBottom: "1px solid #e5e7eb",
+                }}
+            >
+                <div
+                    style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: "#6b7280",
+                        marginBottom: 10,
+                    }}
+                >
                     My account
                 </div>
 
                 <h1
                     style={{
-                        fontSize: 32,
-                        fontWeight: 700,
-                        margin: "0 0 8px 0",
-                        letterSpacing: "-0.02em",
+                        fontSize: 40,
+                        lineHeight: 1.05,
+                        fontWeight: 800,
+                        letterSpacing: "-0.03em",
+                        color: "#111827",
+                        margin: 0,
                     }}
                 >
                     Profile
                 </h1>
 
-                <div style={{ color: "#6b7280", fontSize: 15 }}>
+                <div
+                    style={{
+                        marginTop: 10,
+                        fontSize: 16,
+                        color: "#6b7280",
+                        lineHeight: 1.6,
+                        maxWidth: 760,
+                    }}
+                >
                     Your personal and work summary in ManosRemotas.
                 </div>
             </div>
-
             {errorMsg ? (
                 <div
                     style={{
@@ -403,9 +434,70 @@ export default function ProfilePage() {
                 </section>
 
                 <section style={cardStyle}>
-                    <div style={sectionTitleStyle}>Account</div>
-                    <div style={mutedTextStyle}>
-                        Preferences and account tools will be available here in a future phase.
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 16,
+                            flexWrap: "wrap",
+                        }}
+                    >
+                        <div style={{ minWidth: 260, flex: 1 }}>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: "0.08em",
+                                    color: "#64748b",
+                                    fontWeight: 800,
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Account
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 22,
+                                    fontWeight: 800,
+                                    lineHeight: 1.1,
+                                    color: "#111827",
+                                    letterSpacing: "-0.02em",
+                                    marginBottom: 8,
+                                }}
+                            >
+                                Preferences and tools
+                            </div>
+
+                            <div
+                                style={{
+                                    color: "#6b7280",
+                                    fontSize: 14,
+                                    lineHeight: 1.6,
+                                    maxWidth: 760,
+                                }}
+                            >
+                                Preferences and account tools will be available here in a future phase.
+                            </div>
+                        </div>
+
+                        <div
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                padding: "8px 12px",
+                                borderRadius: 999,
+                                border: "1px solid #dbe3ef",
+                                background: "#f8fafc",
+                                color: "#334155",
+                                fontSize: 13,
+                                fontWeight: 800,
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            Coming soon
+                        </div>
                     </div>
                 </section>
             </div>

@@ -44,7 +44,7 @@ function getMemberDisplayName(member: MemberRow) {
 
 export default function TeamPage() {
     const { user, authLoading } = useAuthState();
-    const { companyId, companyName, myRole } = useActiveCompany();
+    const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
     const router = useRouter();
 
     const [members, setMembers] = useState<MemberRow[]>([]);
@@ -135,9 +135,16 @@ export default function TeamPage() {
     useEffect(() => {
         if (authLoading) return;
         if (!user) return;
+        if (isLoadingCompany) return;
+
+        if (myRole !== "owner" && myRole !== "admin") {
+            router.replace("/work-orders");
+            return;
+        }
+
         if (!companyId) return;
         refresh();
-    }, [authLoading, user, companyId, refresh]);
+    }, [authLoading, user, isLoadingCompany, companyId, myRole, refresh, router]);
 
     const pendingInvites = useMemo(
         () => invites.filter((i) => i.status === "pending"),
@@ -164,8 +171,14 @@ export default function TeamPage() {
         getMemberDisplayName(m).toLowerCase().includes(normalizedMemberSearch)
     );
 
-    const visibleMembers = showAllMembers ? filteredMembers : filteredMembers.slice(0, 10);
-    const hasMoreThanTenMembers = filteredMembers.length > 10;
+    const INITIAL_MEMBER_ROWS = 8;
+
+    const visibleMembers = showAllMembers
+        ? filteredMembers
+        : filteredMembers.slice(0, INITIAL_MEMBER_ROWS);
+
+    const hasMoreThanInitialMembers = filteredMembers.length > INITIAL_MEMBER_ROWS;
+
 
     const createInvite = useCallback(async () => {
         if (!companyId) return;
@@ -323,69 +336,6 @@ export default function TeamPage() {
                     <StatCard label="Pending invites" value={teamOverview.pendingInviteCount} />
                 </div>
 
-
-                <SectionCard
-                    title="Members"
-                    description="Active members linked to this company and their current role."
-                    rightMeta={`${members.length} total`}
-                >
-                    <div style={{ marginBottom: 12 }}>
-                        <Field
-                            label="Search members"
-                            value={memberSearch}
-                            onChange={setMemberSearch}
-                            placeholder="Search by name"
-                        />
-                    </div>
-                    <DataTable
-                        columns={["Name", "Role", "Shift", "Worked today", "Worked week", "Action"]}
-                        emptyMessage={loading ? "Loading members..." : "No members found."}
-                        rows={visibleMembers.map((m) => {
-                            const stats = memberStats.find((s) => s.user_id === m.user_id);
-
-                            return [
-                                getMemberDisplayName(m),
-                                <RoleBadge key={`${m.user_id}-role`} role={m.role} />,
-                                stats?.shift_status === "on_shift" ? "On shift" : "Off shift",
-                                stats?.worked_today_label ?? "00:00:00",
-                                stats?.worked_week_label ?? "00:00:00",
-                                <button
-                                    key={`${m.user_id}-view`}
-                                    onClick={() => router.push(`/settings/team/${m.user_id}`)}
-                                    style={{
-                                        padding: "6px 10px",
-                                        borderRadius: 8,
-                                        border: "1px solid #d1d5db",
-                                        background: "#fff",
-                                        cursor: "pointer",
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    View
-                                </button>,
-                            ];
-                        })}
-                    />
-
-                    {hasMoreThanTenMembers && (
-                        <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
-                            <button
-                                onClick={() => setShowAllMembers((prev) => !prev)}
-                                style={{
-                                    padding: "8px 12px",
-                                    borderRadius: 10,
-                                    border: "1px solid #d1d5db",
-                                    background: "#fff",
-                                    cursor: "pointer",
-                                    fontWeight: 600,
-                                }}
-                            >
-                                {showAllMembers ? "Show fewer" : `Show all (${filteredMembers.length})`}
-                            </button>
-                        </div>
-                    )}
-                </SectionCard>
-
                 <SectionCard
                     title="Invite New Member"
                     description="Create a pending invite for a new technician or admin."
@@ -449,6 +399,90 @@ export default function TeamPage() {
                         the account correctly.
                     </div>
                 </SectionCard>
+
+                <SectionCard
+                    title="Members"
+                    description="Active members linked to this company and their current role."
+                    rightMeta={`${members.length} total`}
+                >
+                    <div style={{ marginBottom: 12 }}>
+                        <Field
+                            label="Search members"
+                            value={memberSearch}
+                            onChange={setMemberSearch}
+                            placeholder="Search by name"
+                        />
+                    </div>
+                    <DataTable
+                        columns={["Name", "Role", "Shift", "Worked today", "Worked week", "Action"]}
+                        emptyMessage={loading ? "Loading members..." : "No members found."}
+                        rows={visibleMembers.map((m) => {
+                            const stats = memberStats.find((s) => s.user_id === m.user_id);
+
+                            return [
+                                getMemberDisplayName(m),
+                                <RoleBadge key={`${m.user_id}-role`} role={m.role} />,
+                                stats?.shift_status === "on_shift" ? "On shift" : "Off shift",
+                                stats?.worked_today_label ?? "00:00:00",
+                                stats?.worked_week_label ?? "00:00:00",
+                                <button
+                                    key={`${m.user_id}-view`}
+                                    onClick={() => router.push(`/settings/team/${m.user_id}`)}
+                                    style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 8,
+                                        border: "1px solid #d1d5db",
+                                        background: "#fff",
+                                        cursor: "pointer",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    View
+                                </button>,
+                            ];
+                        })}
+                    />
+
+                    {hasMoreThanInitialMembers && (
+                        <div
+                            style={{
+                                marginTop: 12,
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: 12,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    color: "#6b7280",
+                                }}
+                            >
+                                {showAllMembers
+                                    ? `Showing all ${filteredMembers.length} members`
+                                    : `Showing first ${visibleMembers.length} of ${filteredMembers.length} members`}
+                            </div>
+
+                            <button
+                                onClick={() => setShowAllMembers((prev) => !prev)}
+                                style={{
+                                    padding: "8px 12px",
+                                    borderRadius: 10,
+                                    border: "1px solid #d1d5db",
+                                    background: "#fff",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                }}
+                            >
+                                {showAllMembers ? "Show fewer" : `Show all (${filteredMembers.length})`}
+                            </button>
+                        </div>
+                    )}
+                </SectionCard>
+
+
 
                 <SectionCard
                     title="Pending Invites"

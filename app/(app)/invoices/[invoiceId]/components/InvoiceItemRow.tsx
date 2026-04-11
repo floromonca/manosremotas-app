@@ -22,6 +22,17 @@ type Props = {
     onDeleteItem: (invoiceItemId: string) => Promise<void>;
 };
 
+const fieldInputStyle: React.CSSProperties = {
+    height: 40,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: "1px solid #d1d5db",
+    background: "#ffffff",
+    color: "#111827",
+    fontSize: 14,
+    boxSizing: "border-box",
+};
+
 export default function InvoiceItemRow({
     item,
     currencyCode,
@@ -38,101 +49,333 @@ export default function InvoiceItemRow({
     const fallbackTax = fallbackSub * taxN;
     const fallbackTotal = fallbackSub + fallbackTax;
 
+    const subtotal = item.line_subtotal ?? fallbackSub;
+    const tax = item.line_tax ?? fallbackTax;
+    const total = item.line_total ?? fallbackTotal;
+
     const isManual = item.synced_from_wo !== true;
     const canEdit = isDraft && isManual;
 
     return (
         <div
             style={{
-                padding: 12,
-                border: "1px solid #eee",
-                borderRadius: 10,
-                background: "#fafafa",
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 12,
+                padding: 16,
+                border: "1px solid #e5e7eb",
+                borderRadius: 16,
+                background: "#fcfcfd",
+                display: "grid",
+                gap: 14,
             }}
         >
-            <div style={{ flex: 1 }}>
-                {canEdit ? (
-                    <input
-                        defaultValue={item.description ?? ""}
-                        onBlur={(e) => onUpdateItem(item.invoice_item_id, { description: e.target.value })}
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 16,
+                    flexWrap: "wrap",
+                }}
+            >
+                <div style={{ display: "grid", gap: 8, flex: 1, minWidth: 260 }}>
+                    {canEdit ? (
+                        <div style={{ display: "grid", gap: 6 }}>
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.8,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Description
+                            </div>
+
+                            <input
+                                defaultValue={item.description ?? ""}
+                                onBlur={(e) =>
+                                    onUpdateItem(item.invoice_item_id, {
+                                        description: e.target.value,
+                                    })
+                                }
+                                style={{
+                                    ...fieldInputStyle,
+                                    width: "100%",
+                                    height: 42,
+                                    fontWeight: 700,
+                                }}
+                            />
+                        </div>
+                    ) : (
+                        <div style={{ display: "grid", gap: 8 }}>
+                            <div
+                                style={{
+                                    fontSize: 18,
+                                    lineHeight: 1.2,
+                                    fontWeight: 900,
+                                    color: "#111827",
+                                }}
+                            >
+                                {item.description ?? "Item"}
+                            </div>
+
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
+                                }}
+                            >
+                                <span
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        height: 28,
+                                        padding: "0 10px",
+                                        borderRadius: 999,
+                                        background: isManual ? "#eef2ff" : "#f3f4f6",
+                                        color: isManual ? "#3730a3" : "#4b5563",
+                                        border: isManual
+                                            ? "1px solid #c7d2fe"
+                                            : "1px solid #e5e7eb",
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                    }}
+                                >
+                                    {isManual ? "Manual item" : "Synced from work order"}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div
+                    style={{
+                        minWidth: 220,
+                        display: "grid",
+                        gap: 8,
+                        justifyItems: "end",
+                    }}
+                >
+                    <div
                         style={{
+                            fontSize: 11,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.8,
+                            color: "#6b7280",
                             fontWeight: 800,
-                            padding: "6px 8px",
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
-                            width: "100%",
-                            marginBottom: 6,
                         }}
-                    />
-                ) : (
-                    <div style={{ fontWeight: 800 }}>{item.description ?? "Item"}</div>
-                )}
-
-                {canEdit ? (
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                        <div style={{ fontSize: 12, opacity: 0.8 }}>qty:</div>
-                        <input
-                            type="number"
-                            defaultValue={qtyN}
-                            onBlur={(e) => onUpdateItem(item.invoice_item_id, { qty: Number(e.target.value) })}
-                            style={{
-                                width: 90,
-                                padding: "6px 8px",
-                                borderRadius: 8,
-                                border: "1px solid #ddd",
-                            }}
-                        />
-                        <div style={{ fontSize: 12, opacity: 0.8 }}>unit:</div>
-                        <input
-                            type="number"
-                            defaultValue={unitN}
-                            onBlur={(e) =>
-                                onUpdateItem(item.invoice_item_id, { unit_price: Number(e.target.value) })
-                            }
-                            style={{
-                                width: 110,
-                                padding: "6px 8px",
-                                borderRadius: 8,
-                                border: "1px solid #ddd",
-                            }}
-                        />
-                        <div style={{ fontSize: 12, opacity: 0.8 }}>tax_rate: {taxN}</div>
-
-                        <button
-                            type="button"
-                            onClick={() => onDeleteItem(item.invoice_item_id)}
-                            style={{
-                                marginLeft: "auto",
-                                padding: "6px 10px",
-                                borderRadius: 8,
-                                border: "1px solid #ff4d4f",
-                                background: "#ff4d4f",
-                                color: "white",
-                                cursor: "pointer",
-                                fontWeight: 800,
-                            }}
-                        >
-                            Delete
-                        </button>
+                    >
+                        Line Total
                     </div>
-                ) : (
-                    <div style={{ opacity: 0.75, fontSize: 12 }}>
-                        qty: {qtyN} · unit: {unitN} · tax_rate: {taxN}
-                        {!isManual ? " · synced" : ""}
-                    </div>
-                )}
-            </div>
 
-            <div style={{ textAlign: "right", fontFamily: "monospace", minWidth: 170 }}>
-                <div>sub: {money(item.line_subtotal ?? fallbackSub, currencyCode)}</div>
-                <div>tax: {money(item.line_tax ?? fallbackTax, currencyCode)}</div>
-                <div>
-                    <b>total: {money(item.line_total ?? fallbackTotal, currencyCode)}</b>
+                    <div
+                        style={{
+                            fontSize: 24,
+                            lineHeight: 1.1,
+                            fontWeight: 900,
+                            color: "#111827",
+                        }}
+                    >
+                        {money(total, currencyCode)}
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: 12,
+                            color: "#6b7280",
+                            textAlign: "right",
+                            lineHeight: 1.5,
+                        }}
+                    >
+                        Subtotal: {money(subtotal, currencyCode)}
+                        <br />
+                        Tax: {money(tax, currencyCode)}
+                    </div>
                 </div>
             </div>
+
+            {canEdit ? (
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "end",
+                        gap: 16,
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(3, minmax(110px, 150px))",
+                            gap: 12,
+                            alignItems: "end",
+                        }}
+                    >
+                        <div style={{ display: "grid", gap: 6 }}>
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.8,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Qty
+                            </div>
+
+                            <input
+                                type="number"
+                                defaultValue={qtyN}
+                                onBlur={(e) =>
+                                    onUpdateItem(item.invoice_item_id, {
+                                        qty: Number(e.target.value),
+                                    })
+                                }
+                                style={fieldInputStyle}
+                            />
+                        </div>
+
+                        <div style={{ display: "grid", gap: 6 }}>
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.8,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Unit Price
+                            </div>
+
+                            <input
+                                type="number"
+                                defaultValue={unitN}
+                                onBlur={(e) =>
+                                    onUpdateItem(item.invoice_item_id, {
+                                        unit_price: Number(e.target.value),
+                                    })
+                                }
+                                style={fieldInputStyle}
+                            />
+                        </div>
+
+                        <div style={{ display: "grid", gap: 6 }}>
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.8,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Tax Rate
+                            </div>
+
+                            <div
+                                style={{
+                                    height: 40,
+                                    padding: "0 12px",
+                                    borderRadius: 10,
+                                    border: "1px solid #e5e7eb",
+                                    background: "#f9fafb",
+                                    color: "#374151",
+                                    fontSize: 14,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    fontWeight: 700,
+                                }}
+                            >
+                                {taxN}
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => onDeleteItem(item.invoice_item_id)}
+                        style={{
+                            height: 40,
+                            padding: "0 14px",
+                            borderRadius: 10,
+                            border: "1px solid #ef4444",
+                            background: "#ef4444",
+                            color: "#ffffff",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                            whiteSpace: "nowrap",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                        }}
+                    >
+                        Delete
+                    </button>
+                </div>
+            ) : (
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                    }}
+                >
+                    <span
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            height: 28,
+                            padding: "0 10px",
+                            borderRadius: 999,
+                            background: "#f3f4f6",
+                            border: "1px solid #e5e7eb",
+                            color: "#4b5563",
+                            fontSize: 12,
+                            fontWeight: 700,
+                        }}
+                    >
+                        Qty: {qtyN}
+                    </span>
+
+                    <span
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            height: 28,
+                            padding: "0 10px",
+                            borderRadius: 999,
+                            background: "#f3f4f6",
+                            border: "1px solid #e5e7eb",
+                            color: "#4b5563",
+                            fontSize: 12,
+                            fontWeight: 700,
+                        }}
+                    >
+                        Unit: {unitN}
+                    </span>
+
+                    <span
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            height: 28,
+                            padding: "0 10px",
+                            borderRadius: 999,
+                            background: "#f3f4f6",
+                            border: "1px solid #e5e7eb",
+                            color: "#4b5563",
+                            fontSize: 12,
+                            fontWeight: 700,
+                        }}
+                    >
+                        Tax rate: {taxN}
+                    </span>
+                </div>
+            )}
         </div>
     );
 }

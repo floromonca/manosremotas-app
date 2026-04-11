@@ -118,15 +118,24 @@ export default function TaxesPage() {
         <div
             style={{
                 width: "100%",
-                maxWidth: 1040,
-                padding: "6px 0 32px 0",
+                maxWidth: 1180,
+                margin: "0 auto",
+                padding: "8px 0 32px 0",
             }}
         >
-            <div style={{ marginBottom: 22 }}>
+            <div
+                style={{
+                    marginBottom: 22,
+                    paddingBottom: 16,
+                    borderBottom: "1px solid #e5e7eb",
+                }}
+            >
                 <div
                     style={{
                         fontSize: 12,
-                        fontWeight: 600,
+                        fontWeight: 700,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
                         color: "#6b7280",
                         marginBottom: 10,
                     }}
@@ -137,8 +146,8 @@ export default function TaxesPage() {
                 <h1
                     style={{
                         fontSize: 40,
-                        lineHeight: 1.08,
-                        fontWeight: 750,
+                        lineHeight: 1.05,
+                        fontWeight: 800,
                         letterSpacing: "-0.03em",
                         color: "#111827",
                         margin: 0,
@@ -160,7 +169,6 @@ export default function TaxesPage() {
                     {companyName?.trim() ? companyName : "your company"}.
                 </div>
             </div>
-
             {errorMsg ? (
                 <div
                     style={{
@@ -196,7 +204,7 @@ export default function TaxesPage() {
             <div style={{ display: "grid", gap: 20 }}>
                 <SectionCard
                     title="Tax Profiles"
-                    description="Create and manage the tax rates available for billing. The first tax created is marked as the default."
+                    description="Create and manage the tax profiles available for invoices and service items. Use profiles such as HST, GST, PST, IVA, or Sales Tax depending on the country and tax rules used by your company."
                     action={
                         <button
                             type="button"
@@ -221,6 +229,54 @@ export default function TaxesPage() {
                         </button>
                     }
                 >
+                    <div
+                        style={{
+                            marginBottom: 18,
+                            border: "1px solid #dbe3ef",
+                            borderRadius: 14,
+                            background: "#f8fafc",
+                            padding: 16,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 12,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.08em",
+                                color: "#64748b",
+                                fontWeight: 800,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Tax configuration
+                        </div>
+
+                        <div
+                            style={{
+                                fontSize: 18,
+                                fontWeight: 800,
+                                color: "#111827",
+                                lineHeight: 1.2,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Multi-country tax profiles
+                        </div>
+
+                        <div
+                            style={{
+                                fontSize: 14,
+                                color: "#6b7280",
+                                lineHeight: 1.6,
+                                maxWidth: 900,
+                            }}
+                        >
+                            Configure tax profiles that match your operating country and billing model. For example:
+                            Canada may use GST, HST, or PST; Colombia may use IVA; and the United States may use Sales Tax.
+                            Mark the default profile carefully because it can affect invoices and service items.
+                        </div>
+                    </div>
+
                     {showForm ? (
                         <div
                             style={{
@@ -319,31 +375,34 @@ export default function TaxesPage() {
                                 <div
                                     key={tax.tax_profile_id}
                                     style={{
+                                        border: "1px solid #e5e7eb",
+                                        borderRadius: 16,
+                                        padding: 18,
+                                        background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
                                         display: "flex",
                                         justifyContent: "space-between",
                                         alignItems: "center",
-                                        gap: 16,
-                                        border: "1px solid #e5e7eb",
-                                        borderRadius: 14,
-                                        background: "#ffffff",
-                                        padding: "16px 18px",
+                                        gap: 18,
+                                        flexWrap: "wrap",
+                                        boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                                     }}
                                 >
-                                    <div style={{ minWidth: 0 }}>
+                                    <div style={{ minWidth: 260, flex: 1 }}>
                                         <div
                                             style={{
                                                 display: "flex",
                                                 alignItems: "center",
-                                                gap: 10,
+                                                gap: 8,
                                                 flexWrap: "wrap",
-                                                marginBottom: 4,
+                                                marginBottom: 8,
                                             }}
                                         >
                                             <div
                                                 style={{
-                                                    fontSize: 16,
-                                                    fontWeight: 700,
+                                                    fontSize: 20,
+                                                    fontWeight: 800,
                                                     color: "#111827",
+                                                    lineHeight: 1.2,
                                                 }}
                                             >
                                                 {tax.tax_name}
@@ -354,13 +413,14 @@ export default function TaxesPage() {
                                                     style={{
                                                         display: "inline-flex",
                                                         alignItems: "center",
-                                                        padding: "4px 8px",
+                                                        padding: "6px 10px",
                                                         borderRadius: 999,
-                                                        background: "#ecfdf3",
                                                         border: "1px solid #bbf7d0",
+                                                        background: "#f0fdf4",
                                                         color: "#166534",
                                                         fontSize: 12,
-                                                        fontWeight: 700,
+                                                        fontWeight: 800,
+                                                        whiteSpace: "nowrap",
                                                     }}
                                                 >
                                                     Default
@@ -372,23 +432,44 @@ export default function TaxesPage() {
                                             style={{
                                                 fontSize: 14,
                                                 color: "#6b7280",
-                                                lineHeight: 1.45,
+                                                lineHeight: 1.6,
+                                                maxWidth: 760,
                                             }}
                                         >
-                                            Tax rate available for invoices and service items.
+                                            Tax profile available for invoices and service items.
                                         </div>
                                     </div>
 
                                     <div
                                         style={{
-                                            flexShrink: 0,
-                                            fontSize: 24,
-                                            fontWeight: 800,
-                                            color: "#111827",
-                                            letterSpacing: "-0.02em",
+                                            minWidth: 110,
+                                            textAlign: "right",
                                         }}
                                     >
-                                        {tax.rate}%
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.08em",
+                                                color: "#64748b",
+                                                fontWeight: 800,
+                                                marginBottom: 6,
+                                            }}
+                                        >
+                                            Rate
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                fontSize: 34,
+                                                fontWeight: 900,
+                                                color: "#111827",
+                                                lineHeight: 1,
+                                                letterSpacing: "-0.03em",
+                                            }}
+                                        >
+                                            {tax.rate}%
+                                        </div>
                                     </div>
                                 </div>
                             ))}

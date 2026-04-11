@@ -559,7 +559,7 @@ export default function WorkOrdersPage() {
         const hasMore = sectionRows.length > 5;
 
         return (
-            <section style={{ marginTop: 18 }}>
+            <section style={{ marginTop: 20 }}>
                 <div
                     style={{
                         display: "flex",
@@ -580,10 +580,10 @@ export default function WorkOrdersPage() {
                     >
                         <div
                             style={{
-                                fontSize: 22,
+                                fontSize: 23,
                                 fontWeight: 900,
-                                color: "#111827",
-                                letterSpacing: "-0.02em",
+                                color: "#0f172a",
+                                letterSpacing: "-0.03em",
                             }}
                         >
                             {title}
@@ -998,96 +998,9 @@ export default function WorkOrdersPage() {
 
     return (
         <CompanyGuard>
-            <div style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
+            <div style={{ paddingBottom: 40, maxWidth: 1180, margin: "0 auto" }}>
                 {/* ✅ Header: cambia según si hay sesión */}
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "12px 16px",
-                        border: "1px solid #eee",
-                        borderRadius: 12,
-                        background: "white",
-                        marginBottom: 18,
-                    }}
-                >
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                        <div style={{ fontSize: 13, opacity: 0.7 }}>Empresa</div>
 
-                        <div style={{ fontSize: 18, fontWeight: 800 }}>
-                            {user ? (
-                                myRole === "owner" ? (
-                                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                        <input
-                                            value={companyNameDraft}
-                                            onChange={(e) => setCompanyNameDraft(e.target.value)}
-                                            style={{
-                                                fontSize: 18,
-                                                fontWeight: 800,
-                                                padding: "6px 10px",
-                                                borderRadius: 10,
-                                                border: "1px solid #ddd",
-                                                width: 280,
-                                            }}
-                                        />
-                                        <button
-                                            onClick={saveCompanyName}
-                                            disabled={companyNameSaving}
-                                            style={{
-                                                padding: "8px 12px",
-                                                borderRadius: 10,
-                                                border: "1px solid #ddd",
-                                                background: "white",
-                                                cursor: "pointer",
-                                                fontWeight: 900,
-                                                opacity: companyNameSaving ? 0.6 : 1,
-                                            }}
-                                        >
-                                            {companyNameSaving ? "Guardando…" : "Save"}
-                                        </button>
-                                    </div>
-                                ) : (
-                                    companyName || "—"
-                                )
-                            ) : (
-                                "—"
-                            )}
-                        </div>
-
-                        {companyNameMsg ? (
-                            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
-                                {companyNameMsg}
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 13, opacity: 0.7 }}>Usuario</div>
-                            <div style={{ fontSize: 13, fontFamily: "monospace" }}>
-                                {user?.email ?? (user?.id ? user.id.slice(0, 8) : "—")}
-                            </div>
-                        </div>
-
-                        {user ? (
-                            <button
-                                onClick={signOut}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: 10,
-                                    border: "1px solid #ddd",
-                                    background: "white",
-                                    cursor: "pointer",
-                                    fontWeight: 800,
-                                }}
-                            >
-                                Sign out
-                            </button>
-                        ) : null}
-                    </div>
-                </div>
 
                 {/* Estados de carga */}
                 {authLoading ? (
@@ -1189,146 +1102,85 @@ export default function WorkOrdersPage() {
                     <>
                         <header
                             style={{
-                                marginBottom: 18,
-                                padding: "18px 20px",
-                                borderRadius: 16,
+                                marginBottom: 16,
+                                padding: "22px 22px 18px",
+                                borderRadius: 18,
                                 border: "1px solid #e5e7eb",
-                                background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
-                                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                                background: "linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%)",
+                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                             }}
                         >
                             <div
                                 style={{
-                                    fontSize: 12,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 1,
-                                    color: "#6b7280",
-                                    fontWeight: 800,
-                                    marginBottom: 6,
-                                }}
-                            >
-                                {isTechView ? "My Day" : "Operations"}
-                            </div>
-
-                            <h1
-                                style={{
-                                    margin: 0,
-                                    fontSize: 30,
-                                    lineHeight: 1.1,
-                                    fontWeight: 900,
-                                    letterSpacing: "-0.03em",
-                                    color: "#111827",
-                                }}
-                            >
-                                {isTechView ? "My Work Orders" : `${companyName} — Work Orders`}
-                            </h1>
-
-                            <div
-                                style={{
-                                    marginTop: 10,
                                     display: "flex",
-                                    gap: 10,
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: 16,
                                     flexWrap: "wrap",
-                                    alignItems: "center",
                                 }}
                             >
-                                {isTechView ? (
-                                    <>
-                                        <span
-                                            style={{
-                                                padding: "6px 10px",
-                                                borderRadius: 999,
-                                                background: "#f9fafb",
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: 13,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            Assigned: <b>{techAssignedCount}</b>
-                                        </span>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            textTransform: "uppercase",
+                                            letterSpacing: 1.2,
+                                            color: "#64748b",
+                                            fontWeight: 900,
+                                            marginBottom: 8,
+                                        }}
+                                    >
+                                        {isTechView ? "My Day" : "Operations"}
+                                    </div>
 
-                                        <span
-                                            style={{
-                                                padding: "6px 10px",
-                                                borderRadius: 999,
-                                                background: "#f9fafb",
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: 13,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            In progress: <b>{techInProgressCount}</b>
-                                        </span>
+                                    <h1
+                                        style={{
+                                            margin: 0,
+                                            fontSize: 34,
+                                            lineHeight: 1.05,
+                                            fontWeight: 900,
+                                            letterSpacing: "-0.04em",
+                                            color: "#0f172a",
+                                        }}
+                                    >
+                                        {isTechView ? "My Work Orders" : "Work Orders"}
+                                    </h1>
 
-                                        <span
-                                            style={{
-                                                padding: "6px 10px",
-                                                borderRadius: 999,
-                                                background: "#f9fafb",
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: 13,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            Completed: <b>{techCompletedCount}</b>
-                                        </span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span
-                                            style={{
-                                                padding: "6px 10px",
-                                                borderRadius: 999,
-                                                background: "#f9fafb",
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: 13,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            Needs Attention: <b>{adminNeedsAttentionRows.length}</b>
-                                        </span>
+                                    <div
+                                        style={{
+                                            marginTop: 8,
+                                            fontSize: 14,
+                                            color: "#64748b",
+                                            lineHeight: 1.45,
+                                        }}
+                                    >
+                                        {isTechView
+                                            ? "Your assigned and active work for today."
+                                            : `${companyName} · Field service operations overview`}
+                                    </div>
+                                </div>
 
-                                        <span
-                                            style={{
-                                                padding: "6px 10px",
-                                                borderRadius: 999,
-                                                background: "#f9fafb",
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: 13,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            Active Work: <b>{adminActiveRows.length}</b>
-                                        </span>
-
-                                        <span
-                                            style={{
-                                                padding: "6px 10px",
-                                                borderRadius: 999,
-                                                background: "#f9fafb",
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: 13,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            Ready to Invoice: <b>{adminReadyToInvoiceRows.length}</b>
-                                        </span>
-
-                                        <span
-                                            style={{
-                                                padding: "6px 10px",
-                                                borderRadius: 999,
-                                                background: "#f9fafb",
-                                                border: "1px solid #e5e7eb",
-                                                fontSize: 13,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            History: <b>{adminHistoryRows.length}</b>
-                                        </span>
-                                    </>
-                                )}
+                                {!isTechView ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowNewWO((s) => !s)}
+                                        style={{
+                                            padding: "12px 16px",
+                                            borderRadius: 12,
+                                            border: "1px solid #0f172a",
+                                            background: "#0f172a",
+                                            color: "white",
+                                            cursor: "pointer",
+                                            fontWeight: 900,
+                                            fontSize: 14,
+                                            boxShadow: "0 1px 2px rgba(15,23,42,0.12)",
+                                        }}
+                                    >
+                                        {showNewWO ? "Close New Work Order" : "New Work Order"}
+                                    </button>
+                                ) : null}
                             </div>
+
                         </header>
 
                         {!isTechView ? (
@@ -1337,12 +1189,19 @@ export default function WorkOrdersPage() {
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "center",
-                                    gap: 12,
+                                    gap: 14,
                                     flexWrap: "wrap",
-                                    marginBottom: 14,
+                                    marginBottom: 12,
                                 }}
                             >
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                        alignItems: "center",
+                                    }}
+                                >
                                     {[
                                         ["needs_attention", "Needs Attention", adminNeedsAttentionRows.length],
                                         ["active_work", "Active Work", adminActiveRows.length],
@@ -1364,14 +1223,17 @@ export default function WorkOrdersPage() {
                                                     )
                                                 }
                                                 style={{
-                                                    padding: "10px 14px",
+                                                    padding: "11px 15px",
                                                     borderRadius: 999,
-                                                    border: active ? "1px solid #111827" : "1px solid #d1d5db",
-                                                    background: active ? "#111827" : "white",
-                                                    color: active ? "white" : "#111827",
+                                                    border: active ? "1px solid #0f172a" : "1px solid #d1d5db",
+                                                    background: active ? "#0f172a" : "white",
+                                                    color: active ? "white" : "#0f172a",
                                                     cursor: "pointer",
                                                     fontWeight: 800,
                                                     fontSize: 13,
+                                                    boxShadow: active
+                                                        ? "0 1px 2px rgba(15,23,42,0.12)"
+                                                        : "none",
                                                 }}
                                             >
                                                 {label} ({count})
@@ -1380,23 +1242,14 @@ export default function WorkOrdersPage() {
                                     })}
                                 </div>
 
-                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewWO((s) => !s)}
-                                        style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 10,
-                                            border: "1px solid #111827",
-                                            background: "#111827",
-                                            color: "white",
-                                            cursor: "pointer",
-                                            fontWeight: 800,
-                                        }}
-                                    >
-                                        {showNewWO ? "Close New Work Order" : "New Work Order"}
-                                    </button>
-
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                        alignItems: "center",
+                                    }}
+                                >
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -1404,11 +1257,12 @@ export default function WorkOrdersPage() {
                                         }}
                                         style={{
                                             padding: "10px 14px",
-                                            borderRadius: 10,
+                                            borderRadius: 12,
                                             border: "1px solid #d1d5db",
                                             background: "white",
                                             cursor: "pointer",
                                             fontWeight: 800,
+                                            color: "#374151",
                                         }}
                                     >
                                         Refresh
@@ -1419,11 +1273,12 @@ export default function WorkOrdersPage() {
                                         onClick={() => router.replace("/control-center")}
                                         style={{
                                             padding: "10px 14px",
-                                            borderRadius: 10,
+                                            borderRadius: 12,
                                             border: "1px solid #d1d5db",
                                             background: "white",
                                             cursor: "pointer",
                                             fontWeight: 800,
+                                            color: "#374151",
                                         }}
                                     >
                                         Control Center
@@ -1617,17 +1472,22 @@ export default function WorkOrdersPage() {
                                 </div>
                             </div>
                         ) : null}
-                        {/* ✅ BLOQUEO OPERATIVO: Banner (Jornada) */}
-                        <OperationalShiftBanner
-                            shiftLoading={shiftLoading}
-                            canOperate={canOperate}
-                            onRefreshShift={() => {
-                                if (companyId) refreshShift(companyId);
-                            }}
-                            onGoCheckIn={() => router.replace("/control-center")}
-                        />
+
+                        <div style={{ marginBottom: 18 }}>
+                            {/* ✅ BLOQUEO OPERATIVO: Banner (Jornada) */}
+                            <OperationalShiftBanner
+                                shiftLoading={shiftLoading}
+                                canOperate={canOperate}
+                                onRefreshShift={() => {
+                                    if (companyId) refreshShift(companyId);
+                                }}
+                                onGoCheckIn={() => router.replace("/control-center")}
+                            />
+                        </div>
+
                         {errorMessage ? (
                             <div
+
                                 style={{
                                     background: "#fff5f5",
                                     border: "1px solid #f3caca",

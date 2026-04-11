@@ -13,7 +13,7 @@ import AddInvoiceItemForm from "./components/AddInvoiceItemForm";
 import InvoiceItemRow from "./components/InvoiceItemRow";
 import InvoiceItemsSection from "./components/InvoiceItemsSection";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
-
+import { useAuthState } from "../../../../hooks/useAuthState";
 
 
 async function getDefaultTaxRate(companyId: string) {
@@ -169,11 +169,12 @@ function prettyStatus(status: string | null | undefined) {
 }
 
 export default function InvoicePage() {
-    const router = useRouter();
     const params = useParams();
-
+    const router = useRouter();
     const searchParams = useSearchParams();
-    const { companyId } = useActiveCompany();
+    const { user, authLoading } = useAuthState();
+    const { companyId, myRole, isLoadingCompany } = useActiveCompany();
+
     const invoiceId = (params as any)?.invoiceId as string;
     const fromWorkOrder = searchParams.get("fromWorkOrder");
 
@@ -203,6 +204,21 @@ export default function InvoicePage() {
     const [includedWorkOrders, setIncludedWorkOrders] = useState<IncludedWorkOrderRow[]>([]);
 
 
+    useEffect(() => {
+        if (authLoading) return;
+
+        if (!user) {
+            router.replace("/auth");
+            return;
+        }
+
+        if (isLoadingCompany) return;
+
+        if (myRole !== "owner" && myRole !== "admin") {
+            router.replace("/work-orders");
+            return;
+        }
+    }, [authLoading, user?.id, isLoadingCompany, myRole, router]);
 
     const loadAll = useCallback(async () => {
         if (!companyId || !invoiceId) {
@@ -295,8 +311,10 @@ export default function InvoicePage() {
     }, [companyId, invoiceId]);
 
     useEffect(() => {
+        if (!companyId) return;
+        if (myRole !== "owner" && myRole !== "admin") return;
         loadAll();
-    }, [loadAll]);
+    }, [loadAll, companyId, myRole]);
 
     useEffect(() => {
         if (!companyId || !invoiceId) return;
@@ -652,121 +670,235 @@ export default function InvoicePage() {
     );
 
     return (
-        <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    alignItems: "flex-start",
-                    flexWrap: "wrap",
-                }}
-            >
-                <div>
-                    <h1 style={{ margin: 0 }}>Invoice</h1>
-                    <div style={{ opacity: 0.7, fontFamily: "monospace" }}>{invoiceId}</div>
-                </div>
-
-                <InvoiceActionBar
-                    invoiceId={invoiceId}
-                    fromWorkOrder={fromWorkOrder}
-                    hasInvoice={!!inv}
-                    isDraft={isDraft}
-                    canResend={canResend}
-                    sendingInvoice={sendingInvoice}
-                    canRecordPayment={canRecordPayment}
-                    onSendInvoice={sendInvoice}
-                    onRecordPayment={openPaymentModal}
-                    onBack={() => {
-                        if (fromWorkOrder) {
-                            router.push(`/work-orders/${fromWorkOrder}`);
-                            return;
-                        }
-                        router.back();
-                    }}
-                />
-            </div>
-
-            {loading ? <div style={{ marginTop: 16 }}>Cargando…</div> : null}
-
-            {err ? (
+        <div
+            style={{
+                minHeight: "100%",
+                background: "#f8fafc",
+                padding: "28px 24px 44px",
+            }}
+        >
+            <div style={{ maxWidth: 1180, margin: "0 auto" }}>
                 <div
                     style={{
-                        marginTop: 16,
-                        padding: 12,
-                        borderRadius: 10,
-                        border: "1px solid #f3caca",
-                        background: "#fff5f5",
-                        color: "#a40000",
-                        fontWeight: 700,
+                        display: "grid",
+                        gap: 18,
                     }}
                 >
-                    {err}
+                    <div
+                        style={{
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 20,
+                            background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
+                            boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                            padding: 20,
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 18,
+                                flexWrap: "wrap",
+                            }}
+                        >
+                            <div style={{ minWidth: 280 }}>
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1.2,
+                                        color: "#6b7280",
+                                        fontWeight: 800,
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    Invoice
+                                </div>
+
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 28,
+                                            lineHeight: 1.1,
+                                            fontWeight: 900,
+                                            color: "#111827",
+                                        }}
+                                    >
+                                        {inv?.invoice_number?.trim() || "Invoice Detail"}
+                                    </div>
+
+                                    {inv?.status ? (
+                                        <span
+                                            style={{
+                                                ...statusBadgeStyle(inv.status),
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                height: 30,
+                                                padding: "0 10px",
+                                                borderRadius: 999,
+                                                fontSize: 12,
+                                                fontWeight: 900,
+                                                letterSpacing: 0.3,
+                                            }}
+                                        >
+                                            {prettyStatus(inv.status)}
+                                        </span>
+                                    ) : null}
+                                </div>
+
+                                <div
+                                    style={{
+                                        color: "#4b5563",
+                                        fontSize: 14,
+                                        lineHeight: 1.7,
+                                        display: "grid",
+                                        gap: 4,
+                                    }}
+                                >
+                                    <div>
+                                        <span style={{ fontWeight: 800, color: "#111827" }}>Customer:</span>{" "}
+                                        {inv?.customer_name || "—"}
+                                    </div>
+                                    <div>
+                                        <span style={{ fontWeight: 800, color: "#111827" }}>Invoice date:</span>{" "}
+                                        {inv?.invoice_date || "—"}
+                                    </div>
+                                    <div>
+                                        <span style={{ fontWeight: 800, color: "#111827" }}>Due date:</span>{" "}
+                                        {inv?.due_date || "—"}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                                <InvoiceActionBar
+                                    invoiceId={invoiceId}
+                                    fromWorkOrder={fromWorkOrder}
+                                    hasInvoice={!!inv}
+                                    isDraft={isDraft}
+                                    canResend={canResend}
+                                    sendingInvoice={sendingInvoice}
+                                    canRecordPayment={canRecordPayment}
+                                    onSendInvoice={sendInvoice}
+                                    onRecordPayment={openPaymentModal}
+                                    onBack={() => {
+                                        if (fromWorkOrder) {
+                                            router.push(`/work-orders/${fromWorkOrder}`);
+                                            return;
+                                        }
+                                        router.back();
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {loading ? (
+                        <div
+                            style={{
+                                padding: 16,
+                                borderRadius: 16,
+                                border: "1px solid #e5e7eb",
+                                background: "#ffffff",
+                                color: "#6b7280",
+                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                            }}
+                        >
+                            Loading invoice...
+                        </div>
+                    ) : null}
+
+                    {err ? (
+                        <div
+                            style={{
+                                padding: 14,
+                                borderRadius: 14,
+                                border: "1px solid #fecaca",
+                                background: "#fff7f7",
+                                color: "#b91c1c",
+                                fontWeight: 800,
+                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                            }}
+                        >
+                            {err}
+                        </div>
+                    ) : null}
+
+                    {inv ? (
+                        <InvoiceDetailsCard
+                            inv={inv}
+                            billingEmail={billingEmail}
+                            savingBillingEmail={savingBillingEmail}
+                            isDraft={isDraft}
+                            totals={totals}
+                            depositRequired={depositRequired}
+                            paymentsTotal={paymentsTotal}
+                            onChangeBillingEmail={setBillingEmail}
+                            onSaveBillingEmail={saveBillingEmail}
+                            money={money}
+                            prettyStatus={prettyStatus}
+                            statusBadgeStyle={statusBadgeStyle}
+                        />
+                    ) : null}
+
+                    <InvoicePaymentsSection
+                        payments={payments}
+                        currencyCode={inv?.currency_code}
+                        money={money}
+                    />
+
+                    <IncludedWorkOrdersSection
+                        workOrders={includedWorkOrders}
+                        onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+                    />
+
+                    <InvoiceItemsSection
+                        items={items}
+                        currencyCode={inv?.currency_code}
+                        desc={desc}
+                        qty={qty}
+                        unitPrice={unitPrice}
+                        taxable={taxable}
+                        isDraft={isDraft}
+                        saving={saving}
+                        onChangeDesc={setDesc}
+                        onChangeQty={setQty}
+                        onChangeUnitPrice={setUnitPrice}
+                        onChangeTaxable={setTaxable}
+                        onAddItem={addItem}
+                        money={money}
+                        onUpdateItem={handleUpdateInvoiceItem}
+                        onDeleteItem={handleDeleteInvoiceItem}
+                    />
                 </div>
-            ) : null}
 
-            {inv ? (
-                <InvoiceDetailsCard
-                    inv={inv}
-                    billingEmail={billingEmail}
-                    savingBillingEmail={savingBillingEmail}
-                    isDraft={isDraft}
-                    totals={totals}
-                    depositRequired={depositRequired}
-                    paymentsTotal={paymentsTotal}
-                    onChangeBillingEmail={setBillingEmail}
-                    onSaveBillingEmail={saveBillingEmail}
+                <RecordPaymentModal
+                    open={showPaymentModal}
+                    savingPayment={savingPayment}
+                    currentBalance={currentBalance}
+                    currencyCode={inv?.currency_code}
+                    paymentAmount={paymentAmount}
+                    paymentMethod={paymentMethod}
+                    paymentDate={paymentDate}
+                    paymentNotes={paymentNotes}
                     money={money}
-                    prettyStatus={prettyStatus}
-                    statusBadgeStyle={statusBadgeStyle}
+                    onChangeAmount={setPaymentAmount}
+                    onChangeMethod={setPaymentMethod}
+                    onChangeDate={setPaymentDate}
+                    onChangeNotes={setPaymentNotes}
+                    onCancel={closePaymentModal}
+                    onSave={savePayment}
                 />
-            ) : null}
-
-            <InvoicePaymentsSection
-                payments={payments}
-                currencyCode={inv?.currency_code}
-                money={money}
-            />
-            <IncludedWorkOrdersSection
-                workOrders={includedWorkOrders}
-                onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
-            />
-            <InvoiceItemsSection
-                items={items}
-                currencyCode={inv?.currency_code}
-                desc={desc}
-                qty={qty}
-                unitPrice={unitPrice}
-                taxable={taxable}
-                isDraft={isDraft}
-                saving={saving}
-                onChangeDesc={setDesc}
-                onChangeQty={setQty}
-                onChangeUnitPrice={setUnitPrice}
-                onChangeTaxable={setTaxable}
-                onAddItem={addItem}
-                money={money}
-                onUpdateItem={handleUpdateInvoiceItem}
-                onDeleteItem={handleDeleteInvoiceItem}
-            />
-
-            <RecordPaymentModal
-                open={showPaymentModal}
-                savingPayment={savingPayment}
-                currentBalance={currentBalance}
-                currencyCode={inv?.currency_code}
-                paymentAmount={paymentAmount}
-                paymentMethod={paymentMethod}
-                paymentDate={paymentDate}
-                paymentNotes={paymentNotes}
-                money={money}
-                onChangeAmount={setPaymentAmount}
-                onChangeMethod={setPaymentMethod}
-                onChangeDate={setPaymentDate}
-                onChangeNotes={setPaymentNotes}
-                onCancel={closePaymentModal}
-                onSave={savePayment}
-            />
+            </div>
         </div>
     );
 }
