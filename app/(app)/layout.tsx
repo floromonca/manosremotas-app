@@ -5,6 +5,7 @@ import AppSidebar from "../components/AppSidebar";
 import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 import { supabase } from "../../lib/supabaseClient";
+import { useState, useEffect } from "react";
 
 export default function AppShellLayout({
     children,
@@ -14,8 +15,23 @@ export default function AppShellLayout({
     const router = useRouter();
     const { user } = useAuthState();
     const { companyName } = useActiveCompany();
+    const [isMobile, setIsMobile] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const mainBg = "#F3F4F6";
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 900);
+        };
+
+        checkMobile();
+        window.addEventListener("resize", checkMobile);
+
+        return () => {
+            window.removeEventListener("resize", checkMobile);
+        };
+    }, []);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -24,7 +40,35 @@ export default function AppShellLayout({
 
     return (
         <div style={{ display: "flex", minHeight: "100vh", background: mainBg }}>
-            <AppSidebar />
+
+            {/* Sidebar desktop */}
+            {!isMobile && <AppSidebar />}
+
+            {/* Sidebar mobile */}
+            {isMobile && sidebarOpen && (
+                <div
+                    onClick={() => setSidebarOpen(false)}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 1000,
+                        background: "rgba(15, 23, 42, 0.35)",
+                        display: "flex",
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            height: "100vh",
+                            width: 280,
+                            background: "#1e293b",
+                            boxShadow: "0 8px 30px rgba(15, 23, 42, 0.22)",
+                        }}
+                    >
+                        <AppSidebar />
+                    </div>
+                </div>
+            )}
 
             <main
                 style={{
@@ -48,6 +92,21 @@ export default function AppShellLayout({
                             flexWrap: "wrap",
                         }}
                     >
+                        {isMobile && (
+                            <button
+                                onClick={() => setSidebarOpen(!sidebarOpen)}
+                                style={{
+                                    fontSize: 22,
+                                    padding: "6px 10px",
+                                    borderRadius: 8,
+                                    border: "1px solid #e5e7eb",
+                                    background: "white",
+                                    cursor: "pointer",
+                                }}
+                            >
+                                ☰
+                            </button>
+                        )}
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                             <div
                                 style={{

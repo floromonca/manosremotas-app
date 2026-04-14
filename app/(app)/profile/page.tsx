@@ -18,7 +18,30 @@ type MembershipProfileRow = {
     full_name: string | null;
     role: "owner" | "admin" | "tech" | "viewer";
 };
+type HoursSummaryRow = {
+    total_shifts: number;
+    closed_hours: number;
+    running_hours: number;
+    display_hours: number;
+    hourly_rate: number;
+    currency_code: string;
+    estimated_pay_closed: number;
+    estimated_pay_display: number;
+};
 
+type ShiftDetailRow = {
+    shift_id: string;
+    check_in_at: string;
+    check_out_at: string | null;
+    closed_hours: number;
+    running_hours: number;
+    display_hours: number;
+    hourly_rate: number;
+    currency_code: string;
+    estimated_pay_closed: number;
+    estimated_pay_display: number;
+    note: string | null;
+};
 function formatDateTime(value: string | null) {
     if (!value) return "—";
     return new Date(value).toLocaleString();
@@ -39,6 +62,8 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState("");
     const [memberProfile, setMemberProfile] = useState<MembershipProfileRow | null>(null);
+    const [weekHoursSummary, setWeekHoursSummary] = useState<HoursSummaryRow | null>(null);
+    const [shiftDetails, setShiftDetails] = useState<ShiftDetailRow[]>([]);
 
     const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false);
     const [fullNameInput, setFullNameInput] = useState("");
@@ -50,12 +75,29 @@ export default function ProfilePage() {
     const [weekSummary, setWeekSummary] = useState<ShiftSummary | null>(null);
 
     const refreshProfileData = useCallback(async (cid: string, uid: string) => {
+        const now = new Date();
+
+        const weekStart = new Date(now);
+        const day = weekStart.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        weekStart.setDate(weekStart.getDate() + diffToMonday);
+        weekStart.setHours(0, 0, 0, 0);
+
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+
+        const startDate = weekStart.toISOString().slice(0, 10);
+        const endDate = weekEnd.toISOString().slice(0, 10);
+
         const [
             memberRes,
             openShiftRes,
             lastShiftRes,
             todayShiftSummary,
             weekShiftSummary,
+            weekHoursSummaryRes,
+            shiftDetailsRes,
         ] = await Promise.all([
             supabase
                 .from("company_members")
@@ -67,11 +109,24 @@ export default function ProfilePage() {
             getLastShift(cid),
             getTodayShiftSummary(cid),
             getWeekShiftSummary(cid),
+            supabase.rpc("get_member_hours_summary", {
+                p_company_id: cid,
+                p_user_id: uid,
+                p_start_date: startDate,
+                p_end_date: endDate,
+            }),
+            supabase.rpc("get_member_shift_details", {
+                p_company_id: cid,
+                p_user_id: uid,
+                p_start_date: startDate,
+                p_end_date: endDate,
+            }),
         ]);
-
         if (memberRes.error) throw memberRes.error;
         if (openShiftRes.error) throw openShiftRes.error;
         if (lastShiftRes.error) throw lastShiftRes.error;
+        if (weekHoursSummaryRes.error) throw weekHoursSummaryRes.error;
+        if (shiftDetailsRes.error) throw shiftDetailsRes.error;
 
         const profileRow = (memberRes.data as MembershipProfileRow | null) ?? null;
 
@@ -80,6 +135,11 @@ export default function ProfilePage() {
         setOpenShift((openShiftRes.data as ShiftRow | null) ?? null);
         setLastShift((lastShiftRes.data as ShiftRow | null) ?? null);
         setTodaySummary(todayShiftSummary);
+        setWeekHoursSummary(
+            ((weekHoursSummaryRes.data as HoursSummaryRow[] | null)?.[0] ?? null)
+        );
+
+        setShiftDetails((shiftDetailsRes.data as ShiftDetailRow[] | null) ?? []);
         setWeekSummary(weekShiftSummary);
     }, []);
 
@@ -402,6 +462,184 @@ export default function ProfilePage() {
                                 label="Current status"
                                 value={openShift ? "Checked in" : "Off shift"}
                             />
+                        </div>
+                    )}
+                </section>
+                <section style={{ display: "grid", gap: 16 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                        Hours & Pay
+                    </h2>
+
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                            gap: 12,
+                        }}
+                    >
+                        <InfoCard
+                            label="Closed hours this week"
+                            value={
+                                weekHoursSummary
+                                    ? `${weekHoursSummary.closed_hours.toFixed(2)} h`
+                                    : "—"
+                            }
+                        />
+
+                        <InfoCard
+                            label="Running hours"
+                            value={
+                                weekHoursSummary
+                                    ? `${weekHoursSummary.running_hours.toFixed(2)} h`
+                                    : "—"
+                            }
+                        />
+
+                        <InfoCard
+                            label="Visible hours"
+                            value={
+                                weekHoursSummary
+                                    ? `${weekHoursSummary.display_hours.toFixed(2)} h`
+                                    : "—"
+                            }
+                        />
+
+                        <InfoCard
+                            label="Hourly rate"
+                            value={
+                                weekHoursSummary
+                                    ? `${weekHoursSummary.currency_code} ${weekHoursSummary.hourly_rate.toFixed(2)}`
+                                    : "—"
+                            }
+                        />
+
+                        <InfoCard
+                            label="Estimated pay (closed)"
+                            value={
+                                weekHoursSummary
+                                    ? `${weekHoursSummary.currency_code} ${weekHoursSummary.estimated_pay_closed.toFixed(2)}`
+                                    : "—"
+                            }
+                        />
+
+                        <InfoCard
+                            label="Estimated pay (visible)"
+                            value={
+                                weekHoursSummary
+                                    ? `${weekHoursSummary.currency_code} ${weekHoursSummary.estimated_pay_display.toFixed(2)}`
+                                    : "—"
+                            }
+                        />
+                    </div>
+                </section>
+                <section style={{ display: "grid", gap: 12 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
+                        Shift history
+                    </h2>
+
+                    {shiftDetails.length === 0 ? (
+                        <div style={{ color: "#6b7280", fontSize: 14 }}>
+                            No shifts in this period.
+                        </div>
+                    ) : (
+                        <div style={{ overflowX: "auto" }}>
+                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                                <thead>
+                                    <tr style={{ textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>
+                                        <th style={{ padding: "8px 6px" }}>Date</th>
+                                        <th style={{ padding: "8px 6px" }}>Check-in</th>
+                                        <th style={{ padding: "8px 6px" }}>Check-out</th>
+                                        <th style={{ padding: "8px 6px" }}>Hours</th>
+                                        <th style={{ padding: "8px 6px" }}>Estimated pay</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {shiftDetails.map((s) => {
+                                        const checkIn = new Date(s.check_in_at);
+                                        const checkOut = s.check_out_at ? new Date(s.check_out_at) : null;
+                                        const isRunning = !s.check_out_at;
+                                        const isOvernight =
+                                            !!checkOut &&
+                                            checkIn.toDateString() !== checkOut.toDateString();
+
+                                        const hasRate = s.hourly_rate > 0;
+
+                                        return (
+                                            <tr key={s.shift_id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                                                <td style={{ padding: "10px 6px", verticalAlign: "top" }}>
+                                                    <div style={{ fontWeight: 600, color: "#111827" }}>
+                                                        {checkIn.toLocaleDateString()}
+                                                    </div>
+                                                    {isOvernight ? (
+                                                        <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                                                            Overnight shift
+                                                        </div>
+                                                    ) : null}
+                                                </td>
+
+                                                <td style={{ padding: "10px 6px", verticalAlign: "top" }}>
+                                                    <div style={{ color: "#111827" }}>
+                                                        {checkIn.toLocaleDateString([], {
+                                                            month: "short",
+                                                            day: "numeric",
+                                                        })}{" "}
+                                                        {checkIn.toLocaleTimeString([], {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        })}
+                                                    </div>
+                                                </td>
+
+                                                <td style={{ padding: "10px 6px", verticalAlign: "top" }}>
+                                                    {isRunning ? (
+                                                        <span
+                                                            style={{
+                                                                display: "inline-flex",
+                                                                alignItems: "center",
+                                                                padding: "4px 8px",
+                                                                borderRadius: 999,
+                                                                fontSize: 12,
+                                                                fontWeight: 600,
+                                                                background: "#eff6ff",
+                                                                color: "#1d4ed8",
+                                                                border: "1px solid #bfdbfe",
+                                                            }}
+                                                        >
+                                                            Running
+                                                        </span>
+                                                    ) : (
+                                                        <div style={{ color: "#111827" }}>
+                                                            {checkOut!.toLocaleDateString([], {
+                                                                month: "short",
+                                                                day: "numeric",
+                                                            })}{" "}
+                                                            {checkOut!.toLocaleTimeString([], {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </td>
+
+                                                <td style={{ padding: "10px 6px", fontWeight: 600, verticalAlign: "top" }}>
+                                                    {s.display_hours.toFixed(2)} h
+                                                </td>
+
+                                                <td style={{ padding: "10px 6px", fontWeight: 600, verticalAlign: "top" }}>
+                                                    {hasRate ? (
+                                                        `${s.currency_code} ${s.estimated_pay_display.toFixed(2)}`
+                                                    ) : (
+                                                        <span style={{ color: "#6b7280", fontWeight: 500 }}>
+                                                            Rate not set
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </section>

@@ -13,6 +13,11 @@ import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { checkIn, checkOut, getOpenShift, type ShiftRow } from "../../../lib/supabase/shifts";
 
+type MissingRateAlert = {
+    user_id: string;
+    full_name: string;
+    role: string;
+};
 
 export default function ControlCenterPage() {
     const router = useRouter();
@@ -23,6 +28,8 @@ export default function ControlCenterPage() {
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState("");
     const [revenueMonth, setRevenueMonth] = useState(0);
+    const [missingRates, setMissingRates] = useState<MissingRateAlert[]>([]);
+    const [loadingAlerts, setLoadingAlerts] = useState(true);
 
     const [kpis, setKpis] = useState<ControlCenterKpis>({
         activeWorkOrders: 0,
@@ -48,6 +55,28 @@ export default function ControlCenterPage() {
         setMounted(true);
         setPrettyDate(new Date().toLocaleDateString());
     }, []);
+    useEffect(() => {
+        if (!companyId) return;
+
+        async function loadAlerts() {
+            setLoadingAlerts(true);
+
+            const { data, error } = await supabase.rpc(
+                "get_team_alerts_missing_pay_rates",
+                {
+                    p_company_id: companyId,
+                }
+            );
+
+            if (!error && data) {
+                setMissingRates(data);
+            }
+
+            setLoadingAlerts(false);
+        }
+
+        loadAlerts();
+    }, [companyId]);
 
     const refreshAll = useCallback(async (cid: string) => {
         const [k, l] = await Promise.all([
@@ -60,12 +89,15 @@ export default function ControlCenterPage() {
 
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        const nextMonthFirstDay = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
         const { data: revenueData, error: revenueErr } = await supabase
             .from("invoices")
-            .select("total")
+            .select("total, status")
             .eq("company_id", cid)
-            .gte("issue_date", firstDay.toISOString().slice(0, 10));
+            .gte("issue_date", firstDay.toISOString().slice(0, 10))
+            .lt("issue_date", nextMonthFirstDay.toISOString().slice(0, 10))
+            .in("status", ["sent", "partially_paid", "paid", "overdue"]);
 
         if (revenueErr) {
             console.error("Revenue month error:", revenueErr);
@@ -253,7 +285,7 @@ export default function ControlCenterPage() {
         >
             <div
                 style={{
-                    maxWidth: 1280,
+                    maxWidth: 1180,
                     margin: "0 auto",
                     display: "flex",
                     flexDirection: "column",
@@ -397,7 +429,74 @@ export default function ControlCenterPage() {
                         onClick={() => go("/invoices")}
                     />
                 </section>
+                {!loadingAlerts && missingRates.length > 0 && (
+                    <section
+                        style={{
+                            border: "1px solid #fde68a",
+                            borderRadius: 16,
+                            background: "#fffbeb",
+                            padding: 18,
+                            marginBottom: 20,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 16,
+                                fontWeight: 700,
+                                marginBottom: 8,
+                                color: "#92400e",
+                            }}
+                        >
+                            ⚠ {missingRates.length} technicians without hourly rate
+                        </div>
 
+                        <div
+                            style={{
+                                fontSize: 14,
+                                color: "#78350f",
+                                marginBottom: 10,
+                            }}
+                        >
+                            These technicians do not have an hourly rate configured.
+                        </div>
+
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                            {missingRates.slice(0, 5).map((tech) => (
+                                <li key={tech.user_id} style={{ marginBottom: 6 }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => go(`/settings/team/${tech.user_id}`)}
+                                        style={{
+                                            border: "none",
+                                            background: "transparent",
+                                            padding: 0,
+                                            margin: 0,
+                                            color: "#92400e",
+                                            cursor: "pointer",
+                                            fontSize: 14,
+                                            fontWeight: 600,
+                                            textDecoration: "underline",
+                                        }}
+                                    >
+                                        {tech.full_name || "Unnamed technician"}
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                        {missingRates.length > 5 && (
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    fontSize: 13,
+                                    color: "#78350f",
+                                    fontWeight: 600,
+                                }}
+                            >
+                                + {missingRates.length - 5} more technicians
+                            </div>
+                        )}
+                    </section>
+                )}
                 <section
                     style={{
                         display: "grid",

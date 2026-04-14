@@ -1,9 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import type { WorkOrderStatus } from "../../../../lib/supabase/workOrders";
+import { supabase } from "../../../../lib/supabaseClient";
 
 type WorkOrderSummary = {
+    work_order_id: string;
+    company_id: string | null;
     job_type: string;
     description: string;
     customer_name?: string | null;
@@ -15,6 +18,7 @@ type WorkOrderSummary = {
 
 type Props = {
     wo: WorkOrderSummary;
+    checkIns: any[];
     googleMapsUrl: string | null;
     invoiceIsLocked: boolean;
     invoiceStatus: string | null;
@@ -23,6 +27,7 @@ type Props = {
     isAdmin: boolean;
     myUserId: string | null;
     onChangeStatus: (next: WorkOrderStatus) => Promise<void>;
+    onCheckInRecorded: () => Promise<void>;
     allowedStatuses: WorkOrderStatus[];
     canChangeStatus: boolean;
     statusChangeReason: "no_shift" | null;
@@ -38,6 +43,7 @@ function niceLabel(value: string | null | undefined) {
 
 export default function WorkOrderSummarySection({
     wo,
+    checkIns = [],
     googleMapsUrl,
     invoiceIsLocked,
     invoiceStatus,
@@ -46,16 +52,118 @@ export default function WorkOrderSummarySection({
     isAdmin,
     myUserId,
     onChangeStatus,
+    onCheckInRecorded,
     allowedStatuses,
     canChangeStatus,
     statusChangeReason,
     assignedTechName,
 }: Props) {
 
+    const canCheckIn =
+        !!myUserId &&
+        !!wo.assigned_to &&
+        myUserId === wo.assigned_to;
+
+    const [checkingIn, setCheckingIn] = useState(false);
+    const [checkInMessage, setCheckInMessage] = useState<string | null>(null);
+    const latestCheckIn =
+        Array.isArray(checkIns) && checkIns.length > 0 ? checkIns[0] : null;
+
+    const hasCheckedIn = latestCheckIn != null;
+
+    function formatCheckInLabel(value: string | null | undefined) {
+        const raw = String(value ?? "").trim();
+        if (!raw) return "—";
+        return raw
+            .replaceAll("_", " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+    }
+
+    const handleCheckIn = async () => {
+        setCheckInMessage(null);
+        setCheckingIn(true);
+
+        if (!navigator.geolocation) {
+            setCheckInMessage("Geolocation is not supported by your browser.");
+            setCheckingIn(false);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
+
+                if (!wo.company_id) {
+                    setCheckInMessage("Missing company for this work order.");
+                    setCheckingIn(false);
+                    return;
+                }
+
+                const { data, error } = await supabase.rpc("check_in_to_work_order", {
+                    p_company_id: wo.company_id,
+                    p_work_order_id: wo.work_order_id,
+                    p_check_in_lat: lat,
+                    p_check_in_lng: lng,
+                    p_check_in_accuracy_m: Math.round(accuracy),
+                });
+
+                if (error) {
+                    setCheckInMessage(error.message || "Check-in failed.");
+                    console.log("Geolocation error:", error);
+                    setCheckingIn(false);
+                    return;
+                }
+
+                const result = Array.isArray(data) ? data[0] : null;
+
+                if (result?.allowed) {
+                    if (wo.status === "new") {
+                        const { error: statusError } = await supabase
+                            .from("work_orders")
+                            .update({ status: "in_progress" })
+                            .eq("work_order_id", wo.work_order_id);
+
+                        if (statusError) {
+                            console.log("Auto status update failed:", statusError);
+                        }
+                    }
+
+                    await onCheckInRecorded();
+
+                    if (result?.geofence_status === "location_unverified") {
+                        setCheckInMessage("Check-in recorded. Site location could not be verified.");
+                    } else if (result?.distance_to_site_m != null) {
+                        setCheckInMessage(`Check-in successful. Distance to site: ${result.distance_to_site_m} m.`);
+                    } else {
+                        setCheckInMessage("Check-in successful.");
+                    }
+                }
+                else {
+                    if (result?.reason_code === "outside_geofence") {
+                        setCheckInMessage("You are outside the authorized work zone for this assignment.");
+                    } else if (result?.reason_code === "gps_required") {
+                        setCheckInMessage("Location access is required to check in for this assignment.");
+                    } else {
+                        setCheckInMessage(result?.reason_code || "Check-in failed.");
+                    }
+                }
+
+                setCheckingIn(false);
+            },
+            (error) => {
+                setCheckInMessage("Unable to retrieve your location.");
+                console.log("Check-in RPC error:", error);
+                setCheckingIn(false);
+            }
+        );
+    };
+
     return (
         <div
             style={{
-                padding: 20,
+                padding: 14,
                 borderRadius: 16,
                 border: "1px solid #e5e7eb",
                 background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
@@ -135,9 +243,9 @@ export default function WorkOrderSummarySection({
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                    gap: 12,
-                    marginTop: 18,
+                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                    gap: 10,
+                    marginTop: 16,
                 }}
             >
                 <div
@@ -255,6 +363,113 @@ export default function WorkOrderSummarySection({
                 </div>
             </div>
 
+            {canCheckIn ? (
+                <div
+                    style={{
+                        marginTop: 14,
+                        padding: 12,
+                        borderRadius: 12,
+                        background: "#f9fafb",
+                        border: "1px solid #e5e7eb",
+                    }}
+                >
+                    <div
+                        style={{
+                            fontSize: 11,
+                            textTransform: "uppercase",
+                            letterSpacing: 1,
+                            color: "#6b7280",
+                            fontWeight: 800,
+                            marginBottom: 6,
+                        }}
+                    >
+                        On-site Check-in
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: 13,
+                            color: "#4b5563",
+                            marginBottom: 10,
+                            lineHeight: 1.45,
+                        }}
+                    >
+                        We use your location only to validate check-in for this work order.
+                    </div>
+
+                    {hasCheckedIn ? (
+                        <div
+                            style={{
+                                padding: 10,
+                                borderRadius: 10,
+                                background: "#ffffff",
+                                border: "1px solid #e5e7eb",
+                                fontSize: 13,
+                                lineHeight: 1.45,
+                                color: "#374151",
+                            }}
+                        >
+                            <div style={{ fontWeight: 800, color: "#111827", marginBottom: 4 }}>
+                                Checked in at{" "}
+                                {latestCheckIn?.check_in_at
+                                    ? new Date(latestCheckIn.check_in_at).toLocaleString("en-CA", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                    })
+                                    : "—"}
+                            </div>
+
+                            <div style={{ marginTop: 4 }}>
+                                Status: {formatCheckInLabel(latestCheckIn?.geofence_status)}
+                            </div>
+
+                            <div style={{ marginTop: 4 }}>
+                                Distance: {latestCheckIn?.distance_to_site_m != null ? `${latestCheckIn.distance_to_site_m} m` : "—"}
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <button
+                                style={{
+                                    padding: "10px 16px",
+                                    borderRadius: 10,
+                                    border: "1px solid #d1d5db",
+                                    background: "#111827",
+                                    color: "white",
+                                    fontWeight: 800,
+                                    cursor: checkingIn ? "not-allowed" : "pointer",
+                                    opacity: checkingIn ? 0.7 : 1,
+                                }}
+                                onClick={handleCheckIn}
+                                disabled={checkingIn}
+                            >
+                                {checkingIn ? "Checking in..." : "Check in"}
+                            </button>
+
+                            {checkInMessage ? (
+                                <div
+                                    style={{
+                                        marginTop: 12,
+                                        padding: 10,
+                                        borderRadius: 10,
+                                        background: "#ffffff",
+                                        border: "1px solid #e5e7eb",
+                                        fontSize: 14,
+                                        lineHeight: 1.5,
+                                        color: "#374151",
+                                    }}
+                                >
+                                    {checkInMessage}
+                                </div>
+                            ) : null}
+                        </>
+                    )}
+                </div>
+            ) : null}
+
             {invoiceIsLocked ? (
                 <div
                     style={{
@@ -267,8 +482,8 @@ export default function WorkOrderSummarySection({
                         lineHeight: 1.5,
                     }}
                 >
-                    Esta Work Order tiene una invoice en estado <b>{prettyInvoiceStatus(invoiceStatus)}</b>. Puedes seguir
-                    trabajando la WO, pero ya no se hará Sync automático ni manual sobre esa invoice.
+                    This Work Order has an invoice in <b>{prettyInvoiceStatus(invoiceStatus)}</b> status. You can continue
+                    working on the WO, but automatic or manual invoice sync is no longer available.
                 </div>
             ) : null}
         </div>

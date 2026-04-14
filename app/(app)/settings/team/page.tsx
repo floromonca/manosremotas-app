@@ -80,6 +80,7 @@ export default function TeamPage() {
                 .from("company_members")
                 .select("company_id, user_id, role, full_name, created_at")
                 .eq("company_id", companyId)
+                .eq("active", true)
                 .order("created_at", { ascending: true });
 
             if (memErr) throw memErr;
@@ -287,23 +288,51 @@ export default function TeamPage() {
                         </div>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={refresh}
+                    <div
                         style={{
-                            height: 42,
-                            padding: "0 16px",
-                            borderRadius: 10,
-                            border: "1px solid #d1d5db",
-                            background: "#ffffff",
-                            color: "#111827",
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 14,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            flexWrap: "wrap",
                         }}
                     >
-                        {loading ? "Refreshing..." : "Refresh"}
-                    </button>
+                        <button
+                            type="button"
+                            onClick={() => router.push("/settings/team/payroll")}
+                            style={{
+                                height: 42,
+                                padding: "0 16px",
+                                borderRadius: 10,
+                                border: "1px solid #1d4ed8",
+                                background: "#1d4ed8",
+                                color: "#ffffff",
+                                cursor: "pointer",
+                                fontWeight: 700,
+                                fontSize: 14,
+                                transition: "all 0.15s ease",
+                            }}
+                        >
+                            Payroll summary
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={refresh}
+                            style={{
+                                height: 42,
+                                padding: "0 16px",
+                                borderRadius: 10,
+                                border: "1px solid #d1d5db",
+                                background: "#ffffff",
+                                color: "#111827",
+                                cursor: "pointer",
+                                fontWeight: 700,
+                                fontSize: 14,
+                            }}
+                        >
+                            {loading ? "Refreshing..." : "Refresh"}
+                        </button>
+                    </div>
                 </div>
             </div>
 

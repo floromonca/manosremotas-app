@@ -137,8 +137,12 @@ export default function WorkOrderDetailPage() {
     const isTech = myRole === "tech";
 
     const [wo, setWo] = useState<WorkOrder | null>(null);
+    const [checkIns, setCheckIns] = useState<any[]>([]);
+    const [photos, setPhotos] = useState<any[]>([]);
     const woRef = useRef<WorkOrder | null>(null);
     const [assignedTechName, setAssignedTechName] = useState<string | null>(null);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [photoError, setPhotoError] = useState<string | null>(null);
 
     useEffect(() => {
         woRef.current = wo;
@@ -270,6 +274,22 @@ export default function WorkOrderDetailPage() {
         return ((data as any) ?? []) as WorkOrderItem[];
     }, [workOrderId]);
 
+    const loadCheckIns = useCallback(async () => {
+        if (!workOrderId) return [];
+
+        const { data, error } = await supabase
+            .from("work_order_check_ins")
+            .select(
+                "check_in_id, check_in_at, geofence_status, policy_applied, distance_to_site_m, location_verified, user_id"
+            )
+            .eq("work_order_id", workOrderId)
+            .order("check_in_at", { ascending: false });
+
+        if (error) throw error;
+
+        return (data ?? []) as any[];
+    }, [workOrderId]);
+
     const syncDraftInvoiceIfNeeded = useCallback(async () => {
         const currentInvoiceId = woRef.current?.invoice_id;
 
@@ -336,6 +356,18 @@ export default function WorkOrderDetailPage() {
         invoiceStatus,
         loadInvoiceStatus,
     ]);
+    const loadPhotos = useCallback(async () => {
+        if (!workOrderId) return [];
+
+        const { data, error } = await supabase
+            .from("work_order_photos")
+            .select("photo_id, category, file_url, created_at, uploaded_by")
+            .eq("work_order_id", workOrderId)
+            .order("created_at", { ascending: true });
+
+        if (error) throw error;
+        return data ?? [];
+    }, [workOrderId]);
 
     const loadWorkOrder = useCallback(async () => {
         if (!workOrderId) return;
@@ -399,16 +431,23 @@ export default function WorkOrderDetailPage() {
 
             const itemRows = await loadItemsForWorkOrder();
             setItems(itemRows);
+
+            const checkInRows = await loadCheckIns();
+            setCheckIns(checkInRows);
+            const photoRows = await loadPhotos();
+            setPhotos(photoRows);
         } catch (e: any) {
             setErr(e?.message ?? "Error cargando Work Order");
             setWo(null);
             setItems([]);
+            setCheckIns([]);
+            setPhotos([]);
             setInvoiceStatus(null);
             setAssignedTechName(null);
         } finally {
             setLoading(false);
         }
-    }, [workOrderId, loadInvoiceStatus, loadItemsForWorkOrder]);
+    }, [workOrderId, loadInvoiceStatus, loadItemsForWorkOrder, loadCheckIns]);
 
     useEffect(() => {
         loadRole();
@@ -688,8 +727,83 @@ export default function WorkOrderDetailPage() {
         }
     }, [roleLoading, myRole, newItem, wo, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]);
 
+    async function handlePhotoUpload(
+        file: File | null,
+        category: "before" | "during" | "after"
+    ) {
+        try {
+            console.log("PHOTO UPLOAD START", {
+                fileName: file?.name,
+                category,
+                workOrderId,
+                activeCompanyId,
+                userId: user?.id,
+            });
+
+            if (!file || !workOrderId || !activeCompanyId || !user?.id) return;
+
+            setUploadingPhoto(true);
+            setPhotoError(null);
+
+            const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+            const fileName = `${crypto.randomUUID()}.${ext}`;
+            const filePath = `${activeCompanyId}/${workOrderId}/${fileName}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("work-order-photos")
+                .upload(filePath, file, {
+                    upsert: false,
+                });
+
+            if (uploadError) {
+                console.error("UPLOAD ERROR", uploadError);
+                throw uploadError;
+            }
+
+            const { data: publicUrlData } = supabase.storage
+                .from("work-order-photos")
+                .getPublicUrl(filePath);
+
+            const publicUrl = publicUrlData.publicUrl;
+
+            const { error: insertError } = await supabase
+                .from("work_order_photos")
+                .insert({
+                    company_id: activeCompanyId,
+                    work_order_id: workOrderId,
+                    uploaded_by: user.id,
+                    category,
+                    file_url: publicUrl,
+                });
+
+            if (insertError) {
+                console.error("INSERT ERROR", insertError);
+                throw insertError;
+            }
+
+            console.log("PHOTO UPLOAD SUCCESS", {
+                category,
+                filePath,
+                publicUrl,
+            });
+        } catch (err: any) {
+            console.error("PHOTO UPLOAD FAILED", err);
+            setPhotoError(err?.message ?? "Could not upload photo.");
+        } finally {
+            setUploadingPhoto(false);
+        }
+    }
+
     return (
-        <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
+        <div
+            style={{
+                padding: "16px 12px 24px",
+                maxWidth: 1180,
+                width: "100%",
+                margin: "0 auto",
+                boxSizing: "border-box",
+            }}
+        >
             <WorkOrderDetailHeader
                 workOrderId={workOrderId}
                 title={wo?.job_type ?? "Work Order"}
@@ -743,9 +857,15 @@ export default function WorkOrderDetailPage() {
                         background: "white",
                     }}
                 >
-                    <div style={{ display: "grid", gap: 8 }}>
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 18,
+                        }}
+                    >
                         <WorkOrderSummarySection
                             wo={wo}
+                            checkIns={checkIns}
                             googleMapsUrl={googleMapsUrl}
                             invoiceIsLocked={invoiceIsLocked}
                             invoiceStatus={invoiceStatus}
@@ -754,6 +874,10 @@ export default function WorkOrderDetailPage() {
                             isAdmin={isAdmin}
                             myUserId={myUserId}
                             onChangeStatus={handleChangeStatus}
+                            onCheckInRecorded={async () => {
+                                const rows = await loadCheckIns();
+                                setCheckIns(rows);
+                            }}
                             allowedStatuses={allowedStatusesForRole(myRole as any, wo.status)}
                             canChangeStatus={canChangeWorkOrderStatus({
                                 userId: myUserId,
@@ -772,6 +896,312 @@ export default function WorkOrderDetailPage() {
                             assignedTechName={assignedTechName}
                         />
 
+                        <div
+                            style={{
+                                marginTop: 0,
+                                padding: 12,
+                                borderRadius: 12,
+                                border: "1px solid #e5e7eb",
+                                background: "#ffffff",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 1,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                    marginBottom: 12,
+                                }}
+                            >
+                                Check-in History
+                            </div>
+
+                            {checkIns.length === 0 ? (
+                                <div style={{ fontSize: 14, color: "#6b7280" }}>
+                                    No check-ins recorded yet.
+                                </div>
+                            ) : (
+                                <div style={{ display: "grid", gap: 8 }}>
+                                    {checkIns.map((checkIn) => (
+                                        <div
+                                            key={checkIn.check_in_id}
+                                            style={{
+                                                padding: 8,
+                                                borderRadius: 10,
+                                                border: "1px solid #e5e7eb",
+                                                background: "#f9fafb",
+                                            }}
+                                        >
+                                            <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 2 }}>
+                                                {new Date(checkIn.check_in_at).toLocaleString()}
+                                            </div>
+
+                                            <div style={{ marginTop: 3, fontSize: 13, lineHeight: 1.35, color: "#374151" }}>
+                                                Status: {String(checkIn.geofence_status ?? "—").replaceAll("_", " ")}
+                                            </div>
+
+                                            <div style={{ marginTop: 3, fontSize: 13, lineHeight: 1.35, color: "#374151" }}>
+                                                Policy: {String(checkIn.policy_applied ?? "—").replaceAll("_", " ")}
+                                            </div>
+
+                                            <div style={{ marginTop: 3, fontSize: 13, lineHeight: 1.35, color: "#374151" }}>
+                                                Distance: {checkIn.distance_to_site_m != null ? `${checkIn.distance_to_site_m} m` : "—"}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div
+                            style={{
+                                marginTop: 0,
+                                padding: 12,
+                                borderRadius: 12,
+                                border: "1px solid #e5e7eb",
+                                background: "#ffffff",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 1,
+                                    color: "#6b7280",
+                                    fontWeight: 800,
+                                    marginBottom: 12,
+                                }}
+                            >
+                                Photo Evidence
+                            </div>
+
+                            <div style={{ display: "grid", gap: 12 }}>
+                                <div
+                                    style={{
+                                        padding: 12,
+                                        borderRadius: 10,
+                                        border: "1px solid #e5e7eb",
+                                        background: "#f9fafb",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            color: "#111827",
+                                            marginBottom: 6,
+                                        }}
+                                    >
+                                        Before
+                                    </div>
+
+                                    <label
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderRadius: 10,
+                                            border: "1px solid #d1d5db",
+                                            background: "white",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            display: "inline-block"
+                                        }}
+                                    >
+                                        + Add photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            style={{ display: "none" }}
+                                            onChange={(e) =>
+                                                handlePhotoUpload(e.target.files?.[0] ?? null, "before")
+                                            }
+                                        />
+                                    </label>
+                                    {photos.filter((p) => p.category === "before").length > 0 && (
+                                        <div
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                                                gap: 10,
+                                                marginTop: 12,
+                                            }}
+                                        >
+                                            {photos
+                                                .filter((p) => p.category === "before")
+                                                .map((photo) => (
+                                                    <img
+                                                        key={photo.photo_id}
+                                                        src={photo.file_url}
+                                                        alt="Before evidence"
+                                                        style={{
+                                                            width: "100%",
+                                                            height: 110,
+                                                            objectFit: "cover",
+                                                            borderRadius: 10,
+                                                            border: "1px solid #e5e7eb",
+                                                            background: "#f8fafc",
+                                                        }}
+                                                    />
+                                                ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div
+                                    style={{
+                                        padding: 12,
+                                        borderRadius: 10,
+                                        border: "1px solid #e5e7eb",
+                                        background: "#f9fafb",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            color: "#111827",
+                                            marginBottom: 6,
+                                        }}
+                                    >
+                                        During
+                                    </div>
+
+                                    <label
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderRadius: 10,
+                                            border: "1px solid #d1d5db",
+                                            background: "white",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            display: "inline-block"
+                                        }}
+                                    >
+                                        + Add photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            style={{ display: "none" }}
+                                            onChange={(e) =>
+                                                handlePhotoUpload(e.target.files?.[0] ?? null, "during")
+                                            }
+                                        />
+                                    </label>
+                                    {photos.filter((p) => p.category === "during").length > 0 && (
+                                        <div
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                                                gap: 10,
+                                                marginTop: 12,
+                                            }}
+                                        >
+                                            {photos
+                                                .filter((p) => p.category === "during")
+                                                .map((photo) => (
+                                                    <img
+                                                        key={photo.photo_id}
+                                                        src={photo.file_url}
+                                                        alt="During evidence"
+                                                        style={{
+                                                            width: "100%",
+                                                            height: 110,
+                                                            objectFit: "cover",
+                                                            borderRadius: 10,
+                                                            border: "1px solid #e5e7eb",
+                                                            background: "#f8fafc",
+                                                        }}
+                                                    />
+                                                ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div
+                                    style={{
+                                        padding: 12,
+                                        borderRadius: 10,
+                                        border: "1px solid #e5e7eb",
+                                        background: "#f9fafb",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            color: "#111827",
+                                            marginBottom: 6,
+                                        }}
+                                    >
+                                        After
+                                    </div>
+
+                                    <label
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderRadius: 10,
+                                            border: "1px solid #d1d5db",
+                                            background: "white",
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            display: "inline-block",
+                                        }}
+                                    >
+                                        + Add photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            style={{ display: "none" }}
+                                            onChange={(e) =>
+                                                handlePhotoUpload(e.target.files?.[0] ?? null, "after")
+                                            }
+                                        />
+                                    </label>
+
+                                    {photos.filter((p) => p.category === "after").length > 0 && (
+                                        <div
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+                                                gap: 10,
+                                                marginTop: 12,
+                                            }}
+                                        >
+                                            {photos
+                                                .filter((p) => p.category === "after")
+                                                .map((photo) => (
+                                                    <img
+                                                        key={photo.photo_id}
+                                                        src={photo.file_url}
+                                                        alt="After evidence"
+                                                        style={{
+                                                            width: "100%",
+                                                            height: 110,
+                                                            objectFit: "cover",
+                                                            borderRadius: 10,
+                                                            border: "1px solid #e5e7eb",
+                                                            background: "#f8fafc",
+                                                        }}
+                                                    />
+                                                ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div
+                                    style={{
+                                        fontSize: 13,
+                                        color: "#6b7280",
+                                        lineHeight: 1.45,
+                                    }}
+                                >
+                                    Up to 6 photos per work order. Recommended: at least 1 before and 1 after.
+                                </div>
+                            </div>
+                        </div>
+
                         <WorkOrderCustomerSection
                             customerForm={customerForm}
                             setCustomerForm={setCustomerForm}
@@ -779,7 +1209,8 @@ export default function WorkOrderDetailPage() {
                             savingCustomer={savingCustomer}
                             isAdmin={isAdmin}
                         />
-                        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid #eee" }}>
+
+                        <div style={{ paddingTop: 12, borderTop: "1px solid #eee" }}>
                             <WorkOrderItemsHeader
                                 itemsCount={items.length}
                                 showForm={showForm}
