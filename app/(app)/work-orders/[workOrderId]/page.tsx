@@ -141,6 +141,7 @@ export default function WorkOrderDetailPage() {
     const [photos, setPhotos] = useState<any[]>([]);
     const woRef = useRef<WorkOrder | null>(null);
     const [assignedTechName, setAssignedTechName] = useState<string | null>(null);
+    const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const [photoError, setPhotoError] = useState<string | null>(null);
 
@@ -1034,6 +1035,7 @@ export default function WorkOrderDetailPage() {
                                                         key={photo.photo_id}
                                                         src={photo.file_url}
                                                         alt="Before evidence"
+                                                        onClick={() => setSelectedPhotoUrl(photo.file_url)}
                                                         style={{
                                                             width: "100%",
                                                             height: 110,
@@ -1041,6 +1043,7 @@ export default function WorkOrderDetailPage() {
                                                             borderRadius: 10,
                                                             border: "1px solid #e5e7eb",
                                                             background: "#f8fafc",
+                                                            cursor: "pointer",
                                                         }}
                                                     />
                                                 ))}
@@ -1105,6 +1108,7 @@ export default function WorkOrderDetailPage() {
                                                         key={photo.photo_id}
                                                         src={photo.file_url}
                                                         alt="During evidence"
+                                                        onClick={() => setSelectedPhotoUrl(photo.file_url)}
                                                         style={{
                                                             width: "100%",
                                                             height: 110,
@@ -1112,6 +1116,7 @@ export default function WorkOrderDetailPage() {
                                                             borderRadius: 10,
                                                             border: "1px solid #e5e7eb",
                                                             background: "#f8fafc",
+                                                            cursor: "pointer",
                                                         }}
                                                     />
                                                 ))}
@@ -1177,6 +1182,7 @@ export default function WorkOrderDetailPage() {
                                                         key={photo.photo_id}
                                                         src={photo.file_url}
                                                         alt="After evidence"
+                                                        onClick={() => setSelectedPhotoUrl(photo.file_url)}
                                                         style={{
                                                             width: "100%",
                                                             height: 110,
@@ -1184,6 +1190,7 @@ export default function WorkOrderDetailPage() {
                                                             borderRadius: 10,
                                                             border: "1px solid #e5e7eb",
                                                             background: "#f8fafc",
+                                                            cursor: "pointer",
                                                         }}
                                                     />
                                                 ))}
@@ -1243,6 +1250,66 @@ export default function WorkOrderDetailPage() {
                     </div>
                 </div>
             ) : null}
+
+            {selectedPhotoUrl && (
+                <div
+                    onClick={() => setSelectedPhotoUrl(null)}
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(15, 23, 42, 0.78)",
+                        zIndex: 2000,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 20,
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            position: "relative",
+                            maxWidth: "92vw",
+                            maxHeight: "92vh",
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setSelectedPhotoUrl(null)}
+                            style={{
+                                position: "absolute",
+                                top: -14,
+                                right: -14,
+                                width: 36,
+                                height: 36,
+                                borderRadius: "50%",
+                                border: "1px solid #d1d5db",
+                                background: "white",
+                                cursor: "pointer",
+                                fontSize: 18,
+                                fontWeight: 800,
+                                lineHeight: 1,
+                            }}
+                        >
+                            ×
+                        </button>
+
+                        <img
+                            src={selectedPhotoUrl}
+                            alt="Photo preview"
+                            style={{
+                                display: "block",
+                                maxWidth: "92vw",
+                                maxHeight: "92vh",
+                                borderRadius: 14,
+                                border: "1px solid rgba(255,255,255,0.15)",
+                                background: "#fff",
+                                boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+                            }}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
