@@ -1,4 +1,5 @@
 import React from "react";
+import { MR_THEME } from "../../../../lib/theme";
 
 type WorkOrderHeaderProps = {
     workOrderId: string;
@@ -40,23 +41,47 @@ export default function WorkOrderDetailHeader({
     return (
         <div
             style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "start",
-                gap: 16,
-                marginBottom: 10,
-                flexWrap: "wrap",
+                display: "grid",
+                gap: 12,
+                marginBottom: 12,
             }}
         >
-            <div style={{ flex: 1, minWidth: 280 }}>
+            <div>
+                <button
+                    onClick={onBack}
+                    style={{
+                        padding: "8px 10px",
+                        borderRadius: MR_THEME.radiusControl,
+                        border: `1px solid ${MR_THEME.borderStrong}`,
+                        background: MR_THEME.cardBg,
+                        cursor: "pointer",
+                        fontWeight: 800,
+                        fontSize: 12,
+                        color: MR_THEME.textSecondary,
+                        boxShadow: MR_THEME.shadowCard,
+                    }}
+                >
+                    ← Back
+                </button>
+            </div>
+
+            <div
+                style={{
+                    padding: "14px 14px 12px",
+                    borderRadius: MR_THEME.radiusCard,
+                    border: `1px solid ${MR_THEME.border}`,
+                    background: MR_THEME.cardBg,
+                    boxShadow: MR_THEME.shadowCard,
+                }}
+            >
                 <div
                     style={{
-                        fontSize: 20,
+                        fontSize: 11,
                         textTransform: "uppercase",
-                        letterSpacing: 1.4,
+                        letterSpacing: 1.2,
                         color: "#6b7280",
                         fontWeight: 900,
-                        marginBottom: 10,
+                        marginBottom: 8,
                     }}
                 >
                     Work Order
@@ -64,40 +89,51 @@ export default function WorkOrderDetailHeader({
 
                 <div
                     style={{
-                        fontSize: 12,
-                        color: "#6b7280",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        flexWrap: "wrap",
-                        marginBottom: 12,
+                        fontSize: 24,
+                        lineHeight: 1.15,
+                        fontWeight: 900,
+                        color: "#111827",
+                        marginBottom: 10,
+                        wordBreak: "break-word",
                     }}
                 >
-                    <span style={{ fontWeight: 700 }}>Ref:</span>
-                    <span style={{ fontFamily: "monospace" }}>{workOrderId.slice(0, 8)}</span>
+                    {title || "Work Order"}
                 </div>
 
                 <div
                     style={{
                         display: "flex",
-                        alignItems: "center",
-                        gap: 8,
                         flexWrap: "wrap",
-                        fontSize: 13,
-                        color: "#4b5563",
+                        gap: 8,
+                        marginBottom: isAdmin ? 10 : 0,
                     }}
                 >
                     <span
                         style={{
                             padding: "5px 10px",
                             borderRadius: 999,
+                            background: "#f9fafb",
+                            border: "1px solid #e5e7eb",
+                            fontSize: 12,
+                            fontWeight: 800,
+                            color: "#374151",
+                        }}
+                    >
+                        Ref: <span style={{ fontFamily: "monospace" }}>{workOrderId.slice(0, 8)}</span>
+                    </span>
+
+                    <span
+                        style={{
+                            padding: "5px 10px",
+                            borderRadius: 999,
                             background: "#f3f4f6",
                             border: "1px solid #e5e7eb",
+                            fontSize: 12,
                             fontWeight: 800,
                             color: "#111827",
                         }}
                     >
-                        Rol: {myRole ?? "—"}
+                        Role: {myRole ?? "—"}
                     </span>
 
                     {invoiceId ? (
@@ -107,10 +143,15 @@ export default function WorkOrderDetailHeader({
                                 borderRadius: 999,
                                 background: "#f9fafb",
                                 border: "1px solid #e5e7eb",
+                                fontSize: 12,
                                 fontWeight: 700,
+                                color: "#374151",
                             }}
                         >
-                            Invoice: <span style={{ fontFamily: "monospace" }}>{String(invoiceId).slice(0, 8)}</span>
+                            Invoice:{" "}
+                            <span style={{ fontFamily: "monospace" }}>
+                                {String(invoiceId).slice(0, 8)}
+                            </span>
                         </span>
                     ) : null}
 
@@ -129,77 +170,71 @@ export default function WorkOrderDetailHeader({
                             {prettyInvoiceStatus(invoiceStatus)}
                         </span>
                     ) : null}
+                </div>
 
-                    {isAdmin ? (
-                        <>
-                            {invoiceId ? (
-                                <button
-                                    type="button"
-                                    onClick={onOpenInvoice}
-                                    style={{
-                                        padding: "6px 10px",
-                                        borderRadius: 10,
-                                        border: "1px solid #d1d5db",
-                                        background: "white",
-                                        cursor: "pointer",
-                                        fontWeight: 800,
-                                        fontSize: 12,
-                                    }}
-                                >
-                                    Open
-                                </button>
-                            ) : null}
-
+                {isAdmin ? (
+                    <div
+                        style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 8,
+                            paddingTop: 10,
+                            borderTop: "1px solid #f3f4f6",
+                        }}
+                    >
+                        {invoiceId ? (
                             <button
                                 type="button"
-                                onClick={onSyncInvoice}
-                                disabled={syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)}
-                                title={
-                                    anyPendingPricing
-                                        ? "Aprueba los Pending pricing primero"
-                                        : hasInvoice && !invoiceIsDraft
-                                            ? `La invoice está en ${prettyInvoiceStatus(invoiceStatus)} y ya no permite Sync`
-                                            : "Sincroniza items priced hacia la invoice"
-                                }
+                                onClick={onOpenInvoice}
                                 style={{
-                                    padding: "6px 10px",
+                                    padding: "8px 12px",
                                     borderRadius: 10,
-                                    border: "1px solid #111827",
-                                    background: hasInvoice && !invoiceIsDraft ? "#9ca3af" : "#111827",
-                                    color: "white",
-                                    cursor:
-                                        syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
-                                            ? "not-allowed"
-                                            : "pointer",
-                                    fontWeight: 900,
+                                    border: "1px solid #d1d5db",
+                                    background: "white",
+                                    cursor: "pointer",
+                                    fontWeight: 800,
                                     fontSize: 12,
-                                    opacity:
-                                        syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
-                                            ? 0.65
-                                            : 1,
+                                    color: "#111827",
                                 }}
                             >
-                                {syncingInvoice ? "Syncing..." : "Sync"}
+                                Open Invoice
                             </button>
-                        </>
-                    ) : null}
-                </div>
-            </div>
+                        ) : null}
 
-            <button
-                onClick={onBack}
-                style={{
-                    padding: "12px 16px",
-                    borderRadius: 12,
-                    border: "1px solid #d1d5db",
-                    background: "white",
-                    cursor: "pointer",
-                    fontWeight: 800,
-                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                }}
-            >
-                ← Back to Work Orders
-            </button>
+                        <button
+                            type="button"
+                            onClick={onSyncInvoice}
+                            disabled={syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)}
+                            title={
+                                anyPendingPricing
+                                    ? "Aprueba los Pending pricing primero"
+                                    : hasInvoice && !invoiceIsDraft
+                                        ? `La invoice está en ${prettyInvoiceStatus(invoiceStatus)} y ya no permite Sync`
+                                        : "Sincroniza items priced hacia la invoice"
+                            }
+                            style={{
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                border: "1px solid #111827",
+                                background: hasInvoice && !invoiceIsDraft ? "#9ca3af" : "#111827",
+                                color: "white",
+                                cursor:
+                                    syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
+                                        ? "not-allowed"
+                                        : "pointer",
+                                fontWeight: 900,
+                                fontSize: 12,
+                                opacity:
+                                    syncingInvoice || anyPendingPricing || (hasInvoice && !invoiceIsDraft)
+                                        ? 0.65
+                                        : 1,
+                            }}
+                        >
+                            {syncingInvoice ? "Syncing..." : "Sync Invoice"}
+                        </button>
+                    </div>
+                ) : null}
+            </div>
         </div>
     );
 }

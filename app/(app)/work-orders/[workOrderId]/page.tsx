@@ -16,6 +16,7 @@ import WorkOrderSummarySection from "../components/WorkOrderSummarySection";
 import WorkOrderItemsHeader from "../components/WorkOrderItemsHeader";
 import WorkOrderNewItemForm from "../components/WorkOrderNewItemForm";
 import WorkOrderItemsTable from "../components/WorkOrderItemsTable";
+import { MR_THEME } from "../../../../lib/theme";
 import {
     allowedStatusesForRole,
     canChangeWorkOrderStatus,
@@ -742,6 +743,21 @@ export default function WorkOrderDetailPage() {
             });
 
             if (!file || !workOrderId || !activeCompanyId || !user?.id) return;
+            const { count, error: countError } = await supabase
+                .from("work_order_photos")
+                .select("*", { count: "exact", head: true })
+                .eq("company_id", activeCompanyId)
+                .eq("work_order_id", workOrderId);
+
+            if (countError) {
+                console.error("PHOTO COUNT ERROR", countError);
+                throw countError;
+            }
+
+            if ((count ?? 0) >= 6) {
+                setPhotoError("Maximum 6 photos per work order.");
+                return;
+            }
 
             setUploadingPhoto(true);
             setPhotoError(null);
@@ -782,16 +798,62 @@ export default function WorkOrderDetailPage() {
                 throw insertError;
             }
 
+            const photoRows = await loadPhotos();
+            setPhotos(photoRows);
+
             console.log("PHOTO UPLOAD SUCCESS", {
                 category,
                 filePath,
                 publicUrl,
             });
+
         } catch (err: any) {
             console.error("PHOTO UPLOAD FAILED", err);
             setPhotoError(err?.message ?? "Could not upload photo.");
         } finally {
             setUploadingPhoto(false);
+        }
+    }
+    async function handleDeletePhoto(photo: any) {
+        try {
+            if (!photo?.photo_id || !activeCompanyId || !workOrderId) return;
+
+            setPhotoError(null);
+
+            const fileUrl: string = String(photo.file_url ?? "");
+            const marker = "/storage/v1/object/public/work-order-photos/";
+            const markerIndex = fileUrl.indexOf(marker);
+
+            if (markerIndex >= 0) {
+                const filePath = fileUrl.slice(markerIndex + marker.length);
+
+                const { error: storageError } = await supabase.storage
+                    .from("work-order-photos")
+                    .remove([filePath]);
+
+                if (storageError) {
+                    console.error("PHOTO STORAGE DELETE ERROR", storageError);
+                    throw storageError;
+                }
+            }
+
+            const { error: deleteError } = await supabase
+                .from("work_order_photos")
+                .delete()
+                .eq("company_id", activeCompanyId)
+                .eq("work_order_id", workOrderId)
+                .eq("photo_id", photo.photo_id);
+
+            if (deleteError) {
+                console.error("PHOTO DB DELETE ERROR", deleteError);
+                throw deleteError;
+            }
+
+            const photoRows = await loadPhotos();
+            setPhotos(photoRows);
+        } catch (err: any) {
+            console.error("PHOTO DELETE FAILED", err);
+            setPhotoError(err?.message ?? "Could not delete photo.");
         }
     }
 
@@ -803,6 +865,7 @@ export default function WorkOrderDetailPage() {
                 width: "100%",
                 margin: "0 auto",
                 boxSizing: "border-box",
+                background: MR_THEME.appBg,
             }}
         >
             <WorkOrderDetailHeader
@@ -852,7 +915,7 @@ export default function WorkOrderDetailPage() {
                 <div
                     style={{
                         marginTop: 16,
-                        padding: 14,
+                        padding: "12px 10px",
                         borderRadius: 12,
                         border: "1px solid #eee",
                         background: "white",
@@ -861,7 +924,7 @@ export default function WorkOrderDetailPage() {
                     <div
                         style={{
                             display: "grid",
-                            gap: 18,
+                            gap: 14,
                         }}
                     >
                         <WorkOrderSummarySection
@@ -897,10 +960,474 @@ export default function WorkOrderDetailPage() {
                             assignedTechName={assignedTechName}
                         />
 
+                        <WorkOrderCustomerSection
+                            customerForm={customerForm}
+                            setCustomerForm={setCustomerForm}
+                            saveCustomerInfo={saveCustomerInfo}
+                            savingCustomer={savingCustomer}
+                            isAdmin={isAdmin}
+                        />
+
                         <div
                             style={{
                                 marginTop: 0,
-                                padding: 12,
+                                padding: 14,
+                                borderRadius: MR_THEME.radiusCard,
+                                border: `1px solid ${MR_THEME.border}`,
+                                background: MR_THEME.cardBg,
+                                boxShadow: MR_THEME.shadowCard,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 10,
+                                    marginBottom: 10,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontSize: 11,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 0.6,
+                                        color: MR_THEME.textSecondary,
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    Photo Evidence
+                                </div>
+
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 800,
+                                        color: photos.length >= 6 ? MR_THEME.danger : MR_THEME.textSecondary,
+                                        background: photos.length >= 6 ? "#fee2e2" : MR_THEME.cardBgSoft,
+                                        border: photos.length >= 6 ? "1px solid #fecaca" : `1px solid ${MR_THEME.border}`,
+                                        borderRadius: 999,
+                                        padding: "4px 8px",
+                                        lineHeight: 1.2,
+                                    }}
+                                >
+                                    {photos.length} / 6 photos
+                                </div>
+
+
+                            </div>
+                            {photos.length >= 6 ? (
+                                <div
+                                    style={{
+                                        marginBottom: 10,
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: "#b91c1c",
+                                        background: "#fee2e2",
+                                        border: "1px solid #fecaca",
+                                        borderRadius: 8,
+                                        padding: "6px 10px",
+                                        display: "inline-block",
+                                    }}
+                                >
+                                    Photo limit reached for this work order.
+                                </div>
+                            ) : null}
+
+                            {(
+                                photos.filter((p) => p.category === "before").length === 0 ||
+                                photos.filter((p) => p.category === "after").length === 0
+                            ) && (
+                                    <div
+                                        style={{
+                                            marginBottom: 10,
+                                            padding: "8px 10px",
+                                            borderRadius: 8,
+                                            background: "#fff7ed",
+                                            border: "1px solid #fed7aa",
+                                            color: "#9a3412",
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        Please add at least 1 before and 1 after photo.
+                                    </div>
+                                )}
+                            <div style={{ display: "grid", gap: 12 }}>
+                                <div
+                                    style={{
+                                        padding: "12px 12px",
+                                        borderRadius: MR_THEME.radiusControl,
+                                        border: `1px solid ${MR_THEME.border}`,
+                                        background: MR_THEME.cardBgSoft,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            fontWeight: 900,
+                                            color: "#111827",
+                                            marginBottom: 6,
+                                            lineHeight: 1.35,
+                                        }}
+                                    >
+                                        Before
+                                    </div>
+
+                                    <label
+                                        style={{
+                                            padding: "18px 12px",
+                                            minHeight: 56,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            borderRadius: MR_THEME.radiusControl,
+                                            border: `1px dashed ${MR_THEME.borderStrong}`,
+                                            background: MR_THEME.cardBg,
+                                            fontWeight: 900,
+                                            fontSize: 13,
+                                            lineHeight: 1.2,
+                                            cursor: photos.length >= 6 ? "not-allowed" : "pointer",
+                                            opacity: photos.length >= 6 ? 0.5 : 1,
+                                            width: "100%",
+                                            boxSizing: "border-box",
+                                            textAlign: "center",
+                                            color: MR_THEME.primary,
+                                        }}
+                                    >
+                                        + Add photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            disabled={photos.length >= 6}
+                                            style={{ display: "none" }}
+                                            onChange={(e) =>
+                                                handlePhotoUpload(e.target.files?.[0] ?? null, "before")
+                                            }
+                                        />
+                                    </label>
+
+                                    {photos.filter((p) => p.category === "before").length > 0 && (
+                                        <div
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                                                gap: 8,
+                                                marginTop: 10,
+                                            }}
+                                        >
+                                            {photos
+                                                .filter((p) => p.category === "before")
+                                                .map((photo) => (
+                                                    <div
+                                                        key={photo.photo_id}
+                                                        style={{
+                                                            position: "relative",
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={photo.file_url}
+                                                            alt="Before evidence"
+                                                            onClick={() => setSelectedPhotoUrl(photo.file_url)}
+                                                            style={{
+                                                                width: "100%",
+                                                                height: 96,
+                                                                objectFit: "cover",
+                                                                borderRadius: 10,
+                                                                border: "1px solid #e5e7eb",
+                                                                background: "#f8fafc",
+                                                                cursor: "pointer",
+                                                            }}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeletePhoto(photo);
+                                                            }}
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 6,
+                                                                right: 6,
+                                                                width: 24,
+                                                                height: 24,
+                                                                borderRadius: "50%",
+                                                                border: "none",
+                                                                background: "rgba(0,0,0,0.6)",
+                                                                color: "#fff",
+                                                                fontSize: 14,
+                                                                fontWeight: 800,
+                                                                cursor: "pointer",
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                justifyContent: "center",
+                                                            }}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))
+                                            }
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div
+                                    style={{
+                                        padding: "12px 12px",
+                                        borderRadius: MR_THEME.radiusControl,
+                                        border: `1px solid ${MR_THEME.border}`,
+                                        background: MR_THEME.cardBgSoft,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 800,
+                                            color: "#111827",
+                                            marginBottom: 6,
+                                            lineHeight: 1.35,
+                                        }}
+                                    >
+                                        During
+                                    </div>
+
+                                    <label
+                                        style={{
+                                            padding: "18px 12px",
+                                            minHeight: 56,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            borderRadius: MR_THEME.radiusControl,
+                                            border: `1px dashed ${MR_THEME.borderStrong}`,
+                                            background: MR_THEME.cardBg,
+                                            fontWeight: 900,
+                                            fontSize: 13,
+                                            lineHeight: 1.2,
+                                            cursor: photos.length >= 6 ? "not-allowed" : "pointer",
+                                            opacity: photos.length >= 6 ? 0.5 : 1,
+                                            width: "100%",
+                                            boxSizing: "border-box",
+                                            textAlign: "center",
+                                            color: MR_THEME.primary,
+                                        }}
+                                    >
+                                        + Add photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            disabled={photos.length >= 6}
+                                            style={{ display: "none" }}
+                                            onChange={(e) =>
+                                                handlePhotoUpload(e.target.files?.[0] ?? null, "during")
+                                            }
+                                        />
+                                    </label>
+
+                                    {photos.filter((p) => p.category === "during").length > 0 && (
+                                        <div
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                                                gap: 8,
+                                                marginTop: 10,
+                                            }}
+                                        >
+                                            {photos
+                                                .filter((p) => p.category === "during")
+                                                .map((photo) => (
+                                                    <div
+                                                        key={photo.photo_id}
+                                                        style={{
+                                                            position: "relative",
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={photo.file_url}
+                                                            alt="During evidence"
+                                                            onClick={() => setSelectedPhotoUrl(photo.file_url)}
+                                                            style={{
+                                                                width: "100%",
+                                                                height: 96,
+                                                                objectFit: "cover",
+                                                                borderRadius: 10,
+                                                                border: "1px solid #e5e7eb",
+                                                                background: "#f8fafc",
+                                                                cursor: "pointer",
+                                                            }}
+                                                        />
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeletePhoto(photo);
+                                                            }}
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 6,
+                                                                right: 6,
+                                                                width: 24,
+                                                                height: 24,
+                                                                borderRadius: "50%",
+                                                                border: "none",
+                                                                background: "rgba(0,0,0,0.6)",
+                                                                color: "#fff",
+                                                                fontSize: 14,
+                                                                fontWeight: 800,
+                                                                cursor: "pointer",
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                justifyContent: "center",
+                                                            }}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div
+                                    style={{
+                                        padding: "12px 12px",
+                                        borderRadius: MR_THEME.radiusControl,
+                                        border: `1px solid ${MR_THEME.border}`,
+                                        background: MR_THEME.cardBgSoft,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 800,
+                                            color: "#111827",
+                                            marginBottom: 6,
+                                            lineHeight: 1.35,
+                                        }}
+                                    >
+                                        After
+                                    </div>
+                                    <label
+                                        style={{
+                                            padding: "18px 12px",
+                                            minHeight: 56,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            borderRadius: MR_THEME.radiusControl,
+                                            border: `1px dashed ${MR_THEME.borderStrong}`,
+                                            background: MR_THEME.cardBg,
+                                            fontWeight: 900,
+                                            fontSize: 13,
+                                            lineHeight: 1.2,
+                                            cursor: photos.length >= 6 ? "not-allowed" : "pointer",
+                                            opacity: photos.length >= 6 ? 0.5 : 1,
+                                            width: "100%",
+                                            boxSizing: "border-box",
+                                            textAlign: "center",
+                                            color: MR_THEME.primary,
+                                        }}
+                                    >
+                                        + Add photo
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            capture="environment"
+                                            disabled={photos.length >= 6}
+                                            style={{ display: "none" }}
+                                            onChange={(e) =>
+                                                handlePhotoUpload(e.target.files?.[0] ?? null, "after")
+                                            }
+                                        />
+                                    </label>
+
+                                    {photos.filter((p) => p.category === "after").length > 0 && (
+                                        <div
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                                                gap: 8,
+                                                marginTop: 10,
+                                            }}
+                                        >
+                                            {photos
+                                                .filter((p) => p.category === "after")
+                                                .map((photo) => (
+                                                    <div
+                                                        key={photo.photo_id}
+                                                        style={{
+                                                            position: "relative",
+                                                        }}
+                                                    >
+                                                        <img
+                                                            src={photo.file_url}
+                                                            alt="After evidence"
+                                                            onClick={() => setSelectedPhotoUrl(photo.file_url)}
+                                                            style={{
+                                                                width: "100%",
+                                                                height: 96,
+                                                                objectFit: "cover",
+                                                                borderRadius: 10,
+                                                                border: "1px solid #e5e7eb",
+                                                                background: "#f8fafc",
+                                                                cursor: "pointer",
+                                                            }}
+                                                        />
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeletePhoto(photo);
+                                                            }}
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 6,
+                                                                right: 6,
+                                                                width: 24,
+                                                                height: 24,
+                                                                borderRadius: "50%",
+                                                                border: "none",
+                                                                background: "rgba(0,0,0,0.6)",
+                                                                color: "#fff",
+                                                                fontSize: 14,
+                                                                fontWeight: 800,
+                                                                cursor: "pointer",
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                justifyContent: "center",
+                                                            }}
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        color: "#6b7280",
+                                        lineHeight: 1.4,
+                                        wordBreak: "break-word",
+                                    }}
+                                >
+                                    Up to 6 photos per work order. Recommended: at least 1 before and 1 after.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            style={{
+                                marginTop: 0,
+                                padding: "10px 10px",
                                 borderRadius: 12,
                                 border: "1px solid #e5e7eb",
                                 background: "#ffffff",
@@ -908,12 +1435,12 @@ export default function WorkOrderDetailPage() {
                         >
                             <div
                                 style={{
-                                    fontSize: 12,
+                                    fontSize: 11,
                                     textTransform: "uppercase",
-                                    letterSpacing: 1,
+                                    letterSpacing: 0.6,
                                     color: "#6b7280",
-                                    fontWeight: 800,
-                                    marginBottom: 12,
+                                    fontWeight: 700,
+                                    marginBottom: 10,
                                 }}
                             >
                                 Check-in History
@@ -929,25 +1456,58 @@ export default function WorkOrderDetailPage() {
                                         <div
                                             key={checkIn.check_in_id}
                                             style={{
-                                                padding: 8,
+                                                padding: "8px 9px",
                                                 borderRadius: 10,
                                                 border: "1px solid #e5e7eb",
                                                 background: "#f9fafb",
                                             }}
                                         >
-                                            <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", marginBottom: 2 }}>
+                                            <div
+                                                style={{
+                                                    fontSize: 12,
+                                                    fontWeight: 800,
+                                                    color: "#111827",
+                                                    marginBottom: 4,
+                                                    lineHeight: 1.35,
+                                                    wordBreak: "break-word",
+                                                }}
+                                            >
                                                 {new Date(checkIn.check_in_at).toLocaleString()}
                                             </div>
 
-                                            <div style={{ marginTop: 3, fontSize: 13, lineHeight: 1.35, color: "#374151" }}>
+                                            <div
+                                                style={{
+                                                    marginTop: 2,
+                                                    fontSize: 12,
+                                                    lineHeight: 1.35,
+                                                    color: "#374151",
+                                                    wordBreak: "break-word",
+                                                }}
+                                            >
                                                 Status: {String(checkIn.geofence_status ?? "—").replaceAll("_", " ")}
                                             </div>
 
-                                            <div style={{ marginTop: 3, fontSize: 13, lineHeight: 1.35, color: "#374151" }}>
+                                            <div
+                                                style={{
+                                                    marginTop: 2,
+                                                    fontSize: 12,
+                                                    lineHeight: 1.35,
+                                                    color: "#374151",
+                                                    wordBreak: "break-word",
+                                                }}
+                                            >
                                                 Policy: {String(checkIn.policy_applied ?? "—").replaceAll("_", " ")}
                                             </div>
 
-                                            <div style={{ marginTop: 3, fontSize: 13, lineHeight: 1.35, color: "#374151" }}>
+                                            <div
+                                                style={{
+                                                    marginTop: 2,
+                                                    fontSize: 12,
+                                                    lineHeight: 1.35,
+                                                    color: "#374151",
+                                                    wordBreak: "break-word",
+                                                }}
+                                            >
                                                 Distance: {checkIn.distance_to_site_m != null ? `${checkIn.distance_to_site_m} m` : "—"}
                                             </div>
                                         </div>
@@ -955,269 +1515,13 @@ export default function WorkOrderDetailPage() {
                                 </div>
                             )}
                         </div>
+
                         <div
                             style={{
-                                marginTop: 0,
-                                padding: 12,
-                                borderRadius: 12,
-                                border: "1px solid #e5e7eb",
-                                background: "#ffffff",
+                                paddingTop: 10,
+                                borderTop: "1px solid #eee",
                             }}
                         >
-                            <div
-                                style={{
-                                    fontSize: 12,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 1,
-                                    color: "#6b7280",
-                                    fontWeight: 800,
-                                    marginBottom: 12,
-                                }}
-                            >
-                                Photo Evidence
-                            </div>
-
-                            <div style={{ display: "grid", gap: 12 }}>
-                                <div
-                                    style={{
-                                        padding: 12,
-                                        borderRadius: 10,
-                                        border: "1px solid #e5e7eb",
-                                        background: "#f9fafb",
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: 800,
-                                            color: "#111827",
-                                            marginBottom: 6,
-                                        }}
-                                    >
-                                        Before
-                                    </div>
-
-                                    <label
-                                        style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 10,
-                                            border: "1px solid #d1d5db",
-                                            background: "white",
-                                            fontWeight: 700,
-                                            cursor: "pointer",
-                                            display: "inline-block"
-                                        }}
-                                    >
-                                        + Add photo
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            capture="environment"
-                                            style={{ display: "none" }}
-                                            onChange={(e) =>
-                                                handlePhotoUpload(e.target.files?.[0] ?? null, "before")
-                                            }
-                                        />
-                                    </label>
-                                    {photos.filter((p) => p.category === "before").length > 0 && (
-                                        <div
-                                            style={{
-                                                display: "grid",
-                                                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-                                                gap: 10,
-                                                marginTop: 12,
-                                            }}
-                                        >
-                                            {photos
-                                                .filter((p) => p.category === "before")
-                                                .map((photo) => (
-                                                    <img
-                                                        key={photo.photo_id}
-                                                        src={photo.file_url}
-                                                        alt="Before evidence"
-                                                        onClick={() => setSelectedPhotoUrl(photo.file_url)}
-                                                        style={{
-                                                            width: "100%",
-                                                            height: 110,
-                                                            objectFit: "cover",
-                                                            borderRadius: 10,
-                                                            border: "1px solid #e5e7eb",
-                                                            background: "#f8fafc",
-                                                            cursor: "pointer",
-                                                        }}
-                                                    />
-                                                ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div
-                                    style={{
-                                        padding: 12,
-                                        borderRadius: 10,
-                                        border: "1px solid #e5e7eb",
-                                        background: "#f9fafb",
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: 800,
-                                            color: "#111827",
-                                            marginBottom: 6,
-                                        }}
-                                    >
-                                        During
-                                    </div>
-
-                                    <label
-                                        style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 10,
-                                            border: "1px solid #d1d5db",
-                                            background: "white",
-                                            fontWeight: 700,
-                                            cursor: "pointer",
-                                            display: "inline-block"
-                                        }}
-                                    >
-                                        + Add photo
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            capture="environment"
-                                            style={{ display: "none" }}
-                                            onChange={(e) =>
-                                                handlePhotoUpload(e.target.files?.[0] ?? null, "during")
-                                            }
-                                        />
-                                    </label>
-                                    {photos.filter((p) => p.category === "during").length > 0 && (
-                                        <div
-                                            style={{
-                                                display: "grid",
-                                                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-                                                gap: 10,
-                                                marginTop: 12,
-                                            }}
-                                        >
-                                            {photos
-                                                .filter((p) => p.category === "during")
-                                                .map((photo) => (
-                                                    <img
-                                                        key={photo.photo_id}
-                                                        src={photo.file_url}
-                                                        alt="During evidence"
-                                                        onClick={() => setSelectedPhotoUrl(photo.file_url)}
-                                                        style={{
-                                                            width: "100%",
-                                                            height: 110,
-                                                            objectFit: "cover",
-                                                            borderRadius: 10,
-                                                            border: "1px solid #e5e7eb",
-                                                            background: "#f8fafc",
-                                                            cursor: "pointer",
-                                                        }}
-                                                    />
-                                                ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div
-                                    style={{
-                                        padding: 12,
-                                        borderRadius: 10,
-                                        border: "1px solid #e5e7eb",
-                                        background: "#f9fafb",
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: 800,
-                                            color: "#111827",
-                                            marginBottom: 6,
-                                        }}
-                                    >
-                                        After
-                                    </div>
-
-                                    <label
-                                        style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 10,
-                                            border: "1px solid #d1d5db",
-                                            background: "white",
-                                            fontWeight: 700,
-                                            cursor: "pointer",
-                                            display: "inline-block",
-                                        }}
-                                    >
-                                        + Add photo
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            capture="environment"
-                                            style={{ display: "none" }}
-                                            onChange={(e) =>
-                                                handlePhotoUpload(e.target.files?.[0] ?? null, "after")
-                                            }
-                                        />
-                                    </label>
-
-                                    {photos.filter((p) => p.category === "after").length > 0 && (
-                                        <div
-                                            style={{
-                                                display: "grid",
-                                                gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-                                                gap: 10,
-                                                marginTop: 12,
-                                            }}
-                                        >
-                                            {photos
-                                                .filter((p) => p.category === "after")
-                                                .map((photo) => (
-                                                    <img
-                                                        key={photo.photo_id}
-                                                        src={photo.file_url}
-                                                        alt="After evidence"
-                                                        onClick={() => setSelectedPhotoUrl(photo.file_url)}
-                                                        style={{
-                                                            width: "100%",
-                                                            height: 110,
-                                                            objectFit: "cover",
-                                                            borderRadius: 10,
-                                                            border: "1px solid #e5e7eb",
-                                                            background: "#f8fafc",
-                                                            cursor: "pointer",
-                                                        }}
-                                                    />
-                                                ))}
-                                        </div>
-                                    )}
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: 13,
-                                        color: "#6b7280",
-                                        lineHeight: 1.45,
-                                    }}
-                                >
-                                    Up to 6 photos per work order. Recommended: at least 1 before and 1 after.
-                                </div>
-                            </div>
-                        </div>
-
-                        <WorkOrderCustomerSection
-                            customerForm={customerForm}
-                            setCustomerForm={setCustomerForm}
-                            saveCustomerInfo={saveCustomerInfo}
-                            savingCustomer={savingCustomer}
-                            isAdmin={isAdmin}
-                        />
-
-                        <div style={{ paddingTop: 12, borderTop: "1px solid #eee" }}>
                             <WorkOrderItemsHeader
                                 itemsCount={items.length}
                                 showForm={showForm}

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import type { WorkOrderStatus } from "../../../../lib/supabase/workOrders";
 import { supabase } from "../../../../lib/supabaseClient";
+import { MR_THEME } from "../../../../lib/theme";
 
 type WorkOrderSummary = {
     work_order_id: string;
@@ -164,10 +165,10 @@ export default function WorkOrderSummarySection({
         <div
             style={{
                 padding: 14,
-                borderRadius: 16,
-                border: "1px solid #e5e7eb",
-                background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                borderRadius: MR_THEME.radiusCard,
+                border: `1px solid ${MR_THEME.border}`,
+                background: MR_THEME.cardBg,
+                boxShadow: MR_THEME.shadowCard,
             }}
         >
             <div
@@ -185,7 +186,7 @@ export default function WorkOrderSummarySection({
                             fontSize: 12,
                             textTransform: "uppercase",
                             letterSpacing: 1,
-                            color: "#6b7280",
+                            color: MR_THEME.textSecondary,
                             fontWeight: 800,
                             marginBottom: 8,
                         }}
@@ -193,24 +194,13 @@ export default function WorkOrderSummarySection({
                         Work Order Summary
                     </div>
 
-                    <div
-                        style={{
-                            fontSize: 30,
-                            lineHeight: 1.05,
-                            fontWeight: 900,
-                            letterSpacing: "-0.03em",
-                            color: "#111827",
-                            marginBottom: 10,
-                        }}
-                    >
-                        {wo.job_type}
-                    </div>
+
 
                     <div
                         style={{
                             fontSize: 15,
                             lineHeight: 1.6,
-                            color: "#4b5563",
+                            color: MR_THEME.textSecondary,
                             maxWidth: 760,
                         }}
                     >
@@ -218,26 +208,7 @@ export default function WorkOrderSummarySection({
                     </div>
                 </div>
 
-                {googleMapsUrl ? (
-                    <a
-                        href={googleMapsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{
-                            display: "inline-block",
-                            padding: "10px 14px",
-                            borderRadius: 12,
-                            border: "1px solid #d1d5db",
-                            textDecoration: "none",
-                            color: "#111827",
-                            fontWeight: 800,
-                            background: "white",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        Abrir en Google Maps
-                    </a>
-                ) : null}
+
             </div>
 
             <div
@@ -251,33 +222,58 @@ export default function WorkOrderSummarySection({
                 <div
                     style={{
                         padding: 12,
-                        borderRadius: 12,
-                        background: "#ffffff",
-                        border: "1px solid #e5e7eb",
+                        borderRadius: MR_THEME.radiusControl,
+                        background: MR_THEME.cardBgSoft,
+                        border: `1px solid ${MR_THEME.border}`,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: MR_THEME.textSecondary, fontWeight: 700, marginBottom: 6 }}>
                         Customer
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: MR_THEME.textPrimary }}>
                         {wo.customer_name || "—"}
                     </div>
                 </div>
 
                 <div
                     style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        background: "#ffffff",
-                        border: "1px solid #e5e7eb",
+                        padding: 14,
+                        borderRadius: MR_THEME.radiusControl,
+                        background: MR_THEME.cardBg,
+                        border: `1px solid ${MR_THEME.borderStrong}`,
+                        boxShadow: MR_THEME.shadowCardSoft,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: MR_THEME.textSecondary, fontWeight: 700, marginBottom: 6 }}>
                         Address
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: MR_THEME.textPrimary }}>
                         {wo.service_address || "—"}
                     </div>
+                    {googleMapsUrl ? (
+                        <div style={{ marginTop: 6 }}>
+                            <a
+                                href={googleMapsUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    padding: "6px 10px",
+                                    borderRadius: 999,
+                                    border: "1px solid #e5e7eb",
+                                    textDecoration: "none",
+                                    color: "#374151",
+                                    fontWeight: 700,
+                                    fontSize: 12,
+                                    background: "#f9fafb",
+                                }}
+                            >
+                                Ver en Google Maps
+                            </a>
+                        </div>
+                    ) : null}
                 </div>
 
                 <div
@@ -367,10 +363,10 @@ export default function WorkOrderSummarySection({
                 <div
                     style={{
                         marginTop: 14,
-                        padding: 12,
-                        borderRadius: 12,
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
+                        padding: 14,
+                        borderRadius: MR_THEME.radiusCard,
+                        background: MR_THEME.primarySoft,
+                        border: `1px solid ${MR_THEME.primary}`,
                     }}
                 >
                     <div
@@ -378,7 +374,7 @@ export default function WorkOrderSummarySection({
                             fontSize: 11,
                             textTransform: "uppercase",
                             letterSpacing: 1,
-                            color: "#6b7280",
+                            color: MR_THEME.primary,
                             fontWeight: 800,
                             marginBottom: 6,
                         }}
@@ -389,14 +385,13 @@ export default function WorkOrderSummarySection({
                     <div
                         style={{
                             fontSize: 13,
-                            color: "#4b5563",
+                            color: MR_THEME.textSecondary,
                             marginBottom: 10,
                             lineHeight: 1.45,
                         }}
                     >
                         We use your location only to validate check-in for this work order.
                     </div>
-
                     {hasCheckedIn ? (
                         <div
                             style={{
@@ -433,20 +428,21 @@ export default function WorkOrderSummarySection({
                     ) : (
                         <>
                             <button
+                                onClick={handleCheckIn}
+                                disabled={checkingIn}
                                 style={{
-                                    padding: "10px 16px",
-                                    borderRadius: 10,
-                                    border: "1px solid #d1d5db",
-                                    background: "#111827",
+                                    padding: "10px 14px",
+                                    borderRadius: MR_THEME.radiusControl,
+                                    border: `1px solid ${MR_THEME.primary}`,
+                                    background: MR_THEME.primary,
                                     color: "white",
-                                    fontWeight: 800,
+                                    fontWeight: 900,
+                                    fontSize: 13,
                                     cursor: checkingIn ? "not-allowed" : "pointer",
                                     opacity: checkingIn ? 0.7 : 1,
                                 }}
-                                onClick={handleCheckIn}
-                                disabled={checkingIn}
                             >
-                                {checkingIn ? "Checking in..." : "Check in"}
+                                {checkingIn ? "Checking in..." : "Check In"}
                             </button>
 
                             {checkInMessage ? (
