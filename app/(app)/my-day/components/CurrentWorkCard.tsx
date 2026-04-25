@@ -3,18 +3,16 @@
 import React from "react";
 import { MR_THEME } from "../../../../lib/theme";
 
-type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
-
-type CurrentWorkRow = {
+type WorkOrder = {
     work_order_id: string;
     job_type?: string | null;
     customer_name?: string | null;
     service_address?: string | null;
-    status: WorkOrderStatus;
+    status: string;
 };
 
-type CurrentWorkCardProps = {
-    currentWork: CurrentWorkRow | null;
+type Props = {
+    currentWork: WorkOrder | null;
     currentWorkMessage: string;
     openShift: boolean;
     shiftBusy: boolean;
@@ -33,290 +31,140 @@ export default function CurrentWorkCard({
     companyId,
     onResumeWork,
     onStartShift,
-}: CurrentWorkCardProps) {
-    const statusLabel = currentWork
-        ? currentWork.status.replaceAll("_", " ")
-        : null;
-
-    const isInProgress = currentWork?.status === "in_progress";
-    const isAssigned = currentWork?.status === "new";
-    const [browseHover, setBrowseHover] = React.useState(false);
-
+}: Props) {
     return (
         <div
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 18,
-                background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
-                padding: 20,
-                marginBottom: 18,
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-            }}
-        >
-            <div
-                style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 16,
-                    flexWrap: "wrap",
-                    marginBottom: 14,
-                }}
-            >
-                <div style={{ minWidth: 260, flex: 1 }}>
-                    <div
-                        style={{
-                            fontSize: 12,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                            color: "#64748b",
-                            fontWeight: 800,
-                            marginBottom: 8,
-                        }}
-                    >
-                        Current work
-                    </div>
-
-                    <div
-                        style={{
-                            fontSize: 26,
-                            fontWeight: 800,
-                            lineHeight: 1.1,
-                            color: "#111827",
-                            letterSpacing: "-0.02em",
-                            marginBottom: 8,
-                        }}
-                    >
-                        {currentWork
-                            ? currentWork.job_type || "Work order"
-                            : "No active work"}
-                    </div>
-
-                    <div
-                        style={{
-                            color: "#6b7280",
-                            fontSize: 14,
-                            lineHeight: 1.6,
-                            maxWidth: 760,
-                        }}
-                    >
-                        {currentWorkMessage}
-                    </div>
-
-                </div>
-
-                {currentWork ? (
-                    <div
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "8px 12px",
-                            borderRadius: 999,
-                            border: isInProgress
-                                ? "1px solid #bfdbfe"
-                                : isAssigned
-                                    ? "1px solid #dbeafe"
-                                    : "1px solid #e5e7eb",
-                            background: isInProgress
-                                ? "#eff6ff"
-                                : isAssigned
-                                    ? "#f8fbff"
-                                    : "#f9fafb",
-                            color: isInProgress
-                                ? "#1d4ed8"
-                                : isAssigned
-                                    ? "#1e40af"
-                                    : "#374151",
-                            fontSize: 13,
-                            fontWeight: 800,
-                            textTransform: "capitalize",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        {statusLabel}
-                    </div>
-                ) : (
-                    <div
-                        style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            padding: "8px 12px",
-                            borderRadius: 999,
-                            border: `1px solid ${MR_THEME.border}`,
-                            background: MR_THEME.cardBgSoft,
-                            color: MR_THEME.textSecondary,
-                            fontSize: 13,
-                            fontWeight: 800,
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        Awaiting work
-                    </div>
-                )}
-            </div>
-
-            {!currentWork ? (
-                <div
-                    style={{
-                        border: `1px dashed ${MR_THEME.border}`,
-                        borderRadius: MR_THEME.radiusCard,
-                        background: MR_THEME.cardBgSoft,
-                        padding: 18,
-                    }}
-                >
-                    <div
-                        style={{
-                            fontSize: 15,
-                            fontWeight: 700,
-                            color: "#111827",
-                            marginBottom: 6,
-                        }}
-                    >
-                        Nothing in progress right now
-                    </div>
-
-                    <div
-                        style={{
-                            fontSize: 14,
-                            color: "#6b7280",
-                            lineHeight: 1.6,
-                            marginBottom: 14,
-                        }}
-                    >
-                        {openShift
-                            ? "You are ready to take your next assigned work order."
-                            : "Start your shift to begin operating assigned work orders."}
-                    </div>
-
-                    {openShift ? (
-                        <div style={{ marginTop: 10 }}>
-                            <button
-                                type="button"
-                                onClick={() => window.location.assign("/work-orders")}
-                                onMouseEnter={() => setBrowseHover(true)}
-                                onMouseLeave={() => setBrowseHover(false)}
-                                style={{
-                                    ...accentButtonStyle,
-                                    background: browseHover ? MR_THEME.primaryHover : MR_THEME.primarySoft,
-                                    color: browseHover ? "#ffffff" : MR_THEME.primaryHover,
-                                    boxShadow: browseHover ? MR_THEME.shadowCard : "none",
-                                    transform: browseHover ? "translateY(-1px)" : "translateY(0)",
-                                    transition: "all 0.16s ease",
-                                }}
-                            >
-                                Browse work orders
-                            </button>
-                        </div>
-                    ) : (
-                        <button
-                            type="button"
-                            onClick={onStartShift}
-                            disabled={shiftBusy || loading || !companyId}
-                            style={primaryButtonStyle}
-                        >
-                            {shiftBusy ? "Processing..." : "Start shift"}
-                        </button>
-                    )}
-                </div>
-            ) : (
-                <>
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-                            gap: 12,
-                            marginTop: 2,
-                        }}
-                    >
-                        <InfoCard
-                            label="Customer"
-                            value={currentWork.customer_name || "—"}
-                        />
-
-                        <InfoCard
-                            label="Location"
-                            value={currentWork.service_address || "—"}
-                        />
-
-                        <InfoCard
-                            label="Status"
-                            value={statusLabel || "—"}
-                        />
-
-                        <InfoCard
-                            label="Work order"
-                            value={currentWork.work_order_id.slice(0, 8)}
-                        />
-                    </div>
-
-                </>
-            )}
-        </div>
-    );
-}
-
-function InfoCard({ label, value }: { label: string; value: string }) {
-    return (
-        <div
-            style={{
-                border: `1px solid ${MR_THEME.border}`,
-                borderRadius: MR_THEME.radiusCard,
-                padding: 16,
-                background: MR_THEME.cardBgSoft,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                padding: MR_THEME.layout.cardPadding,
+                boxShadow: MR_THEME.shadows.card,
             }}
         >
             <div
                 style={{
                     fontSize: 12,
-                    color: MR_THEME.textMuted,
-                    marginBottom: 8,
                     textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    fontWeight: 700,
+                    letterSpacing: "0.08em",
+                    color: MR_THEME.colors.textMuted,
+                    fontWeight: 800,
+                    marginBottom: 8,
                 }}
             >
-                {label}
+                Current Work
             </div>
+
             <div
                 style={{
-                    fontSize: 18,
-                    fontWeight: 800,
-                    color: MR_THEME.textPrimary,
-                    lineHeight: 1.3,
-                    wordBreak: "break-word",
+                    fontSize: 24,
+                    fontWeight: 900,
+                    color: MR_THEME.colors.textPrimary,
+                    marginBottom: 8,
                 }}
             >
-                {value}
+                {currentWork ? "Active work order" : "No active work"}
+            </div>
+
+            <div
+                style={{
+                    fontSize: 14,
+                    color: MR_THEME.colors.textSecondary,
+                    marginBottom: 16,
+                    lineHeight: 1.5,
+                }}
+            >
+                {currentWorkMessage}
+            </div>
+
+            {currentWork ? (
+                <div
+                    style={{
+                        padding: 14,
+                        borderRadius: MR_THEME.radius.control,
+                        border: `1px solid ${MR_THEME.colors.border}`,
+                        background: MR_THEME.colors.cardBgSoft,
+                        marginBottom: 14,
+                    }}
+                >
+                    <div
+                        style={{
+                            fontWeight: 800,
+                            color: MR_THEME.colors.textPrimary,
+                            marginBottom: 6,
+                        }}
+                    >
+                        {currentWork.job_type || "Work order"}
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: 13,
+                            color: MR_THEME.colors.textSecondary,
+                            marginBottom: 4,
+                        }}
+                    >
+                        {currentWork.customer_name || "No customer"}
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: 13,
+                            color: MR_THEME.colors.textMuted,
+                        }}
+                    >
+                        {currentWork.service_address || "No address"}
+                    </div>
+                </div>
+            ) : null}
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                {currentWork ? (
+                    <button
+                        onClick={() => onResumeWork(currentWork.work_order_id)}
+                        style={primaryButton}
+                    >
+                        Open work order
+                    </button>
+                ) : null}
+
+                {!openShift && (
+                    <button
+                        onClick={onStartShift}
+                        disabled={shiftBusy || loading || !companyId}
+                        style={{
+                            ...secondaryButton,
+                            opacity: shiftBusy || loading || !companyId ? 0.7 : 1,
+                            cursor:
+                                shiftBusy || loading || !companyId
+                                    ? "not-allowed"
+                                    : "pointer",
+                        }}
+                    >
+                        Start shift
+                    </button>
+                )}
             </div>
         </div>
     );
 }
-const primaryButtonStyle: React.CSSProperties = {
+
+const primaryButton: React.CSSProperties = {
     padding: "10px 14px",
-    borderRadius: MR_THEME.radiusControl,
-    border: `1px solid ${MR_THEME.textPrimary}`,
-    background: MR_THEME.textPrimary,
-    color: "#fff",
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.primary}`,
+    background: MR_THEME.colors.primary,
+    color: "#ffffff",
+    fontWeight: 800,
     cursor: "pointer",
-    fontWeight: 700,
 };
 
-const secondaryButtonStyle: React.CSSProperties = {
+const secondaryButton: React.CSSProperties = {
     padding: "10px 14px",
-    borderRadius: MR_THEME.radiusControl,
-    border: `1px solid ${MR_THEME.borderStrong}`,
-    background: MR_THEME.cardBg,
-    color: MR_THEME.textPrimary,
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+    background: MR_THEME.colors.cardBg,
+    color: MR_THEME.colors.textPrimary,
+    fontWeight: 800,
     cursor: "pointer",
-    fontWeight: 600,
-};
-
-const accentButtonStyle: React.CSSProperties = {
-    padding: "10px 14px",
-    borderRadius: MR_THEME.radiusControl,
-    border: `1px solid ${MR_THEME.primary}`,
-    background: MR_THEME.primarySoft,
-    color: MR_THEME.primaryHover,
-    cursor: "pointer",
-    fontWeight: 700,
 };

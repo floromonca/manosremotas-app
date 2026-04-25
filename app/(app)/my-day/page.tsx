@@ -6,11 +6,11 @@ import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 
 import { fetchWorkOrders, safeStatus } from "../../../lib/supabase/workOrders";
+import { MR_THEME } from "../../../lib/theme";
 import ShiftStatusCard from "./components/ShiftStatusCard";
 import CurrentWorkCard from "./components/CurrentWorkCard";
 import TodayAtAGlanceCard from "./components/TodayAtAGlanceCard";
 import RecentWorkOrdersCard from "./components/RecentWorkOrdersCard";
-
 
 import {
     checkIn,
@@ -22,7 +22,6 @@ import {
     type ShiftSummary,
 } from "../../../lib/supabase/shifts";
 
-
 type WorkOrder = {
     work_order_id: string;
     job_type?: string | null;
@@ -31,7 +30,6 @@ type WorkOrder = {
     status: "new" | "in_progress" | "resolved" | "closed";
     assigned_to?: string | null;
 };
-
 
 export default function MyDayPage() {
     const router = useRouter();
@@ -56,6 +54,7 @@ export default function MyDayPage() {
         setMounted(true);
         setPrettyDate(new Date().toLocaleDateString());
     }, []);
+
     useEffect(() => {
         if (!openShift?.check_in_at) {
             setShiftElapsed("00:00:00");
@@ -151,11 +150,9 @@ export default function MyDayPage() {
                 await refreshShift(companyId);
                 await refreshTodayShiftSummary(companyId);
                 await refreshWorkOrders(companyId);
-
             } catch (e: any) {
                 if (!cancelled) {
                     setErrorMsg(e?.message ?? String(e));
-                    // setOpenShift(null);
                 }
             } finally {
                 if (!cancelled) setLoading(false);
@@ -165,7 +162,6 @@ export default function MyDayPage() {
         return () => {
             cancelled = true;
         };
-
     }, [
         authLoading,
         user?.id,
@@ -192,7 +188,6 @@ export default function MyDayPage() {
             setOpenShift((data as ShiftRow) ?? null);
             setShiftMsg("Shift started successfully.");
             await refreshTodayShiftSummary(companyId);
-
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
         } finally {
@@ -214,7 +209,6 @@ export default function MyDayPage() {
             setShiftMsg("Shift ended successfully.");
             await refreshShift(companyId);
             await refreshTodayShiftSummary(companyId);
-
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
         } finally {
@@ -233,6 +227,7 @@ export default function MyDayPage() {
     const completedCount = myRows.filter(
         (w) => w.status === "resolved" || w.status === "closed"
     ).length;
+
     const workedTodayLabel = useMemo(() => {
         if (!todayShiftSummary) return "00:00:00";
         return formatDurationHHMMSS(todayShiftSummary.totalSeconds);
@@ -272,24 +267,24 @@ export default function MyDayPage() {
                 width: "100%",
                 maxWidth: 1180,
                 margin: "0 auto",
-                padding: "8px 0 32px 0",
+                padding: "8px 16px 32px 16px",
             }}
         >
             <div
                 style={{
                     marginBottom: 14,
                     paddingBottom: 14,
-                    borderBottom: "1px solid #e5e7eb",
+                    borderBottom: `1px solid ${MR_THEME.colors.border}`,
                 }}
             >
                 {mounted && prettyDate ? (
                     <div
                         style={{
                             fontSize: 12,
-                            fontWeight: 700,
+                            fontWeight: 800,
                             letterSpacing: "0.06em",
                             textTransform: "uppercase",
-                            color: "#6b7280",
+                            color: MR_THEME.colors.textSecondary,
                             marginBottom: 8,
                         }}
                     >
@@ -301,9 +296,9 @@ export default function MyDayPage() {
                     style={{
                         fontSize: 34,
                         lineHeight: 1.05,
-                        fontWeight: 800,
+                        fontWeight: 900,
                         letterSpacing: "-0.03em",
-                        color: "#111827",
+                        color: MR_THEME.colors.textPrimary,
                         margin: 0,
                     }}
                 >
@@ -314,7 +309,7 @@ export default function MyDayPage() {
                     style={{
                         marginTop: 8,
                         fontSize: 15,
-                        color: "#6b7280",
+                        color: MR_THEME.colors.textSecondary,
                         lineHeight: 1.5,
                         maxWidth: 760,
                     }}
@@ -332,9 +327,10 @@ export default function MyDayPage() {
                         padding: "12px 14px",
                         border: "1px solid #fecaca",
                         background: "#fff5f5",
-                        borderRadius: 12,
-                        color: "#991b1b",
+                        borderRadius: MR_THEME.radius.control,
+                        color: MR_THEME.colors.danger,
                         fontSize: 14,
+                        fontWeight: 700,
                     }}
                 >
                     <strong>Error:</strong> {errorMsg}
@@ -356,7 +352,6 @@ export default function MyDayPage() {
                     onCheckOut={handleCheckOut}
                     onViewWorkOrders={() => router.push("/work-orders")}
                 />
-
 
                 <CurrentWorkCard
                     currentWork={currentWork}
@@ -382,8 +377,5 @@ export default function MyDayPage() {
                 />
             </div>
         </div>
-
     );
 }
-
-

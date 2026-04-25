@@ -36,12 +36,12 @@ export default function ShiftStatusCard({
     return (
         <div
             style={{
-                border: `1px solid ${MR_THEME.border}`,
-                borderRadius: MR_THEME.radiusCard,
-                background: MR_THEME.cardBg,
-                padding: 20,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                padding: MR_THEME.layout.cardPadding,
                 marginBottom: 18,
-                boxShadow: MR_THEME.shadowCard,
+                boxShadow: MR_THEME.shadows.card,
             }}
         >
             <div
@@ -54,13 +54,13 @@ export default function ShiftStatusCard({
                     marginBottom: 14,
                 }}
             >
-                <div style={{ minWidth: 280, flex: 1 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
                     <div
                         style={{
                             fontSize: 12,
                             textTransform: "uppercase",
                             letterSpacing: "0.08em",
-                            color: MR_THEME.textMuted,
+                            color: MR_THEME.colors.textMuted,
                             fontWeight: 800,
                             marginBottom: 8,
                         }}
@@ -71,9 +71,9 @@ export default function ShiftStatusCard({
                     <div
                         style={{
                             fontSize: 28,
-                            fontWeight: 800,
+                            fontWeight: 900,
                             lineHeight: 1.05,
-                            color: MR_THEME.textPrimary,
+                            color: MR_THEME.colors.textPrimary,
                             letterSpacing: "-0.02em",
                             marginBottom: 8,
                         }}
@@ -90,7 +90,7 @@ export default function ShiftStatusCard({
                     <div
                         style={{
                             fontSize: 14,
-                            color: MR_THEME.textSecondary,
+                            color: MR_THEME.colors.textSecondary,
                             lineHeight: 1.6,
                             maxWidth: 760,
                         }}
@@ -118,7 +118,11 @@ export default function ShiftStatusCard({
                             type="button"
                             onClick={onCheckIn}
                             disabled={shiftBusy || loading || !companyId}
-                            style={primaryButtonStyle}
+                            style={{
+                                ...primaryButtonStyle,
+                                opacity: shiftBusy || loading || !companyId ? 0.7 : 1,
+                                cursor: shiftBusy || loading || !companyId ? "not-allowed" : "pointer",
+                            }}
                         >
                             {shiftBusy ? "Processing..." : "Start shift"}
                         </button>
@@ -127,7 +131,11 @@ export default function ShiftStatusCard({
                             type="button"
                             onClick={onCheckOut}
                             disabled={shiftBusy || loading}
-                            style={secondaryButtonStyle}
+                            style={{
+                                ...secondaryButtonStyle,
+                                opacity: shiftBusy || loading ? 0.7 : 1,
+                                cursor: shiftBusy || loading ? "not-allowed" : "pointer",
+                            }}
                         >
                             {shiftBusy ? "Processing..." : "End shift"}
                         </button>
@@ -148,7 +156,7 @@ export default function ShiftStatusCard({
                     style={{
                         marginBottom: 14,
                         padding: "12px 14px",
-                        borderRadius: 12,
+                        borderRadius: MR_THEME.radius.control,
                         border: "1px solid #bbf7d0",
                         background: "#f0fdf4",
                         color: "#166534",
@@ -163,7 +171,7 @@ export default function ShiftStatusCard({
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                     gap: 12,
                 }}
             >
@@ -187,7 +195,8 @@ export default function ShiftStatusCard({
                     style={{
                         marginTop: 12,
                         fontSize: 13,
-                        color: "#374151",
+                        color: MR_THEME.colors.textSecondary,
+                        fontWeight: 700,
                     }}
                 >
                     {shiftMsg}
@@ -209,23 +218,23 @@ function MetricCard({
     const styles =
         tone === "active"
             ? {
-                border: "1px solid #dbeafe",
-                background: "#f8fbff",
-                labelColor: "#64748b",
-                valueColor: "#1e40af",
+                border: `1px solid ${MR_THEME.colors.primarySoft}`,
+                background: MR_THEME.colors.cardBgSoft,
+                labelColor: MR_THEME.colors.textSecondary,
+                valueColor: MR_THEME.colors.primaryHover,
             }
             : {
-                border: "1px solid #e5e7eb",
-                background: "#f8fafc",
-                labelColor: "#64748b",
-                valueColor: "#111827",
+                border: `1px solid ${MR_THEME.colors.border}`,
+                background: MR_THEME.colors.cardBgSoft,
+                labelColor: MR_THEME.colors.textSecondary,
+                valueColor: MR_THEME.colors.textPrimary,
             };
 
     return (
         <div
             style={{
                 border: styles.border,
-                borderRadius: 14,
+                borderRadius: MR_THEME.radius.control,
                 padding: 16,
                 background: styles.background,
             }}
@@ -237,7 +246,7 @@ function MetricCard({
                     marginBottom: 8,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
-                    fontWeight: 700,
+                    fontWeight: 800,
                 }}
             >
                 {label}
@@ -260,20 +269,20 @@ function MetricCard({
 
 const primaryButtonStyle: React.CSSProperties = {
     padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #111827",
-    background: "#111827",
-    color: "#fff",
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.primary}`,
+    background: MR_THEME.colors.primary,
+    color: "#ffffff",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
 };
 
 const secondaryButtonStyle: React.CSSProperties = {
     padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111827",
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+    background: MR_THEME.colors.cardBg,
+    color: MR_THEME.colors.textPrimary,
     cursor: "pointer",
-    fontWeight: 600,
+    fontWeight: 800,
 };
