@@ -36,6 +36,13 @@ export default function RecordPaymentModal({
     onSave,
 }: Props) {
     if (!open) return null;
+    const safeCurrentBalance = Number(currentBalance || 0);
+    const safePaymentAmount = Number(paymentAmount || 0);
+    const remainingBalance = Math.max(safeCurrentBalance - safePaymentAmount, 0);
+
+    const amountIsInvalid = safePaymentAmount <= 0;
+    const amountExceedsBalance = safePaymentAmount > safeCurrentBalance;
+    const saveDisabled = savingPayment || amountIsInvalid || amountExceedsBalance;
 
     return (
         <div
@@ -78,7 +85,21 @@ export default function RecordPaymentModal({
                 >
                     Current balance: <b>{money(currentBalance, currencyCode)}</b>
                 </div>
-
+                <div
+                    style={{
+                        fontSize: 13,
+                        padding: 10,
+                        borderRadius: 8,
+                        background: amountExceedsBalance ? "#fef2f2" : "#f0fdf4",
+                        border: amountExceedsBalance ? "1px solid #fecaca" : "1px solid #bbf7d0",
+                        color: amountExceedsBalance ? "#991b1b" : "#166534",
+                        fontWeight: 700,
+                    }}
+                >
+                    {amountExceedsBalance
+                        ? "Payment amount cannot be greater than the current balance."
+                        : `Remaining balance after payment: ${money(remainingBalance, currencyCode)}`}
+                </div>
                 <label style={{ display: "grid", gap: 6 }}>
                     <span>Amount</span>
                     <input
@@ -175,7 +196,7 @@ export default function RecordPaymentModal({
 
                     <button
                         onClick={onSave}
-                        disabled={savingPayment}
+                        disabled={saveDisabled}
                         style={{
                             padding: "10px 14px",
                             borderRadius: 8,
@@ -183,8 +204,8 @@ export default function RecordPaymentModal({
                             background: "#16a34a",
                             color: "white",
                             fontWeight: 700,
-                            cursor: savingPayment ? "not-allowed" : "pointer",
-                            opacity: savingPayment ? 0.8 : 1,
+                            cursor: saveDisabled ? "not-allowed" : "pointer",
+                            opacity: saveDisabled ? 0.7 : 1,
                         }}
                     >
                         {savingPayment ? "Saving..." : "Save Payment"}

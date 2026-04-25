@@ -1,11 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabaseClient";
 import Link from "next/link";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useRouter } from "next/navigation";
 import { useAuthState } from "../../../hooks/useAuthState";
+
+const MR_THEME = {
+    appBg: "#f8fafc",
+    cardBg: "#ffffff",
+    cardBgSoft: "#f9fafb",
+    border: "#e2e8f0",
+    borderStrong: "#cbd5e1",
+    textPrimary: "#0f172a",
+    textSecondary: "#475569",
+    textMuted: "#94a3b8",
+    primary: "#2563eb",
+    primaryHover: "#1d4ed8",
+    shadowCard: "0 1px 2px rgba(16, 24, 40, 0.04)",
+};
 
 type Customer = {
     customer_id: string;
@@ -18,26 +32,11 @@ export default function CustomersPage() {
     const router = useRouter();
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
+
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
 
-
-    useEffect(() => {
-        if (authLoading) return;
-
-        if (!user) {
-            router.replace("/auth");
-            return;
-        }
-
-        if (isLoadingCompany) return;
-
-        if (myRole !== "owner" && myRole !== "admin") {
-            router.replace("/work-orders");
-            return;
-        }
-    }, [authLoading, user?.id, isLoadingCompany, myRole, router]);
-    async function loadCustomers() {
+    const loadCustomers = useCallback(async () => {
         setLoading(true);
 
         const query = supabase
@@ -58,7 +57,23 @@ export default function CustomersPage() {
         }
 
         setLoading(false);
-    }
+    }, [companyId]);
+
+    useEffect(() => {
+        if (authLoading) return;
+
+        if (!user) {
+            router.replace("/auth");
+            return;
+        }
+
+        if (isLoadingCompany) return;
+
+        if (myRole !== "owner" && myRole !== "admin") {
+            router.replace("/work-orders");
+            return;
+        }
+    }, [authLoading, user, isLoadingCompany, myRole, router]);
 
     async function handleNewCustomer() {
         if (!companyId) {
@@ -92,8 +107,11 @@ export default function CustomersPage() {
     useEffect(() => {
         if (!companyId) return;
         if (myRole !== "owner" && myRole !== "admin") return;
-        loadCustomers();
-    }, [companyId, myRole]);
+
+        queueMicrotask(() => {
+            void loadCustomers();
+        });
+    }, [companyId, myRole, loadCustomers]);
 
     return (
         <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
@@ -113,9 +131,9 @@ export default function CustomersPage() {
                         minWidth: 280,
                         padding: "18px 20px",
                         borderRadius: 16,
-                        border: "1px solid #e5e7eb",
-                        background: "linear-gradient(180deg, #ffffff 0%, #fafafa 100%)",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                        border: `1px solid ${MR_THEME.border}`,
+                        background: MR_THEME.cardBg,
+                        boxShadow: MR_THEME.shadowCard,
                     }}
                 >
                     <div
@@ -123,7 +141,7 @@ export default function CustomersPage() {
                             fontSize: 12,
                             textTransform: "uppercase",
                             letterSpacing: 1,
-                            color: "#6b7280",
+                            color: MR_THEME.textSecondary,
                             fontWeight: 800,
                             marginBottom: 6,
                         }}
@@ -138,7 +156,7 @@ export default function CustomersPage() {
                             lineHeight: 1.1,
                             fontWeight: 900,
                             letterSpacing: "-0.03em",
-                            color: "#111827",
+                            color: MR_THEME.textPrimary,
                         }}
                     >
                         {companyName || "Your Business"} — Customers
@@ -157,10 +175,10 @@ export default function CustomersPage() {
                             style={{
                                 padding: "6px 10px",
                                 borderRadius: 999,
-                                background: "#f9fafb",
-                                border: "1px solid #e5e7eb",
+                                background: MR_THEME.cardBgSoft,
+                                border: `1px solid ${MR_THEME.border}`,
                                 fontSize: 13,
-                                color: "#374151",
+                                color: MR_THEME.textSecondary,
                             }}
                         >
                             Total customers: <b>{customers.length}</b>
@@ -173,12 +191,12 @@ export default function CustomersPage() {
                     style={{
                         padding: "12px 16px",
                         borderRadius: 12,
-                        border: "1px solid #111827",
-                        background: "#111827",
+                        border: `1px solid ${MR_THEME.primary}`,
+                        background: MR_THEME.primary,
                         color: "white",
                         cursor: "pointer",
                         fontWeight: 800,
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                        boxShadow: MR_THEME.shadowCard,
                     }}
                 >
                     + New Customer
@@ -190,9 +208,9 @@ export default function CustomersPage() {
                     style={{
                         padding: 18,
                         borderRadius: 14,
-                        border: "1px solid #e5e7eb",
-                        background: "white",
-                        color: "#6b7280",
+                        border: `1px solid ${MR_THEME.border}`,
+                        background: MR_THEME.cardBg,
+                        color: MR_THEME.textSecondary,
                     }}
                 >
                     Loading customers...
@@ -202,11 +220,11 @@ export default function CustomersPage() {
             {!loading && customers.length === 0 ? (
                 <div
                     style={{
-                        border: "1px dashed #d1d5db",
+                        border: `1px dashed ${MR_THEME.borderStrong}`,
                         padding: 20,
                         borderRadius: 16,
-                        background: "#fafafa",
-                        color: "#6b7280",
+                        background: MR_THEME.cardBgSoft,
+                        color: MR_THEME.textSecondary,
                     }}
                 >
                     No customers yet.
@@ -219,11 +237,11 @@ export default function CustomersPage() {
                         <div
                             key={c.customer_id}
                             style={{
-                                border: "1px solid #e5e7eb",
+                                border: `1px solid ${MR_THEME.border}`,
                                 padding: 18,
                                 borderRadius: 16,
-                                background: "white",
-                                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                                background: MR_THEME.cardBg,
+                                boxShadow: MR_THEME.shadowCard,
                                 display: "flex",
                                 justifyContent: "space-between",
                                 gap: 16,
@@ -238,7 +256,7 @@ export default function CustomersPage() {
                                         fontSize: 24,
                                         lineHeight: 1.15,
                                         letterSpacing: "-0.02em",
-                                        color: "#111827",
+                                        color: MR_THEME.textPrimary,
                                         marginBottom: 10,
                                     }}
                                 >
@@ -256,14 +274,21 @@ export default function CustomersPage() {
                                         style={{
                                             padding: 12,
                                             borderRadius: 12,
-                                            border: "1px solid #e5e7eb",
-                                            background: "#fcfcfd",
+                                            border: `1px solid ${MR_THEME.border}`,
+                                            background: MR_THEME.cardBgSoft,
                                         }}
                                     >
-                                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 5 }}>
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: MR_THEME.textSecondary,
+                                                fontWeight: 700,
+                                                marginBottom: 5,
+                                            }}
+                                        >
                                             Email
                                         </div>
-                                        <div style={{ fontWeight: 700, color: "#111827" }}>
+                                        <div style={{ fontWeight: 700, color: MR_THEME.textPrimary }}>
                                             {c.email || "—"}
                                         </div>
                                     </div>
@@ -272,14 +297,21 @@ export default function CustomersPage() {
                                         style={{
                                             padding: 12,
                                             borderRadius: 12,
-                                            border: "1px solid #e5e7eb",
-                                            background: "#fcfcfd",
+                                            border: `1px solid ${MR_THEME.border}`,
+                                            background: MR_THEME.cardBgSoft,
                                         }}
                                     >
-                                        <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 5 }}>
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: MR_THEME.textSecondary,
+                                                fontWeight: 700,
+                                                marginBottom: 5,
+                                            }}
+                                        >
                                             Phone
                                         </div>
-                                        <div style={{ fontWeight: 700, color: "#111827" }}>
+                                        <div style={{ fontWeight: 700, color: MR_THEME.textPrimary }}>
                                             {c.phone || "—"}
                                         </div>
                                     </div>
@@ -293,9 +325,9 @@ export default function CustomersPage() {
                                         display: "inline-block",
                                         padding: "10px 14px",
                                         borderRadius: 12,
-                                        border: "1px solid #d1d5db",
-                                        background: "white",
-                                        color: "#111827",
+                                        border: `1px solid ${MR_THEME.borderStrong}`,
+                                        background: MR_THEME.cardBg,
+                                        color: MR_THEME.textPrimary,
                                         textDecoration: "none",
                                         fontWeight: 800,
                                     }}

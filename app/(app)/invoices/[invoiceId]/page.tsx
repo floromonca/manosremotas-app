@@ -575,6 +575,8 @@ export default function InvoicePage() {
         }
     }, [inv, billingEmail, loadAll, router]);
     const savePayment = useCallback(async () => {
+        if (savingPayment) return;
+
         if (!inv?.invoice_id || !inv?.company_id) return;
 
         const amount = Number(paymentAmount);
@@ -616,6 +618,13 @@ export default function InvoicePage() {
             }
 
             closePaymentModal();
+
+            // reset del form
+            setPaymentAmount(0);
+            setPaymentMethod("cash");
+            setPaymentDate("");
+            setPaymentNotes("");
+
             await loadAll();
             router.refresh();
         } finally {
@@ -631,6 +640,7 @@ export default function InvoicePage() {
         closePaymentModal,
         loadAll,
         router,
+        savingPayment,
     ]);
     const handleUpdateInvoiceItem = useCallback(
         async (invoiceItemId: string, fields: any) => {

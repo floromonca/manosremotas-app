@@ -404,14 +404,12 @@ export default function InvoiceDetailsCard({
                                 </div>
                             ) : null}
 
-                            {paymentsTotal > 0 ? (
-                                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                                    <span>Payments Received</span>
-                                    <strong style={{ color: "#111827" }}>
-                                        {money(paymentsTotal, inv.currency_code)}
-                                    </strong>
-                                </div>
-                            ) : null}
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                <span>Payments Received</span>
+                                <strong style={{ color: "#111827" }}>
+                                    {money(paymentsTotal, inv.currency_code)}
+                                </strong>
+                            </div>
 
                             <div
                                 style={{

@@ -3,38 +3,56 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+const MR_THEME = {
+    appBg: "#f8fafc",
+    cardBg: "#ffffff",
+    border: "#e2e8f0",
+    borderStrong: "#cbd5e1",
+    textPrimary: "#0f172a",
+    textSecondary: "#475569",
+    primary: "#2563eb",
+    primaryHover: "#1d4ed8",
+    primarySoft: "#dbeafe",
+    shadowCard: "0 1px 2px rgba(16, 24, 40, 0.04)",
+};
+
+function SettingsNavItem({
+    href,
+    label,
+    isActive,
+}: {
+    href: string;
+    label: string;
+    isActive: boolean;
+}) {
+    return (
+        <Link
+            href={href}
+            style={{
+                display: "block",
+                padding: "12px 14px",
+                borderRadius: 12,
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: isActive ? 700 : 600,
+                lineHeight: 1.3,
+                background: isActive ? MR_THEME.primarySoft : "transparent",
+                color: isActive ? MR_THEME.primaryHover : MR_THEME.textPrimary,
+                border: isActive ? `1px solid ${MR_THEME.primarySoft}` : "1px solid transparent",
+                boxShadow: isActive ? MR_THEME.shadowCard : "none",
+            }}
+        >
+            {label}
+        </Link>
+    );
+}
+
 export default function SettingsLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
-
-    const Item = ({ href, label }: { href: string; label: string }) => {
-        const active = pathname === href || pathname.startsWith(`${href}/`);
-
-        return (
-            <Link
-                href={href}
-                style={{
-                    display: "block",
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    textDecoration: "none",
-                    fontSize: 14,
-                    fontWeight: active ? 700 : 500,
-                    lineHeight: 1.3,
-                    background: active ? "#eff6ff" : "transparent",
-                    color: active ? "#1d4ed8" : "#111827",
-                    border: active ? "1px solid #bfdbfe" : "1px solid transparent",
-                    boxShadow: active ? "0 1px 2px rgba(0,0,0,0.04)" : "none",
-                    transition: "all 0.15s ease",
-                }}
-            >
-                {label}
-            </Link>
-        );
-    };
 
     return (
         <div
@@ -61,18 +79,18 @@ export default function SettingsLayout({
                 >
                     <div
                         style={{
-                            border: "1px solid #e5e7eb",
+                            border: `1px solid ${MR_THEME.border}`,
                             borderRadius: 16,
                             padding: 18,
-                            background: "#ffffff",
-                            boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
+                            background: MR_THEME.cardBg,
+                            boxShadow: MR_THEME.shadowCard,
                         }}
                     >
                         <div
                             style={{
                                 fontSize: 20,
-                                fontWeight: 700,
-                                color: "#111827",
+                                fontWeight: 800,
+                                color: MR_THEME.textPrimary,
                                 marginBottom: 4,
                             }}
                         >
@@ -82,7 +100,7 @@ export default function SettingsLayout({
                         <div
                             style={{
                                 fontSize: 13,
-                                color: "#6b7280",
+                                color: MR_THEME.textSecondary,
                                 lineHeight: 1.5,
                                 marginBottom: 16,
                             }}
@@ -91,22 +109,36 @@ export default function SettingsLayout({
                         </div>
 
                         <div style={{ display: "grid", gap: 8 }}>
-                            <Item href="/settings/company" label="Company" />
-                            <Item href="/settings/billing" label="Billing" />
-                            <Item href="/settings/taxes" label="Taxes" />
-                            <Item href="/settings/preferences" label="Preferences" />
-                            <Item href="/settings/team" label="Team" />
+                            <SettingsNavItem
+                                href="/settings/company"
+                                label="Company"
+                                isActive={pathname === "/settings/company" || pathname.startsWith("/settings/company/")}
+                            />
+                            <SettingsNavItem
+                                href="/settings/billing"
+                                label="Billing"
+                                isActive={pathname === "/settings/billing" || pathname.startsWith("/settings/billing/")}
+                            />
+                            <SettingsNavItem
+                                href="/settings/taxes"
+                                label="Taxes"
+                                isActive={pathname === "/settings/taxes" || pathname.startsWith("/settings/taxes/")}
+                            />
+                            <SettingsNavItem
+                                href="/settings/preferences"
+                                label="Preferences"
+                                isActive={pathname === "/settings/preferences" || pathname.startsWith("/settings/preferences/")}
+                            />
+                            <SettingsNavItem
+                                href="/settings/team"
+                                label="Team"
+                                isActive={pathname === "/settings/team" || pathname.startsWith("/settings/team/")}
+                            />
                         </div>
                     </div>
                 </aside>
 
-                <main
-                    style={{
-                        minWidth: 0,
-                    }}
-                >
-                    {children}
-                </main>
+                <main style={{ minWidth: 0 }}>{children}</main>
             </div>
         </div>
     );

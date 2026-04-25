@@ -91,11 +91,16 @@ export default function InvoicesPage() {
 
     useEffect(() => {
         if (myRole !== "owner" && myRole !== "admin") return;
-        loadInvoices();
+
+        queueMicrotask(() => {
+            void loadInvoices();
+        });
     }, [loadInvoices, myRole]);
 
     useEffect(() => {
-        setPage(1);
+        queueMicrotask(() => {
+            setPage(1);
+        });
     }, [search, customerFilter, quickFilter]);
 
     const customerOptions = useMemo(() => {

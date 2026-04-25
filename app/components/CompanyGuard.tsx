@@ -6,6 +6,8 @@ import { supabase } from "../../lib/supabaseClient";
 import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 
+const SUPER_ADMIN_EMAILS = ["floromonca@gmail.com"];
+
 export function CompanyGuard({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
@@ -14,11 +16,12 @@ export function CompanyGuard({ children }: { children: React.ReactNode }) {
     const { companyId, myRole, isLoadingCompany } = useActiveCompany();
 
     const [checking, setChecking] = useState(true);
-    const SUPER_ADMIN_EMAILS = ["floromonca@gmail.com"];
+
     const isSuperAdmin = !!user?.email && SUPER_ADMIN_EMAILS.includes(user.email);
 
     useEffect(() => {
         if (authLoading || isLoadingCompany) return;
+
         console.log("🛡 CompanyGuard running", {
             pathname,
             userId: user?.id ?? null,
@@ -36,40 +39,55 @@ export function CompanyGuard({ children }: { children: React.ReactNode }) {
             isLoadingCompany,
         });
 
-        // 1) No user -> auth
         if (!user) {
             console.log("[CompanyGuard] redirect -> /auth (no user)");
-            setChecking(false);
+
+            queueMicrotask(() => {
+                setChecking(false);
+            });
+
             router.replace("/auth");
             return;
         }
 
-        // 2) User pero no company -> control center
         if (!companyId) {
             console.log("[CompanyGuard] redirect -> /control-center (no companyId)");
-            setChecking(false);
+
+            queueMicrotask(() => {
+                setChecking(false);
+            });
+
             router.replace("/control-center");
             return;
         }
 
-        // 3) Si ya estás en onboarding, no te rebotes a ti mismo
         if (pathname?.startsWith("/onboarding")) {
             console.log("[CompanyGuard] allow (already on /onboarding)");
-            setChecking(false);
+
+            queueMicrotask(() => {
+                setChecking(false);
+            });
+
             return;
         }
-        // 3.5) Super admin puede entrar sin onboarding por empresa
+
         if (isSuperAdmin) {
             console.log("[CompanyGuard] allow (super admin bypass)");
-            setChecking(false);
+
+            queueMicrotask(() => {
+                setChecking(false);
+            });
+
             return;
         }
 
         let cancelled = false;
 
-        (async () => {
+        queueMicrotask(() => {
             setChecking(true);
+        });
 
+        (async () => {
             console.log("[CompanyGuard] BEFORE profile query", {
                 userId: user.id,
                 companyId,
@@ -88,7 +106,11 @@ export function CompanyGuard({ children }: { children: React.ReactNode }) {
 
             if (pErr) {
                 console.log("[CompanyGuard] profile check error:", pErr);
-                setChecking(false);
+
+                queueMicrotask(() => {
+                    setChecking(false);
+                });
+
                 return;
             }
 
@@ -98,22 +120,28 @@ export function CompanyGuard({ children }: { children: React.ReactNode }) {
             if (!fullName) {
                 console.log("[CompanyGuard] redirect -> /onboarding/profile (missing full_name)");
                 router.replace("/onboarding/profile");
-                setChecking(false);
+
+                queueMicrotask(() => {
+                    setChecking(false);
+                });
+
                 return;
             }
 
             console.log("[CompanyGuard] allow (profile ok)");
-            setChecking(false);
+
+            queueMicrotask(() => {
+                setChecking(false);
+            });
         })();
 
         return () => {
             cancelled = true;
         };
-    }, [authLoading, isLoadingCompany, user?.id, companyId, myRole, pathname, router, isSuperAdmin]);
+    }, [authLoading, isLoadingCompany, user, companyId, myRole, pathname, router, isSuperAdmin]);
 
     if (authLoading || isLoadingCompany || checking) return null;
 
-    // si no hay user/company ya redirigió
     if (!user || !companyId) return null;
 
     return <>{children}</>;
