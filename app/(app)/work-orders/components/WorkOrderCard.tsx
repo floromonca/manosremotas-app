@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type CSSProperties, type ComponentType } from "react";
+import { MR_THEME } from "../../../../lib/theme";
 import type { WorkOrderRole } from "../../../../lib/work-orders/policies";
 
 type AuditItem = {
@@ -65,31 +66,31 @@ function prettyStatus(status: WorkOrderStatus) {
 function statusStyles(status: WorkOrderStatus): CSSProperties {
     if (status === "closed") {
         return {
-            background: "#f3f4f6",
-            border: "1px solid #d1d5db",
-            color: "#374151",
+            background: MR_THEME.colors.cardBgSoft,
+            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+            color: MR_THEME.colors.textSecondary,
         };
     }
 
     if (status === "resolved") {
         return {
-            background: "#ecfdf5",
-            border: "1px solid #86efac",
-            color: "#166534",
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            color: MR_THEME.colors.success,
         };
     }
 
     if (status === "in_progress") {
         return {
-            background: "#eff6ff",
-            border: "1px solid #93c5fd",
-            color: "#1d4ed8",
+            background: MR_THEME.colors.primarySoft,
+            border: `1px solid ${MR_THEME.colors.primarySurface}`,
+            color: MR_THEME.colors.primaryHover,
         };
     }
 
     return {
         background: "#fff7ed",
-        border: "1px solid #fdba74",
+        border: "1px solid #fed7aa",
         color: "#9a3412",
     };
 }
@@ -108,15 +109,15 @@ function priorityStyles(priority: string): CSSProperties {
     if (normalized === "medium") {
         return {
             background: "#fff7ed",
-            border: "1px solid #fdba74",
+            border: "1px solid #fed7aa",
             color: "#9a3412",
         };
     }
 
     return {
-        background: "#f9fafb",
-        border: "1px solid #e5e7eb",
-        color: "#374151",
+        background: MR_THEME.colors.cardBgSoft,
+        border: `1px solid ${MR_THEME.colors.border}`,
+        color: MR_THEME.colors.textSecondary,
     };
 }
 
@@ -138,7 +139,7 @@ const chipBaseStyle: CSSProperties = {
     alignItems: "center",
     gap: 6,
     padding: "6px 10px",
-    borderRadius: 999,
+    borderRadius: MR_THEME.radius.pill,
     fontSize: 12,
     lineHeight: 1.2,
     whiteSpace: "nowrap",
@@ -146,13 +147,13 @@ const chipBaseStyle: CSSProperties = {
 
 const secondaryButtonStyle: CSSProperties = {
     padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "white",
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+    background: MR_THEME.colors.cardBg,
     cursor: "pointer",
     fontSize: 12,
     fontWeight: 800,
-    color: "#374151",
+    color: MR_THEME.colors.textPrimary,
 };
 
 export default function WorkOrderCard({
@@ -195,10 +196,10 @@ export default function WorkOrderCard({
         <div
             style={{
                 padding: 16,
-                border: "1px solid #e5e7eb",
-                borderRadius: 16,
-                background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                boxShadow: MR_THEME.shadows.card,
                 display: "grid",
                 gap: 14,
             }}
@@ -227,7 +228,7 @@ export default function WorkOrderCard({
                                 fontWeight: 900,
                                 fontSize: 17,
                                 lineHeight: 1.2,
-                                color: "#0f172a",
+                                color: MR_THEME.colors.textPrimary,
                                 letterSpacing: "-0.02em",
                             }}
                         >
@@ -241,9 +242,9 @@ export default function WorkOrderCard({
                                     padding: "4px 8px",
                                     fontSize: 11,
                                     fontWeight: 900,
-                                    border: "1px solid #86efac",
-                                    background: "#ecfdf5",
-                                    color: "#166534",
+                                    border: "1px solid #bbf7d0",
+                                    background: "#f0fdf4",
+                                    color: MR_THEME.colors.success,
                                 }}
                                 title="This work order already has an invoice"
                             >
@@ -255,14 +256,14 @@ export default function WorkOrderCard({
                     <div
                         style={{
                             fontSize: 14,
-                            color: "#334155",
+                            color: MR_THEME.colors.textSecondary,
                             lineHeight: 1.45,
                         }}
                     >
-                        <span style={{ fontWeight: 800, color: "#111827" }}>
+                        <span style={{ fontWeight: 800, color: MR_THEME.colors.textPrimary }}>
                             {wo.customer_name || "—"}
                         </span>
-                        <span style={{ color: "#9ca3af", margin: "0 6px" }}>•</span>
+                        <span style={{ color: MR_THEME.colors.textMuted, margin: "0 6px" }}>•</span>
                         <span>{wo.service_address || "—"}</span>
                     </div>
                 </div>
@@ -288,12 +289,7 @@ export default function WorkOrderCard({
                     alignItems: "center",
                 }}
             >
-                <span
-                    style={{
-                        ...chipBaseStyle,
-                        ...priorityStyle,
-                    }}
-                >
+                <span style={{ ...chipBaseStyle, ...priorityStyle }}>
                     <span style={{ opacity: 0.8 }}>Priority</span>
                     <b style={{ textTransform: "capitalize" }}>{wo.priority || "—"}</b>
                 </span>
@@ -301,10 +297,12 @@ export default function WorkOrderCard({
                 <span
                     style={{
                         ...chipBaseStyle,
-                        background: wo.assigned_to ? "#f8fafc" : "#fff7ed",
-                        border: wo.assigned_to ? "1px solid #e2e8f0" : "1px solid #fdba74",
-                        color: wo.assigned_to ? "#334155" : "#9a3412",
-                        fontWeight: wo.assigned_to ? 500 : 800,
+                        background: wo.assigned_to ? MR_THEME.colors.cardBgSoft : "#fff7ed",
+                        border: wo.assigned_to
+                            ? `1px solid ${MR_THEME.colors.border}`
+                            : "1px solid #fed7aa",
+                        color: wo.assigned_to ? MR_THEME.colors.textSecondary : "#9a3412",
+                        fontWeight: wo.assigned_to ? 600 : 800,
                     }}
                 >
                     <span style={{ opacity: 0.8 }}>Assigned</span>
@@ -315,9 +313,9 @@ export default function WorkOrderCard({
                     <span
                         style={{
                             ...chipBaseStyle,
-                            background: "#f8fafc",
-                            border: "1px solid #e2e8f0",
-                            color: "#334155",
+                            background: MR_THEME.colors.cardBgSoft,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            color: MR_THEME.colors.textSecondary,
                         }}
                     >
                         <span style={{ opacity: 0.8 }}>Scheduled</span>
@@ -330,12 +328,12 @@ export default function WorkOrderCard({
                 <div
                     style={{
                         padding: "10px 12px",
-                        borderRadius: 12,
-                        background: "#f8fafc",
-                        border: "1px solid #eef2f7",
+                        borderRadius: MR_THEME.radius.control,
+                        background: MR_THEME.colors.cardBgSoft,
+                        border: `1px solid ${MR_THEME.colors.border}`,
                         fontSize: 13,
                         lineHeight: 1.5,
-                        color: "#475569",
+                        color: MR_THEME.colors.textSecondary,
                     }}
                 >
                     {shortDescription}
@@ -363,7 +361,7 @@ export default function WorkOrderCard({
                     <span
                         style={{
                             fontSize: 11,
-                            color: "#94a3b8",
+                            color: MR_THEME.colors.textMuted,
                             fontFamily:
                                 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                             letterSpacing: "0.01em",
@@ -380,10 +378,12 @@ export default function WorkOrderCard({
                                 onClick={() => setShowAssignPicker((v) => !v)}
                                 style={{
                                     padding: "7px 10px",
-                                    borderRadius: 999,
-                                    border: "1px solid #cbd5e1",
-                                    background: showAssignPicker ? "#eff6ff" : "#ffffff",
-                                    color: "#1e3a8a",
+                                    borderRadius: MR_THEME.radius.pill,
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    background: showAssignPicker
+                                        ? MR_THEME.colors.primarySoft
+                                        : MR_THEME.colors.cardBg,
+                                    color: MR_THEME.colors.primaryHover,
                                     cursor: "pointer",
                                     fontSize: 12,
                                     fontWeight: 800,
@@ -407,11 +407,11 @@ export default function WorkOrderCard({
                                     }}
                                     style={{
                                         padding: "7px 10px",
-                                        borderRadius: 999,
-                                        border: "1px solid #cbd5e1",
+                                        borderRadius: MR_THEME.radius.pill,
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
                                         fontSize: 12,
-                                        background: "white",
-                                        color: "#111827",
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.textPrimary,
                                         maxWidth: 220,
                                     }}
                                 >
@@ -460,8 +460,8 @@ export default function WorkOrderCard({
                     ) : null}
 
                     {isAdminOrOwner &&
-                    !wo.invoice_id &&
-                    (wo.status === "resolved" || wo.status === "closed") ? (
+                        !wo.invoice_id &&
+                        (wo.status === "resolved" || wo.status === "closed") ? (
                         <button
                             type="button"
                             onClick={async () => {
@@ -479,9 +479,9 @@ export default function WorkOrderCard({
                         onClick={() => onOpenWorkOrder(wo.work_order_id)}
                         style={{
                             padding: "9px 13px",
-                            borderRadius: 10,
-                            border: "1px solid #1d4ed8",
-                            background: "#1d4ed8",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${MR_THEME.colors.primaryHover}`,
+                            background: MR_THEME.colors.primaryHover,
                             color: "white",
                             cursor: "pointer",
                             fontSize: 12,

@@ -1,5 +1,7 @@
 "use client";
 
+import { MR_THEME } from "../../../../../lib/theme";
+
 type Props = {
     open: boolean;
     savingPayment: boolean;
@@ -36,6 +38,7 @@ export default function RecordPaymentModal({
     onSave,
 }: Props) {
     if (!open) return null;
+
     const safeCurrentBalance = Number(currentBalance || 0);
     const safePaymentAmount = Number(paymentAmount || 0);
     const remainingBalance = Math.max(safeCurrentBalance - safePaymentAmount, 0);
@@ -48,60 +51,89 @@ export default function RecordPaymentModal({
         <div
             style={{
                 position: "fixed",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: "100%",
-                background: "rgba(0,0,0,0.4)",
+                inset: 0,
+                background: "rgba(15, 23, 42, 0.45)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 zIndex: 1000,
+                padding: 16,
             }}
         >
             <div
                 style={{
-                    background: "white",
+                    background: MR_THEME.colors.cardBg,
                     padding: 24,
-                    borderRadius: 12,
-                    width: 420,
-                    maxWidth: "92vw",
+                    borderRadius: MR_THEME.radius.card,
+                    width: 440,
+                    maxWidth: "100%",
                     display: "grid",
                     gap: 14,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+                    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.22)",
+                    border: `1px solid ${MR_THEME.colors.border}`,
                 }}
             >
-                <h3 style={{ margin: 0 }}>Record Payment</h3>
+                <div>
+                    <h3
+                        style={{
+                            margin: 0,
+                            fontSize: 22,
+                            fontWeight: 900,
+                            color: MR_THEME.colors.textPrimary,
+                            letterSpacing: "-0.02em",
+                        }}
+                    >
+                        Record Payment
+                    </h3>
+                    <div
+                        style={{
+                            marginTop: 4,
+                            fontSize: 13,
+                            color: MR_THEME.colors.textSecondary,
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        Register a payment and update the invoice balance.
+                    </div>
+                </div>
 
                 <div
                     style={{
                         fontSize: 13,
-                        opacity: 0.8,
-                        padding: 10,
-                        borderRadius: 8,
-                        background: "#f8fafc",
-                        border: "1px solid #e5e7eb",
+                        padding: 12,
+                        borderRadius: MR_THEME.radius.control,
+                        background: MR_THEME.colors.cardBgSoft,
+                        border: `1px solid ${MR_THEME.colors.border}`,
+                        color: MR_THEME.colors.textSecondary,
                     }}
                 >
-                    Current balance: <b>{money(currentBalance, currencyCode)}</b>
+                    Current balance:{" "}
+                    <b style={{ color: MR_THEME.colors.textPrimary }}>
+                        {money(currentBalance, currencyCode)}
+                    </b>
                 </div>
+
                 <div
                     style={{
                         fontSize: 13,
-                        padding: 10,
-                        borderRadius: 8,
+                        padding: 12,
+                        borderRadius: MR_THEME.radius.control,
                         background: amountExceedsBalance ? "#fef2f2" : "#f0fdf4",
-                        border: amountExceedsBalance ? "1px solid #fecaca" : "1px solid #bbf7d0",
+                        border: amountExceedsBalance
+                            ? "1px solid #fecaca"
+                            : "1px solid #bbf7d0",
                         color: amountExceedsBalance ? "#991b1b" : "#166534",
-                        fontWeight: 700,
+                        fontWeight: 800,
+                        lineHeight: 1.4,
                     }}
                 >
                     {amountExceedsBalance
                         ? "Payment amount cannot be greater than the current balance."
                         : `Remaining balance after payment: ${money(remainingBalance, currencyCode)}`}
                 </div>
+
                 <label style={{ display: "grid", gap: 6 }}>
-                    <span>Amount</span>
+                    <span style={labelStyle}>Amount</span>
                     <input
                         type="number"
                         min={0}
@@ -116,31 +148,22 @@ export default function RecordPaymentModal({
                             }
 
                             value = value.replace(/^0+(?=\d)/, "");
-
                             const num = Number(value);
 
                             if (isNaN(num)) return;
 
                             onChangeAmount(num);
                         }}
-                        style={{
-                            padding: 10,
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
-                        }}
+                        style={inputStyle}
                     />
                 </label>
 
                 <label style={{ display: "grid", gap: 6 }}>
-                    <span>Method</span>
+                    <span style={labelStyle}>Method</span>
                     <select
                         value={paymentMethod}
                         onChange={(e) => onChangeMethod(e.target.value)}
-                        style={{
-                            padding: 10,
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
-                        }}
+                        style={inputStyle}
                     >
                         <option value="cash">Cash</option>
                         <option value="e-transfer">E-Transfer</option>
@@ -150,60 +173,68 @@ export default function RecordPaymentModal({
                 </label>
 
                 <label style={{ display: "grid", gap: 6 }}>
-                    <span>Payment date</span>
+                    <span style={labelStyle}>Payment date</span>
                     <input
                         type="date"
                         value={paymentDate}
                         onChange={(e) => onChangeDate(e.target.value)}
-                        style={{
-                            padding: 10,
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
-                        }}
+                        style={inputStyle}
                     />
                 </label>
 
                 <label style={{ display: "grid", gap: 6 }}>
-                    <span>Notes</span>
+                    <span style={labelStyle}>Notes</span>
                     <textarea
                         value={paymentNotes}
                         onChange={(e) => onChangeNotes(e.target.value)}
                         rows={3}
                         placeholder="Optional notes"
                         style={{
-                            padding: 10,
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
+                            ...inputStyle,
                             resize: "vertical",
+                            minHeight: 86,
                         }}
                     />
                 </label>
 
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        paddingTop: 4,
+                    }}
+                >
                     <button
+                        type="button"
                         onClick={onCancel}
                         disabled={savingPayment}
                         style={{
                             padding: "10px 14px",
-                            borderRadius: 8,
-                            border: "1px solid #ddd",
-                            background: "white",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                            background: MR_THEME.colors.cardBg,
+                            color: MR_THEME.colors.textPrimary,
+                            fontWeight: 800,
                             cursor: savingPayment ? "not-allowed" : "pointer",
+                            opacity: savingPayment ? 0.7 : 1,
                         }}
                     >
                         Cancel
                     </button>
 
                     <button
+                        type="button"
                         onClick={onSave}
                         disabled={saveDisabled}
                         style={{
                             padding: "10px 14px",
-                            borderRadius: 8,
-                            border: "none",
-                            background: "#16a34a",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${MR_THEME.colors.success}`,
+                            background: MR_THEME.colors.success,
                             color: "white",
-                            fontWeight: 700,
+                            fontWeight: 900,
                             cursor: saveDisabled ? "not-allowed" : "pointer",
                             opacity: saveDisabled ? 0.7 : 1,
                         }}
@@ -215,3 +246,18 @@ export default function RecordPaymentModal({
         </div>
     );
 }
+
+const labelStyle = {
+    fontSize: 12,
+    fontWeight: 800,
+    color: MR_THEME.colors.textSecondary,
+};
+
+const inputStyle = {
+    padding: 10,
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+    background: MR_THEME.colors.cardBg,
+    color: MR_THEME.colors.textPrimary,
+    fontSize: 14,
+};
