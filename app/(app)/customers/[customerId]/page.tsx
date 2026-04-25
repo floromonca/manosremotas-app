@@ -186,7 +186,38 @@ export default function CustomerDetailPage() {
 
         await loadLocations();
     }
+    async function handleEditCustomer() {
+        if (!companyId || !customer) {
+            alert("No customer selected");
+            return;
+        }
 
+        const name = prompt("Customer name", customer.name ?? "");
+        if (!name || !name.trim()) return;
+
+        const email = prompt("Email", customer.email ?? "") ?? "";
+        const phone = prompt("Phone", customer.phone ?? "") ?? "";
+        const billingAddress = prompt("Billing address", customer.billing_address ?? "") ?? "";
+
+        const { error } = await supabase
+            .from("customers")
+            .update({
+                name: name.trim(),
+                email: email.trim() || null,
+                phone: phone.trim() || null,
+                billing_address: billingAddress.trim() || null,
+            })
+            .eq("company_id", companyId)
+            .eq("customer_id", customer.customer_id);
+
+        if (error) {
+            console.error("Error updating customer:", error);
+            alert(error.message || "Error updating customer");
+            return;
+        }
+
+        await loadCustomer();
+    }
     async function handlePreviewWorkOrders() {
         if (!companyId || !customerId) {
             alert("Missing company or customer.");
@@ -512,6 +543,7 @@ export default function CustomerDetailPage() {
                                 </button>
                                 <button
                                     type="button"
+                                    onClick={handleEditCustomer}
                                     style={{
                                         height: 42,
                                         padding: "0 16px",
