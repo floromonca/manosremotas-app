@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../lib/supabaseClient";
+import { MR_THEME } from "../../lib/theme";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string>("");
+  const [busy, setBusy] = useState(false);
 
   const ensureClientSession = async (
     session:
@@ -48,7 +50,10 @@ export default function AuthPage() {
   };
 
   const submit = async () => {
+    if (busy) return;
+
     setMsg("");
+    setBusy(true);
 
     try {
       if (mode === "signin") {
@@ -96,13 +101,6 @@ export default function AuthPage() {
         if (cidFromInvite) {
           localStorage.setItem("activeCompanyId", cidFromInvite);
 
-          const beforeRedirectSession = await supabase.auth.getSession();
-          console.log("[AUTH] session before redirect (invite path) =", {
-            hasSession: !!beforeRedirectSession.data.session,
-            userId: beforeRedirectSession.data.session?.user?.id ?? null,
-            error: beforeRedirectSession.error?.message ?? null,
-          });
-
           await new Promise((resolve) => setTimeout(resolve, 400));
           window.location.assign("/work-orders");
           return;
@@ -110,13 +108,6 @@ export default function AuthPage() {
 
         const companyId = await bootstrapOwnerCompany();
         localStorage.setItem("activeCompanyId", companyId);
-
-        const beforeRedirectSession = await supabase.auth.getSession();
-        console.log("[AUTH] session before redirect (owner path) =", {
-          hasSession: !!beforeRedirectSession.data.session,
-          userId: beforeRedirectSession.data.session?.user?.id ?? null,
-          error: beforeRedirectSession.error?.message ?? null,
-        });
 
         await new Promise((resolve) => setTimeout(resolve, 400));
         window.location.assign("/work-orders");
@@ -127,6 +118,7 @@ export default function AuthPage() {
         email,
         password,
       });
+
       if (suErr) throw suErr;
 
       if (su.session) {
@@ -138,6 +130,7 @@ export default function AuthPage() {
         const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
           "accept_my_pending_invites"
         );
+
         if (invErr) throw invErr;
 
         const cidFromInvite = (invitedCompanyId as string | null) ?? null;
@@ -158,6 +151,7 @@ export default function AuthPage() {
         email,
         password,
       });
+
       if (siErr) throw siErr;
 
       await ensureClientSession(si.session);
@@ -168,6 +162,7 @@ export default function AuthPage() {
       const { data: invitedCompanyId, error: invErr } = await supabase.rpc(
         "accept_my_pending_invites"
       );
+
       if (invErr) throw invErr;
 
       const cidFromInvite = (invitedCompanyId as string | null) ?? null;
@@ -183,103 +178,223 @@ export default function AuthPage() {
       window.location.assign("/work-orders");
     } catch (e: any) {
       setMsg(e?.message ?? String(e));
+    } finally {
+      setBusy(false);
     }
   };
 
+  const canSubmit = email.trim().length > 0 && password.trim().length > 0 && !busy;
+
   return (
-    <div style={{ padding: 24, maxWidth: 520, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 26, fontWeight: 750, marginBottom: 8 }}>
-        ManosRemotas — Auth
-      </h1>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: MR_THEME.colors.appBg,
+        padding: "32px 18px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          border: `1px solid ${MR_THEME.colors.border}`,
+          borderRadius: MR_THEME.radius.card,
+          background: MR_THEME.colors.cardBg,
+          boxShadow: MR_THEME.shadows.card,
+          padding: 24,
+        }}
+      >
+        <div style={{ marginBottom: 22 }}>
+          <div
+            style={{
+              fontSize: 12,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              color: MR_THEME.colors.primary,
+              fontWeight: 900,
+              marginBottom: 8,
+            }}
+          >
+            ManosRemotas
+          </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-        <button
-          onClick={() => setMode("signin")}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            background: mode === "signin" ? "#111" : "white",
-            color: mode === "signin" ? "white" : "#111",
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          Sign in
-        </button>
+          <h1
+            style={{
+              fontSize: 32,
+              lineHeight: 1.1,
+              fontWeight: 900,
+              margin: 0,
+              color: MR_THEME.colors.textPrimary,
+              letterSpacing: "-0.04em",
+            }}
+          >
+            {mode === "signin" ? "Sign in" : "Create account"}
+          </h1>
 
-        <button
-          onClick={() => setMode("signup")}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            background: mode === "signup" ? "#111" : "white",
-            color: mode === "signup" ? "white" : "#111",
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          Sign up
-        </button>
-      </div>
+          <p
+            style={{
+              margin: "10px 0 0",
+              fontSize: 15,
+              lineHeight: 1.5,
+              color: MR_THEME.colors.textSecondary,
+            }}
+          >
+            Access your field service operations workspace.
+          </p>
+        </div>
 
-      <div style={{ display: "grid", gap: 10 }}>
-        <input
-          placeholder="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            border: "1px solid #ddd",
-          }}
-        />
-        <input
-          placeholder="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            border: "1px solid #ddd",
-          }}
-        />
-
-        <button
-          onClick={submit}
-          style={{
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid #ddd",
-            background: "white",
-            cursor: "pointer",
-            fontWeight: 900,
-          }}
-        >
-          {mode === "signin" ? "Entrar" : "Crear usuario"}
-        </button>
-      </div>
-
-      {msg ? (
         <div
           style={{
-            marginTop: 12,
-            padding: 10,
-            border: "1px solid #eee",
-            borderRadius: 10,
-            background: "#fafafa",
-            fontSize: 13,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+            marginBottom: 18,
           }}
         >
-          {msg}
-        </div>
-      ) : null}
+          <button
+            type="button"
+            onClick={() => setMode("signin")}
+            style={{
+              padding: "12px 14px",
+              borderRadius: MR_THEME.radius.control,
+              border: `1px solid ${mode === "signin"
+                  ? MR_THEME.colors.primary
+                  : MR_THEME.colors.borderStrong
+                }`,
+              background:
+                mode === "signin" ? MR_THEME.colors.primary : MR_THEME.colors.cardBg,
+              color: mode === "signin" ? "#ffffff" : MR_THEME.colors.textPrimary,
+              cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 15,
+            }}
+          >
+            Sign in
+          </button>
 
-      <div style={{ marginTop: 16, fontSize: 12, opacity: 0.7 }}>
-        Después de autenticar, te mando a <b>/work-orders</b>.
+          <button
+            type="button"
+            onClick={() => setMode("signup")}
+            style={{
+              padding: "12px 14px",
+              borderRadius: MR_THEME.radius.control,
+              border: `1px solid ${mode === "signup"
+                  ? MR_THEME.colors.primary
+                  : MR_THEME.colors.borderStrong
+                }`,
+              background:
+                mode === "signup" ? MR_THEME.colors.primary : MR_THEME.colors.cardBg,
+              color: mode === "signup" ? "#ffffff" : MR_THEME.colors.textPrimary,
+              cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 15,
+            }}
+          >
+            Sign up
+          </button>
+        </div>
+
+        <div style={{ display: "grid", gap: 12 }}>
+          <input
+            placeholder="Email"
+            value={email}
+            autoComplete="email"
+            inputMode="email"
+            onChange={(e) => setEmail(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "14px 14px",
+              borderRadius: MR_THEME.radius.control,
+              border: `1px solid ${MR_THEME.colors.borderStrong}`,
+              background: "#ffffff",
+              color: MR_THEME.colors.textPrimary,
+              fontSize: 16,
+              fontWeight: 700,
+              outlineColor: MR_THEME.colors.primary,
+              opacity: 1,
+            }}
+          />
+
+          <input
+            placeholder="Password"
+            type="password"
+            value={password}
+            autoComplete={mode === "signin" ? "current-password" : "new-password"}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "14px 14px",
+              borderRadius: MR_THEME.radius.control,
+              border: `1px solid ${MR_THEME.colors.borderStrong}`,
+              background: "#ffffff",
+              color: MR_THEME.colors.textPrimary,
+              fontSize: 16,
+              fontWeight: 700,
+              outlineColor: MR_THEME.colors.primary,
+              opacity: 1,
+            }}
+          />
+
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canSubmit}
+            style={{
+              marginTop: 4,
+              padding: "14px 16px",
+              borderRadius: MR_THEME.radius.control,
+              border: `1px solid ${canSubmit ? MR_THEME.colors.primary : MR_THEME.colors.borderStrong
+                }`,
+              background: canSubmit
+                ? MR_THEME.colors.primary
+                : MR_THEME.colors.cardBgSoft,
+              color: canSubmit ? "#ffffff" : MR_THEME.colors.textMuted,
+              cursor: canSubmit ? "pointer" : "not-allowed",
+              fontWeight: 900,
+              fontSize: 16,
+              opacity: 1,
+            }}
+          >
+            {busy
+              ? "Please wait..."
+              : mode === "signin"
+                ? "Sign in"
+                : "Create user"}
+          </button>
+        </div>
+
+        {msg ? (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 12,
+              border: `1px solid ${MR_THEME.colors.border}`,
+              borderRadius: MR_THEME.radius.control,
+              background: MR_THEME.colors.cardBgSoft,
+              color: MR_THEME.colors.textPrimary,
+              fontSize: 13,
+              lineHeight: 1.5,
+              fontWeight: 700,
+            }}
+          >
+            {msg}
+          </div>
+        ) : null}
+
+        <div
+          style={{
+            marginTop: 18,
+            fontSize: 12,
+            color: MR_THEME.colors.textSecondary,
+            lineHeight: 1.5,
+          }}
+        >
+          After authentication, you will be redirected to <b>/work-orders</b>.
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
