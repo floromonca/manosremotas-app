@@ -51,14 +51,14 @@ export default function WorkOrderDetailHeader({
                     onClick={onBack}
                     style={{
                         padding: "8px 10px",
-                        borderRadius: MR_THEME.radiusControl,
-                        border: `1px solid ${MR_THEME.borderStrong}`,
-                        background: MR_THEME.cardBg,
+                        borderRadius: MR_THEME.radius.control,
+                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                        background: MR_THEME.colors.cardBg,
                         cursor: "pointer",
                         fontWeight: 800,
                         fontSize: 12,
-                        color: MR_THEME.textSecondary,
-                        boxShadow: MR_THEME.shadowCard,
+                        color: MR_THEME.colors.textSecondary,
+                        boxShadow: MR_THEME.shadows.card,
                     }}
                 >
                     ← Back
@@ -68,10 +68,10 @@ export default function WorkOrderDetailHeader({
             <div
                 style={{
                     padding: "14px 14px 12px",
-                    borderRadius: MR_THEME.radiusCard,
-                    border: `1px solid ${MR_THEME.border}`,
-                    background: MR_THEME.cardBg,
-                    boxShadow: MR_THEME.shadowCard,
+                    borderRadius: MR_THEME.radius.card,
+                    border: `1px solid ${MR_THEME.colors.border}`,
+                    background: MR_THEME.colors.cardBg,
+                    boxShadow: MR_THEME.shadows.card,
                 }}
             >
                 <div

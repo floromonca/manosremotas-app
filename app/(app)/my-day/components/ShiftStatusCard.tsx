@@ -46,11 +46,9 @@ export default function ShiftStatusCard({
         >
             <div
                 style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr)",
                     gap: 16,
-                    flexWrap: "wrap",
                     marginBottom: 14,
                 }}
             >

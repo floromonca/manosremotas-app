@@ -1,5 +1,7 @@
 "use client";
 
+import { MR_THEME } from "../../../../../lib/theme";
+
 type InvoicePaymentRow = {
     payment_id: string;
     amount: number | null;
@@ -41,14 +43,20 @@ export default function InvoicePaymentsSection({
     currencyCode,
     money,
 }: Props) {
+    const sortedPayments = [...payments].sort((a, b) => {
+        const aDate = `${a.payment_date ?? ""}T${a.created_at ?? ""}`;
+        const bDate = `${b.payment_date ?? ""}T${b.created_at ?? ""}`;
+        return bDate.localeCompare(aDate);
+    });
+
     return (
         <section
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 20,
-                background: "#ffffff",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                padding: 20,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                boxShadow: MR_THEME.shadows.card,
+                padding: MR_THEME.layout.cardPadding,
             }}
         >
             <div style={{ display: "grid", gap: 16 }}>
@@ -67,7 +75,7 @@ export default function InvoicePaymentsSection({
                                 fontSize: 12,
                                 textTransform: "uppercase",
                                 letterSpacing: 1.1,
-                                color: "#6b7280",
+                                color: MR_THEME.colors.textMuted,
                                 fontWeight: 800,
                             }}
                         >
@@ -79,7 +87,7 @@ export default function InvoicePaymentsSection({
                                 fontSize: 22,
                                 lineHeight: 1.15,
                                 fontWeight: 900,
-                                color: "#111827",
+                                color: MR_THEME.colors.textPrimary,
                             }}
                         >
                             Payment History
@@ -88,7 +96,7 @@ export default function InvoicePaymentsSection({
                         <div
                             style={{
                                 fontSize: 14,
-                                color: "#6b7280",
+                                color: MR_THEME.colors.textSecondary,
                                 lineHeight: 1.6,
                             }}
                         >
@@ -101,15 +109,15 @@ export default function InvoicePaymentsSection({
                             minWidth: 88,
                             height: 36,
                             padding: "0 12px",
-                            borderRadius: 999,
-                            background: "#f3f4f6",
-                            border: "1px solid #e5e7eb",
+                            borderRadius: MR_THEME.radius.pill,
+                            background: MR_THEME.colors.cardBgSoft,
+                            border: `1px solid ${MR_THEME.colors.border}`,
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
                             fontSize: 13,
                             fontWeight: 800,
-                            color: "#374151",
+                            color: MR_THEME.colors.textSecondary,
                             whiteSpace: "nowrap",
                         }}
                     >
@@ -117,14 +125,14 @@ export default function InvoicePaymentsSection({
                     </div>
                 </div>
 
-                {payments.length === 0 ? (
+                {sortedPayments.length === 0 ? (
                     <div
                         style={{
-                            border: "1px dashed #d1d5db",
-                            borderRadius: 16,
-                            background: "#fcfcfd",
+                            border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                            borderRadius: MR_THEME.radius.control,
+                            background: MR_THEME.colors.cardBgSoft,
                             padding: "18px 16px",
-                            color: "#6b7280",
+                            color: MR_THEME.colors.textSecondary,
                             fontSize: 14,
                             lineHeight: 1.6,
                         }}
@@ -133,14 +141,14 @@ export default function InvoicePaymentsSection({
                     </div>
                 ) : (
                     <div style={{ display: "grid", gap: 12 }}>
-                        {payments.map((p) => (
+                        {sortedPayments.map((p) => (
                             <div
                                 key={p.payment_id}
                                 style={{
                                     padding: 16,
-                                    border: "1px solid #e5e7eb",
-                                    borderRadius: 16,
-                                    background: "#fcfcfd",
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    borderRadius: MR_THEME.radius.control,
+                                    background: MR_THEME.colors.cardBgSoft,
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "flex-start",
@@ -153,7 +161,7 @@ export default function InvoicePaymentsSection({
                                         style={{
                                             fontWeight: 900,
                                             fontSize: 15,
-                                            color: "#111827",
+                                            color: MR_THEME.colors.textPrimary,
                                         }}
                                     >
                                         {formatPaymentDate(p.payment_date)}
@@ -165,9 +173,9 @@ export default function InvoicePaymentsSection({
                                             alignItems: "center",
                                             width: "fit-content",
                                             padding: "5px 10px",
-                                            borderRadius: 999,
-                                            background: "#eef2ff",
-                                            color: "#3730a3",
+                                            borderRadius: MR_THEME.radius.pill,
+                                            background: MR_THEME.colors.primarySoft,
+                                            color: MR_THEME.colors.primaryHover,
                                             fontSize: 12,
                                             fontWeight: 800,
                                         }}
@@ -179,7 +187,7 @@ export default function InvoicePaymentsSection({
                                         <div
                                             style={{
                                                 fontSize: 13,
-                                                color: "#6b7280",
+                                                color: MR_THEME.colors.textSecondary,
                                                 lineHeight: 1.6,
                                                 maxWidth: 720,
                                             }}
@@ -203,7 +211,7 @@ export default function InvoicePaymentsSection({
                                             fontSize: 11,
                                             textTransform: "uppercase",
                                             letterSpacing: 0.8,
-                                            color: "#6b7280",
+                                            color: MR_THEME.colors.textMuted,
                                             fontWeight: 800,
                                         }}
                                     >
@@ -215,7 +223,7 @@ export default function InvoicePaymentsSection({
                                             fontWeight: 900,
                                             fontSize: 24,
                                             lineHeight: 1.1,
-                                            color: "#111827",
+                                            color: MR_THEME.colors.textPrimary,
                                         }}
                                     >
                                         {money(p.amount, currencyCode)}

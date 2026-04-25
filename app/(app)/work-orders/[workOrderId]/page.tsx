@@ -23,6 +23,7 @@ import {
 } from "../../../../lib/work-orders/policies";
 import WorkOrderDetailHeader from "../components/WorkOrderDetailHeader";
 import WorkOrderPhotosSection from "../components/WorkOrderPhotosSection";
+import WorkOrderSiteReportSection from "../components/WorkOrderSiteReportSection";
 import PhotoPreviewModal from "../components/PhotoPreviewModal";
 import WorkOrderCheckInsSection from "../components/WorkOrderCheckInsSection";
 import { useWorkOrderPhotos } from "../hooks/useWorkOrderPhotos";
@@ -42,6 +43,7 @@ type WorkOrder = {
     customer_phone?: string | null;
     service_address?: string | null;
     invoice_id?: string | null;
+    site_report?: string | null;
 };
 
 type WorkOrderItem = {
@@ -215,6 +217,9 @@ export default function WorkOrderDetailPage() {
         woRef.current = wo;
     }, [wo]);
     const [items, setItems] = useState<WorkOrderItem[]>([]);
+    const [siteReportDraft, setSiteReportDraft] = useState("");
+    const [savingSiteReport, setSavingSiteReport] = useState(false);
+    const [siteReportSavedAt, setSiteReportSavedAt] = useState<number | null>(null);
     const anyPendingPricing = items.some(
         (it) => it.pending_pricing === true || it.pricing_status === "pending_pricing"
     );
@@ -442,7 +447,7 @@ export default function WorkOrderDetailPage() {
             const { data, error } = await supabase
                 .from("work_orders")
                 .select(
-                    "work_order_id, company_id, job_type, description, status, priority, scheduled_for, created_at, assigned_to, customer_name, customer_email, customer_phone, service_address, invoice_id"
+                    "work_order_id, company_id, job_type, description, site_report, status, priority, scheduled_for, created_at, assigned_to, customer_name, customer_email, customer_phone, service_address, invoice_id"
                 )
                 .eq("work_order_id", workOrderId)
                 .single();
@@ -455,6 +460,7 @@ export default function WorkOrderDetailPage() {
             } as WorkOrder;
 
             setWo(mapped);
+            setSiteReportDraft(mapped.site_report ?? "");
 
             console.log("DEBUG assigned tech input", {
                 assigned_to: mapped.assigned_to,
@@ -548,7 +554,36 @@ export default function WorkOrderDetailPage() {
         if (!addr) return null;
         return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr)}`;
     }, [wo?.service_address]);
+    const saveSiteReport = useCallback(async () => {
+        if (!workOrderId || !wo?.company_id) return;
 
+        if (myRole !== "tech") {
+            alert("Only the assigned technician can update the site report.");
+            return;
+        }
+
+        setSavingSiteReport(true);
+
+        try {
+            const { error } = await supabase
+                .from("work_orders")
+                .update({
+                    site_report: siteReportDraft.trim() || null,
+                })
+                .eq("work_order_id", workOrderId)
+                .eq("company_id", wo.company_id);
+
+            if (error) {
+                alert("Could not save site report: " + error.message);
+                return;
+            }
+
+            await loadWorkOrder();
+            setSiteReportSavedAt(Date.now());
+        } finally {
+            setSavingSiteReport(false);
+        }
+    }, [workOrderId, wo?.company_id, myRole, siteReportDraft, loadWorkOrder]);
     const refreshItemsOnly = useCallback(async () => {
         if (!workOrderId) return;
 
@@ -914,7 +949,25 @@ export default function WorkOrderDetailPage() {
                                 }
                                 assignedTechName={assignedTechName}
                             />
-
+                            <WorkOrderSiteReportSection
+                                report={wo.site_report}
+                                draft={siteReportDraft}
+                                saving={savingSiteReport}
+                                isTech={myRole === "tech"}
+                                canEdit={
+                                    myRole === "tech" &&
+                                    canChangeWorkOrderStatus({
+                                        userId: myUserId,
+                                        isAdminOrOwner: isAdmin,
+                                        role: myRole,
+                                        canOperate,
+                                        assignedTo: wo.assigned_to,
+                                    })
+                                }
+                                lastSavedAt={siteReportSavedAt}
+                                onChangeDraft={setSiteReportDraft}
+                                onSave={saveSiteReport}
+                            />
                             <WorkOrderPhotosSection
                                 photos={photos}
                                 activePhotoTab={activePhotoTab}
