@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { ShiftRow } from "../../../../lib/supabase/shifts";
+import { MR_THEME } from "../../../../lib/theme";
 
 type ShiftStatusCardProps = {
     loading: boolean;
@@ -35,12 +36,12 @@ export default function ShiftStatusCard({
     return (
         <div
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 18,
-                background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
+                border: `1px solid ${MR_THEME.border}`,
+                borderRadius: MR_THEME.radiusCard,
+                background: MR_THEME.cardBg,
                 padding: 20,
                 marginBottom: 18,
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                boxShadow: MR_THEME.shadowCard,
             }}
         >
             <div
@@ -59,7 +60,7 @@ export default function ShiftStatusCard({
                             fontSize: 12,
                             textTransform: "uppercase",
                             letterSpacing: "0.08em",
-                            color: "#64748b",
+                            color: MR_THEME.textMuted,
                             fontWeight: 800,
                             marginBottom: 8,
                         }}
@@ -72,7 +73,7 @@ export default function ShiftStatusCard({
                             fontSize: 28,
                             fontWeight: 800,
                             lineHeight: 1.05,
-                            color: "#111827",
+                            color: MR_THEME.textPrimary,
                             letterSpacing: "-0.02em",
                             marginBottom: 8,
                         }}
@@ -89,7 +90,7 @@ export default function ShiftStatusCard({
                     <div
                         style={{
                             fontSize: 14,
-                            color: "#6b7280",
+                            color: MR_THEME.textSecondary,
                             lineHeight: 1.6,
                             maxWidth: 760,
                         }}
@@ -142,15 +143,15 @@ export default function ShiftStatusCard({
                 </div>
             </div>
 
-            {!loading && companyId ? (
+            {!loading && companyId && openShift ? (
                 <div
                     style={{
                         marginBottom: 14,
                         padding: "12px 14px",
                         borderRadius: 12,
-                        border: openShift ? "1px solid #bbf7d0" : "1px solid #fde68a",
-                        background: openShift ? "#f0fdf4" : "#fffbeb",
-                        color: openShift ? "#166534" : "#92400e",
+                        border: "1px solid #bbf7d0",
+                        background: "#f0fdf4",
+                        color: "#166534",
                         fontSize: 14,
                         fontWeight: 700,
                     }}

@@ -13,6 +13,7 @@ import { CompanyGuard } from "../../components/CompanyGuard";
 import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
 import OperationalShiftBanner from "./components/OperationalShiftBanner";
 import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
+import { useSearchParams } from "next/navigation";
 
 import WorkOrdersList from "./components/WorkOrdersList";
 
@@ -74,8 +75,9 @@ type MemberRow = {
     full_name?: string | null;
 };
 
-export default function WorkOrdersPage() {
+function WorkOrdersPageInner() {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const { user, authLoading } = useAuthState();
     console.log("🔥 WorkOrdersPage rendered", {
@@ -151,7 +153,11 @@ export default function WorkOrdersPage() {
     const [locationsLoading, setLocationsLoading] = useState(false);
 
     const [newCustomerId, setNewCustomerId] = useState<string>("");
+    const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+    const [newCustomerName, setNewCustomerName] = useState("");
     const [newLocationId, setNewLocationId] = useState<string>("");
+    const [showCreateLocation, setShowCreateLocation] = useState(false);
+    const [newLocationName, setNewLocationName] = useState("");
 
     const filteredLocations = useMemo<LocationRow[]>(() => {
         if (!newCustomerId) return [];
@@ -388,6 +394,18 @@ export default function WorkOrdersPage() {
 
 
 
+    useEffect(() => {
+        const openFromCustomer = searchParams.get("newFromCustomer");
+        const customerIdParam = searchParams.get("customerId");
+
+        if (openFromCustomer === "true") {
+            setShowNewWO(true);
+
+            if (customerIdParam) {
+                setNewCustomerId(customerIdParam);
+            }
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         setCompanyNameDraft(companyName ?? "");
@@ -1296,7 +1314,7 @@ export default function WorkOrdersPage() {
                                     background: "white",
                                 }}
                             >
-                                <div style={{ fontWeight: 900, marginBottom: 10 }}>Crear nueva orden</div>
+                                <div style={{ fontWeight: 900, marginBottom: 10 }}>Create new work order</div>
 
                                 <div style={{ display: "grid", gap: 10 }}>
                                     <label style={{ display: "grid", gap: 6 }}>
@@ -1310,7 +1328,7 @@ export default function WorkOrdersPage() {
                                     </label>
 
                                     <label style={{ display: "grid", gap: 6 }}>
-                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Descripción</span>
+                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Description</span>
                                         <textarea
                                             value={newDesc}
                                             onChange={(e) => setNewDesc(e.target.value)}
@@ -1345,9 +1363,27 @@ export default function WorkOrdersPage() {
                                         </label>
                                     </div>
 
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
                                         <label style={{ display: "grid", gap: 6 }}>
-                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Customer</span>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                                                <span style={{ fontSize: 12, opacity: 0.8 }}>Customer</span>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCreateCustomer((v) => !v)}
+                                                    style={{
+                                                        fontSize: 11,
+                                                        color: "#2563eb",
+                                                        background: "none",
+                                                        border: "none",
+                                                        cursor: "pointer",
+                                                        padding: 0,
+                                                        fontWeight: 700,
+                                                    }}
+                                                >
+                                                    + Create
+                                                </button>
+                                            </div>
                                             <select
                                                 value={newCustomerId}
                                                 onChange={(e) => {
@@ -1358,7 +1394,7 @@ export default function WorkOrdersPage() {
                                                 style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
                                             >
                                                 <option value="">
-                                                    {customersLoading ? "Cargando customers..." : "Seleccione customer"}
+                                                    {customersLoading ? "Loading customers..." : "Select customer"}
                                                 </option>
                                                 {customers.map((c) => (
                                                     <option key={c.customer_id} value={c.customer_id}>
@@ -1366,10 +1402,97 @@ export default function WorkOrdersPage() {
                                                     </option>
                                                 ))}
                                             </select>
-                                        </label>
+
+                                            {showCreateCustomer && (
+                                                <div
+                                                    style={{
+                                                        marginTop: 8,
+                                                        padding: 10,
+                                                        border: "1px solid #e5e7eb",
+                                                        borderRadius: 8,
+                                                        background: "#ffffff",
+                                                        display: "flex",
+                                                        gap: 8,
+                                                        alignItems: "center",
+                                                    }}
+                                                >
+                                                    <input
+                                                        placeholder="Customer name"
+                                                        value={newCustomerName}
+                                                        onChange={(e) => setNewCustomerName(e.target.value)}
+                                                        style={{
+                                                            flex: 1,
+                                                            padding: 8,
+                                                            border: "1px solid #ddd",
+                                                            borderRadius: 6,
+                                                        }}
+                                                    />
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            if (!companyId) return;
+
+                                                            if (!newCustomerName.trim()) return;
+
+                                                            const { data, error } = await supabase
+                                                                .from("customers")
+                                                                .insert({
+                                                                    company_id: companyId,
+                                                                    name: newCustomerName.trim(),
+                                                                })
+                                                                .select()
+                                                                .single();
+
+                                                            if (error) {
+                                                                alert(error.message);
+                                                                return;
+                                                            }
+
+                                                            setCustomers((prev) => [...prev, data]);
+                                                            setNewCustomerId(data.customer_id);
+                                                            setNewCustomerName("");
+                                                            setShowCreateCustomer(false);
+                                                        }}
+                                                        style={{
+                                                            padding: "6px 10px",
+                                                            borderRadius: 6,
+                                                            border: "1px solid #111827",
+                                                            background: "#111827",
+                                                            color: "white",
+                                                            fontSize: 12,
+                                                            cursor: "pointer",
+                                                            fontWeight: 700,
+                                                            whiteSpace: "nowrap",
+                                                        }}
+                                                    >
+                                                        Save
+                                                    </button>
+                                                </div>
+                                            )}                                        </label>
 
                                         <label style={{ display: "grid", gap: 6 }}>
-                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Location</span>
+                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                                                <span style={{ fontSize: 12, opacity: 0.8 }}>Location</span>
+
+                                                {newCustomerId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowCreateLocation((v) => !v)}
+                                                        style={{
+                                                            fontSize: 11,
+                                                            color: "#2563eb",
+                                                            background: "none",
+                                                            border: "none",
+                                                            cursor: "pointer",
+                                                            padding: 0,
+                                                            fontWeight: 700,
+                                                        }}
+                                                    >
+                                                        + Create
+                                                    </button>
+                                                )}
+                                            </div>
                                             <select
                                                 value={newLocationId}
                                                 onChange={(e) => setNewLocationId(e.target.value)}
@@ -1378,10 +1501,10 @@ export default function WorkOrdersPage() {
                                             >
                                                 <option value="">
                                                     {!newCustomerId
-                                                        ? "Primero seleccione customer"
+                                                        ? "Select customer first"
                                                         : locationsLoading
-                                                            ? "Cargando locations..."
-                                                            : "Seleccione location"}
+                                                            ? "Loading locations..."
+                                                            : "Select location"}
                                                 </option>
                                                 {filteredLocations.map((loc) => (
                                                     <option key={loc.location_id} value={loc.location_id}>
@@ -1391,6 +1514,76 @@ export default function WorkOrdersPage() {
                                                     </option>
                                                 ))}
                                             </select>
+                                            {showCreateLocation && newCustomerId && (
+                                                <div
+                                                    style={{
+                                                        marginTop: 8,
+                                                        padding: 10,
+                                                        border: "1px solid #e5e7eb",
+                                                        borderRadius: 8,
+                                                        background: "#ffffff",
+                                                        display: "flex",
+                                                        gap: 8,
+                                                        alignItems: "center",
+                                                    }}
+                                                >
+                                                    <input
+                                                        placeholder="Service address"
+                                                        value={newLocationName}
+                                                        onChange={(e) => setNewLocationName(e.target.value)}
+                                                        style={{
+                                                            flex: 1,
+                                                            padding: 8,
+                                                            border: "1px solid #ddd",
+                                                            borderRadius: 6,
+                                                        }}
+                                                    />
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            if (!newLocationName.trim()) return;
+
+                                                            const { data, error } = await supabase
+                                                                .from("locations")
+                                                                .insert({
+                                                                    company_id: companyId,
+                                                                    customer_id: newCustomerId,
+                                                                    address: newLocationName.trim(),
+                                                                    label: null,
+                                                                })
+                                                                .select()
+                                                                .single();
+                                                            if (error) {
+                                                                alert(error.message);
+                                                                return;
+                                                            }
+
+                                                            // agregar a lista
+                                                            setLocations((prev) => [...prev, data]);
+
+                                                            // auto seleccionar
+                                                            setNewLocationId(data.location_id);
+
+                                                            // limpiar
+                                                            setNewLocationName("");
+                                                            setShowCreateLocation(false);
+                                                        }}
+                                                        style={{
+                                                            padding: "6px 10px",
+                                                            borderRadius: 6,
+                                                            border: "1px solid #111827",
+                                                            background: "#111827",
+                                                            color: "white",
+                                                            fontSize: 12,
+                                                            cursor: "pointer",
+                                                            fontWeight: 700,
+                                                        }}
+                                                    >
+                                                        Save
+                                                    </button>
+                                                </div>
+                                            )}
                                         </label>
                                     </div>
                                     {/* ✅ por ahora solo prueba visual */}
@@ -1439,7 +1632,7 @@ export default function WorkOrdersPage() {
                                                     return;
                                                 }
 
-                                                // limpiar formulario
+
                                                 // limpiar formulario
                                                 setNewJobType("");
                                                 setNewDesc("");
@@ -1467,7 +1660,7 @@ export default function WorkOrdersPage() {
                                             width: "fit-content",
                                         }}
                                     >
-                                        Crear orden
+                                        Create work order
                                     </button>
                                 </div>
                             </div>
@@ -1548,5 +1741,12 @@ export default function WorkOrdersPage() {
                 )}
             </div>
         </CompanyGuard>
+    );
+}
+export default function WorkOrdersPage() {
+    return (
+        <React.Suspense fallback={null}>
+            <WorkOrdersPageInner />
+        </React.Suspense>
     );
 }

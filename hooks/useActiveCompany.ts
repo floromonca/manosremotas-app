@@ -25,12 +25,31 @@ export function useActiveCompany() {
   const [isLoadingCompany, setIsLoadingCompany] = useState(true);
 
   const [refreshKey, setRefreshKey] = useState(0);
+
   const refreshCompany = useCallback(() => {
     setRefreshKey((k) => k + 1);
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("active-company-refresh"));
+    }
   }, []);
+
 
   // evita intentar aceptar invite en loop
   const inviteAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleRefresh = () => {
+      setRefreshKey((k) => k + 1);
+    };
+
+    window.addEventListener("active-company-refresh", handleRefresh as EventListener);
+
+    return () => {
+      window.removeEventListener("active-company-refresh", handleRefresh as EventListener);
+    };
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -111,20 +130,32 @@ export function useActiveCompany() {
           }
           return;
         }
-
         // 4) Leer stored
         const stored =
           typeof window !== "undefined"
             ? localStorage.getItem("activeCompanyId")
             : null;
 
+        const superAdminEmails = ["floromonca@gmail.com"];
+        const isSuperAdmin =
+          !!user?.email && superAdminEmails.includes(user.email);
+
         // 5) Elegir company válida
-        const validStored = stored
-          ? list.find((m) => m.company_id === stored) ?? null
-          : null;
+        let chosen: MembershipRow;
 
-        const chosen: MembershipRow = validStored ?? list[0];
+        if (isSuperAdmin && stored) {
+          chosen = {
+            company_id: stored,
+            role: "owner",
+          };
+        } else {
+          const validStored = stored
+            ? list.find((m) => m.company_id === stored) ?? null
+            : null;
 
+          chosen = validStored ?? list[0];
+        }
+        
         // 6) Sanear storage
         if (typeof window !== "undefined") {
           if (stored !== chosen.company_id) {

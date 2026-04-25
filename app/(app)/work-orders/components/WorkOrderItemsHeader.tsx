@@ -6,12 +6,14 @@ type Props = {
     itemsCount: number;
     showForm: boolean;
     setShowForm: React.Dispatch<React.SetStateAction<boolean>>;
+    invoiceIsLocked: boolean;
 };
 
 export default function WorkOrderItemsHeader({
     itemsCount,
     showForm,
     setShowForm,
+    invoiceIsLocked,
 }: Props) {
     return (
         <div
@@ -19,9 +21,9 @@ export default function WorkOrderItemsHeader({
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "end",
-                gap: 12,
+                gap: 10,
                 flexWrap: "wrap",
-                marginBottom: 12,
+                marginBottom: 8,
             }}
         >
             <div>
@@ -43,7 +45,7 @@ export default function WorkOrderItemsHeader({
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <div
                     style={{
-                        padding: "8px 10px",
+                        padding: "6px 9px",
                         borderRadius: 999,
                         background: "#f9fafb",
                         border: "1px solid #e5e7eb",
@@ -51,23 +53,28 @@ export default function WorkOrderItemsHeader({
                         color: "#4b5563",
                     }}
                 >
-                    Total items: <b>{itemsCount}</b>
+                    <b>{itemsCount}</b> items
                 </div>
 
                 <button
                     type="button"
-                    onClick={() => setShowForm((s) => !s)}
+                    disabled={invoiceIsLocked}
+                    onClick={() => {
+                        if (invoiceIsLocked) return;
+                        setShowForm((s) => !s);
+                    }}
                     style={{
-                        padding: "10px 14px",
+                        padding: "8px 12px",
                         borderRadius: 12,
                         border: "1px solid #d1d5db",
                         background: "white",
-                        cursor: "pointer",
+                        cursor: invoiceIsLocked ? "not-allowed" : "pointer",
                         fontWeight: 900,
                         boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                        opacity: invoiceIsLocked ? 0.6 : 1,
                     }}
                 >
-                    {showForm ? "Cerrar" : "+ Agregar item"}
+                    {showForm ? "Close" : "+ Add item"}
                 </button>
             </div>
         </div>

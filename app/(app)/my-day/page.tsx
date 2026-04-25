@@ -277,8 +277,8 @@ export default function MyDayPage() {
         >
             <div
                 style={{
-                    marginBottom: 18,
-                    paddingBottom: 16,
+                    marginBottom: 14,
+                    paddingBottom: 14,
                     borderBottom: "1px solid #e5e7eb",
                 }}
             >
@@ -290,7 +290,7 @@ export default function MyDayPage() {
                             letterSpacing: "0.06em",
                             textTransform: "uppercase",
                             color: "#6b7280",
-                            marginBottom: 10,
+                            marginBottom: 8,
                         }}
                     >
                         {prettyDate}
@@ -299,7 +299,7 @@ export default function MyDayPage() {
 
                 <h1
                     style={{
-                        fontSize: 40,
+                        fontSize: 34,
                         lineHeight: 1.05,
                         fontWeight: 800,
                         letterSpacing: "-0.03em",
@@ -312,10 +312,10 @@ export default function MyDayPage() {
 
                 <div
                     style={{
-                        marginTop: 10,
-                        fontSize: 16,
+                        marginTop: 8,
+                        fontSize: 15,
                         color: "#6b7280",
-                        lineHeight: 1.6,
+                        lineHeight: 1.5,
                         maxWidth: 760,
                     }}
                 >
@@ -357,39 +357,32 @@ export default function MyDayPage() {
                     onViewWorkOrders={() => router.push("/work-orders")}
                 />
 
-                <div
-                    style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 16,
-                        background: "#ffffff",
-                        padding: 20,
-                    }}
-                >
-                    <CurrentWorkCard
-                        currentWork={currentWork}
-                        currentWorkMessage={currentWorkMessage}
-                        openShift={!!openShift}
-                        shiftBusy={shiftBusy}
-                        loading={loading}
-                        companyId={companyId}
-                        onResumeWork={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
-                        onStartShift={handleCheckIn}
-                    />
 
-                    <TodayAtAGlanceCard
-                        loading={workOrdersLoading}
-                        assignedCount={assignedCount}
-                        inProgressCount={inProgressCount}
-                        completedCount={completedCount}
-                    />
+                <CurrentWorkCard
+                    currentWork={currentWork}
+                    currentWorkMessage={currentWorkMessage}
+                    openShift={!!openShift}
+                    shiftBusy={shiftBusy}
+                    loading={loading}
+                    companyId={companyId}
+                    onResumeWork={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+                    onStartShift={handleCheckIn}
+                />
 
-                    <RecentWorkOrdersCard
-                        rows={recentWorkRows}
-                        onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
-                    />
-                </div>
+                <TodayAtAGlanceCard
+                    loading={workOrdersLoading}
+                    assignedCount={assignedCount}
+                    inProgressCount={inProgressCount}
+                    completedCount={completedCount}
+                />
+
+                <RecentWorkOrdersCard
+                    rows={recentWorkRows}
+                    onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
+                />
             </div>
         </div>
+
     );
 }
 

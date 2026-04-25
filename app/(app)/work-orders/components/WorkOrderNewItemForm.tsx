@@ -18,6 +18,9 @@ type Props = {
     myRole: string | null;
     onCreateItem: () => void | Promise<void>;
     setShowForm: React.Dispatch<React.SetStateAction<boolean>>;
+    invoiceIsLocked: boolean;
+    hasInvoice: boolean;
+    invoiceStatus: string | null;
 };
 
 export default function WorkOrderNewItemForm({
@@ -29,67 +32,165 @@ export default function WorkOrderNewItemForm({
     myRole,
     onCreateItem,
     setShowForm,
+    invoiceIsLocked,
+    hasInvoice,
+    invoiceStatus,
 }: Props) {
+    const [descError, setDescError] = React.useState(false);
+
     return (
         <div
             style={{
                 marginTop: 12,
-                padding: 12,
-                border: "1px solid #eee",
-                borderRadius: 12,
+                padding: 16,
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
                 background: "#fafafa",
                 display: "grid",
-                gap: 10,
+                gap: 12,
                 maxWidth: 620,
+                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
             }}
         >
-            <div style={{ fontWeight: 900 }}>Nuevo item</div>
-
+            <div
+                style={{
+                    fontWeight: 900,
+                    fontSize: 15,
+                    color: "#111827",
+                }}
+            >
+                New item
+            </div>
+            {invoiceIsLocked ? (
+                <div
+                    style={{
+                        padding: 10,
+                        borderRadius: 10,
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        color: "#991b1b",
+                        fontSize: 13,
+                        fontWeight: 700,
+                        lineHeight: 1.45,
+                    }}
+                >
+                    This work order is already invoiced and billing items are read-only.
+                </div>
+            ) : null}
             <input
-                placeholder="Descripción (ej: Piso laminado 20m2)"
+                placeholder="Description (e.g. Laminate flooring 20 m²)"
                 value={newItem.description}
-                onChange={(e) => setNewItem((s) => ({ ...s, description: e.target.value }))}
-                style={{ padding: 10, borderRadius: 10, border: "1px solid #ddd" }}
+                onChange={(e) => {
+                    setNewItem((s) => ({ ...s, description: e.target.value }));
+                    if (descError) setDescError(false);
+                }}
+                style={{
+                    padding: 12,
+                    borderRadius: 10,
+                    border: descError ? "1px solid #dc2626" : "1px solid #d1d5db",
+                    background: "#ffffff",
+                    outline: "none",
+                    fontSize: 15,
+                }}
             />
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {descError && (
+                <div
+                    style={{
+                        color: "#dc2626",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        marginTop: -4,
+                    }}
+                >
+                    Item description is required.
+                </div>
+            )}
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ display: "grid", gap: 6 }}>
-                    <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>
-                        {isAdmin ? "Cantidad planificada" : "Cantidad realizada (extra)"}
-                    </div>
-                    <input
-                        placeholder="Ej: 10"
-                        type="number"
-                        value={newItem.quantity}
-                        onChange={(e) =>
-                            setNewItem((s) => ({ ...s, quantity: Number(e.target.value) }))
-                        }
+                    <div
                         style={{
-                            padding: 10,
+                            fontWeight: 800,
+                            fontSize: 13,
+                            color: "#374151",
+                        }}
+                    >
+                        {isAdmin ? "Planned quantity" : "Completed quantity (extra)"}
+                    </div>
+
+                    <input
+                        placeholder="E.g. 10"
+                        type="number"
+                        value={newItem.quantity === 0 ? "" : newItem.quantity}
+                        onChange={(e) => {
+                            let value = e.target.value;
+
+                            if (value === "") {
+                                setNewItem((s) => ({ ...s, quantity: 0 }));
+                                return;
+                            }
+
+                            value = value.replace(/^0+(?=\d)/, "");
+
+                            const num = Number(value);
+
+                            if (isNaN(num)) return;
+
+                            setNewItem((s) => ({ ...s, quantity: num }));
+                        }}
+                        style={{
+                            padding: 12,
                             borderRadius: 10,
-                            border: "1px solid #ddd",
-                            width: 200,
+                            border: "1px solid #d1d5db",
+                            width: 230,
+                            background: "#ffffff",
+                            outline: "none",
+                            fontSize: 15,
                         }}
                     />
                 </div>
 
                 {isAdmin ? (
                     <div style={{ display: "grid", gap: 6 }}>
-                        <div style={{ fontWeight: 800, fontSize: 13, opacity: 0.85 }}>
-                            Precio unitario
-                        </div>
-                        <input
-                            placeholder="Ej: 8.00"
-                            type="number"
-                            value={newItem.unit_price}
-                            onChange={(e) =>
-                                setNewItem((s) => ({ ...s, unit_price: Number(e.target.value) }))
-                            }
+                        <div
                             style={{
-                                padding: 10,
+                                fontWeight: 800,
+                                fontSize: 13,
+                                color: "#374151",
+                            }}
+                        >
+                            Unit price
+                        </div>
+
+                        <input
+                            placeholder="E.g. 8.00"
+                            type="number"
+                            value={newItem.unit_price === 0 ? "" : newItem.unit_price}
+                            onChange={(e) => {
+                                let value = e.target.value;
+
+                                if (value === "") {
+                                    setNewItem((s) => ({ ...s, unit_price: 0 }));
+                                    return;
+                                }
+
+                                value = value.replace(/^0+(?=\d)/, "");
+
+                                const num = Number(value);
+
+                                if (isNaN(num)) return;
+
+                                setNewItem((s) => ({ ...s, unit_price: num }));
+                            }}
+                            style={{
+                                padding: 12,
                                 borderRadius: 10,
-                                border: "1px solid #ddd",
-                                width: 200,
+                                border: "1px solid #d1d5db",
+                                width: 230,
+                                background: "#ffffff",
+                                outline: "none",
+                                fontSize: 15,
                             }}
                         />
                     </div>
@@ -97,7 +198,16 @@ export default function WorkOrderNewItemForm({
             </div>
 
             {isAdmin ? (
-                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <label
+                    style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "center",
+                        fontSize: 14,
+                        color: "#111827",
+                        fontWeight: 600,
+                    }}
+                >
                     <input
                         type="checkbox"
                         checked={newItem.taxable}
@@ -106,50 +216,75 @@ export default function WorkOrderNewItemForm({
                     Taxable
                 </label>
             ) : (
-                <div style={{ fontSize: 12, opacity: 0.8 }}>
-                    Como técnico: este item queda <b>pending_pricing</b> para que el admin lo apruebe.
+                <div style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
+                    As a technician, this item will be saved as <b>pending_pricing</b> until an
+                    admin reviews and approves it.
                 </div>
             )}
 
             {isAdmin ? (
-                <div style={{ fontWeight: 900, marginTop: 4, opacity: 0.9 }}>
-                    Total item: $
+                <div
+                    style={{
+                        fontWeight: 900,
+                        marginTop: 2,
+                        color: "#111827",
+                        fontSize: 16,
+                    }}
+                >
+                    Item total: $
                     {(Number(newItem.quantity ?? 0) * Number(newItem.unit_price ?? 0)).toFixed(2)}
                 </div>
             ) : null}
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                     type="button"
-                    disabled={savingItem || roleLoading || !myRole}
-                    onClick={onCreateItem}
+                    disabled={savingItem || roleLoading || !myRole || invoiceIsLocked}
+                    onClick={() => {
+                        if (invoiceIsLocked) {
+                            alert("This work order is already invoiced and billing items are read-only.");
+                            return;
+                        }
+
+                        if (!newItem.description.trim()) {
+                            setDescError(true);
+                            return;
+                        }
+
+                        setDescError(false);
+                        onCreateItem();
+                    }}
                     style={{
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #111",
-                        background: "#111",
+                        padding: "12px 16px",
+                        borderRadius: 12,
+                        border: "1px solid #111827",
+                        background: "#111827",
                         color: "white",
-                        cursor: savingItem ? "not-allowed" : "pointer",
+                        cursor: savingItem || roleLoading || !myRole || invoiceIsLocked ? "not-allowed" : "pointer",
                         fontWeight: 900,
-                        opacity: savingItem ? 0.6 : 1,
+                        fontSize: 15,
+                        opacity: savingItem || roleLoading || !myRole || invoiceIsLocked ? 0.6 : 1,
+                        boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
                     }}
                 >
-                    {savingItem ? "Guardando..." : isAdmin ? "Guardar planned" : "Guardar extra"}
+                    {savingItem ? "Saving..." : isAdmin ? "Save planned item" : "Save extra item"}
                 </button>
 
                 <button
                     type="button"
                     onClick={() => setShowForm(false)}
                     style={{
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #ddd",
-                        background: "white",
+                        padding: "12px 16px",
+                        borderRadius: 12,
+                        border: "1px solid #d1d5db",
+                        background: "#ffffff",
                         cursor: "pointer",
                         fontWeight: 800,
+                        fontSize: 15,
+                        color: "#111827",
                     }}
                 >
-                    Cancelar
+                    Cancel
                 </button>
             </div>
         </div>

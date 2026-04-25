@@ -42,7 +42,7 @@ export default function ControlCenterCompanyPage() {
     const router = useRouter();
 
     const { user, authLoading } = useAuthState();
-    const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
+    const { companyId, companyName, myRole, isLoadingCompany, refreshCompany } = useActiveCompany();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -220,7 +220,8 @@ export default function ControlCenterCompanyPage() {
                 .eq("company_id", companyId);
 
             if (error) throw error;
-
+            refreshCompany();
+            router.refresh();
             setOkMsg("Changes saved successfully.");
             setForm((prev) => ({
                 ...prev,

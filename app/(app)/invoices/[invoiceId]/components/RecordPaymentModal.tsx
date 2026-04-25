@@ -85,8 +85,23 @@ export default function RecordPaymentModal({
                         type="number"
                         min={0}
                         step="0.01"
-                        value={paymentAmount}
-                        onChange={(e) => onChangeAmount(Number(e.target.value))}
+                        value={paymentAmount === 0 ? "" : paymentAmount}
+                        onChange={(e) => {
+                            let value = e.target.value;
+
+                            if (value === "") {
+                                onChangeAmount(0);
+                                return;
+                            }
+
+                            value = value.replace(/^0+(?=\d)/, "");
+
+                            const num = Number(value);
+
+                            if (isNaN(num)) return;
+
+                            onChangeAmount(num);
+                        }}
                         style={{
                             padding: 10,
                             borderRadius: 8,

@@ -113,8 +113,25 @@ export default function OnboardingProfilePage() {
             if (memberErr) throw memberErr;
 
             // 3) refrescar estado + salir
-            refreshCompany();
-            router.replace("/work-orders");
+            const { data: companyRow, error: companyErr } = await supabase
+                .from("companies")
+                .select("company_name")
+                .eq("company_id", companyId)
+                .maybeSingle();
+
+            if (companyErr) throw companyErr;
+
+            const isNewCompany = companyRow?.company_name === "My Company";
+
+            await refreshCompany();
+
+            router.refresh();
+
+            if (isNewCompany) {
+                router.replace("/settings/company");
+            } else {
+                router.replace("/work-orders");
+            }
         } catch (e: any) {
             setMsg(e?.message ?? String(e));
         } finally {

@@ -22,8 +22,10 @@ import {
     canChangeWorkOrderStatus,
 } from "../../../../lib/work-orders/policies";
 import WorkOrderDetailHeader from "../components/WorkOrderDetailHeader";
-
-
+import WorkOrderPhotosSection from "../components/WorkOrderPhotosSection";
+import PhotoPreviewModal from "../components/PhotoPreviewModal";
+import WorkOrderCheckInsSection from "../components/WorkOrderCheckInsSection";
+import { useWorkOrderPhotos } from "../hooks/useWorkOrderPhotos";
 
 type WorkOrder = {
     work_order_id: string;
@@ -58,6 +60,18 @@ type WorkOrderItem = {
     pricing_status?: string | null;
     tech_note?: string | null;
 };
+
+type WorkOrderCheckIn = {
+    check_in_id: string;
+    check_in_at: string;
+    check_out_at?: string | null;
+    geofence_status?: string | null;
+    policy_applied?: string | null;
+    distance_to_site_m?: number | null;
+    location_verified?: boolean | null;
+    user_id?: string | null;
+};
+
 
 function normalizeInvoiceStatus(status: string | null | undefined) {
     return String(status ?? "").trim().toLowerCase();
@@ -122,7 +136,7 @@ function invoiceBadgeStyle(status: string | null | undefined): React.CSSProperti
 export default function WorkOrderDetailPage() {
     const router = useRouter();
     const params = useParams();
-    const workOrderId = (params as any)?.workOrderId as string;
+    const workOrderId = typeof params?.workOrderId === "string" ? params.workOrderId : "";
 
     const { user } = useAuthState();
     const myUserId = user?.id ?? null;
@@ -130,36 +144,83 @@ export default function WorkOrderDetailPage() {
     const { companyId: activeCompanyId } = useActiveCompany();
 
     const [roleLoading, setRoleLoading] = useState(false);
-    const [myRole, setMyRole] = useState<string | null>(null);
+    const [myRole, setMyRole] = useState<"owner" | "admin" | "tech" | "viewer" | null>(null);
     const [canOperate, setCanOperate] = useState(false);
     const [shiftLoading, setShiftLoading] = useState(false);
-
     const isAdmin = myRole === "owner" || myRole === "admin";
-    const isTech = myRole === "tech";
-
     const [wo, setWo] = useState<WorkOrder | null>(null);
-    const [checkIns, setCheckIns] = useState<any[]>([]);
-    const [photos, setPhotos] = useState<any[]>([]);
+    const [checkIns, setCheckIns] = useState<WorkOrderCheckIn[]>([]);
+    const {
+        photos,
+        setPhotos,
+        activePhotoTab,
+        setActivePhotoTab,
+        selectedPhotoId,
+        setSelectedPhotoId,
+        selectedPhoto,
+        selectedPhotoGroup,
+        selectedPhotoIndex,
+        uploadingPhoto,
+        photoError,
+        setPhotoError,
+        loadPhotos,
+        handlePhotoUpload,
+        handleDeletePhoto,
+        closePhotoPreview,
+        showPreviousPhoto,
+        showNextPhoto,
+        handlePhotoTouchStart,
+        handlePhotoTouchMove,
+        handlePhotoTouchEnd,
+    } = useWorkOrderPhotos({
+        workOrderId,
+        activeCompanyId,
+        userId: user?.id ?? null,
+    });
+
     const woRef = useRef<WorkOrder | null>(null);
     const [assignedTechName, setAssignedTechName] = useState<string | null>(null);
-    const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null);
-    const [uploadingPhoto, setUploadingPhoto] = useState(false);
-    const [photoError, setPhotoError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!selectedPhoto) return;
+
+        function handleKeyDown(e: KeyboardEvent) {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                closePhotoPreview();
+                return;
+            }
+
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                showPreviousPhoto();
+                return;
+            }
+
+            if (e.key === "ArrowRight") {
+                e.preventDefault();
+                showNextPhoto();
+            }
+        }
+
+        window.addEventListener("keydown", handleKeyDown);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [selectedPhoto, selectedPhotoIndex, selectedPhotoGroup.length, showPreviousPhoto, showNextPhoto, closePhotoPreview]);
+
 
     useEffect(() => {
         woRef.current = wo;
     }, [wo]);
-
     const [items, setItems] = useState<WorkOrderItem[]>([]);
     const anyPendingPricing = items.some(
         (it) => it.pending_pricing === true || it.pricing_status === "pending_pricing"
     );
-
     const [invoiceStatus, setInvoiceStatus] = useState<string | null>(null);
-
     const [loading, setLoading] = useState(false);
     const [err, setErr] = useState("");
-
     const [showForm, setShowForm] = useState(false);
     const [savingItem, setSavingItem] = useState(false);
     const [syncingInvoice, setSyncingInvoice] = useState(false);
@@ -170,26 +231,21 @@ export default function WorkOrderDetailPage() {
         customer_phone: "",
         service_address: "",
     });
-
     const [priceDraft, setPriceDraft] = useState<Record<string, number>>({});
     const [savingPrice, setSavingPrice] = useState<Record<string, boolean>>({});
-
     const [newItem, setNewItem] = useState({
         description: "",
         quantity: 1,
         unit_price: 0,
         taxable: true,
     });
-
     const invoiceStatusNormalized = useMemo(
         () => normalizeInvoiceStatus(invoiceStatus),
         [invoiceStatus]
     );
-
     const hasInvoice = !!wo?.invoice_id;
     const invoiceIsDraft = hasInvoice && invoiceStatusNormalized === "draft";
     const invoiceIsLocked = hasInvoice && invoiceStatusNormalized !== "" && invoiceStatusNormalized !== "draft";
-
     const loadRole = useCallback(async () => {
         if (!activeCompanyId || !myUserId) return;
         setRoleLoading(true);
@@ -206,7 +262,7 @@ export default function WorkOrderDetailPage() {
                 setMyRole(null);
                 return;
             }
-            setMyRole((data as any)?.role ?? null);
+            setMyRole(data?.role ?? null);
         } finally {
             setRoleLoading(false);
         }
@@ -257,7 +313,7 @@ export default function WorkOrderDetailPage() {
             return;
         }
 
-        setInvoiceStatus((data as any)?.status ?? null);
+        setInvoiceStatus(data?.status ?? null);
     }, []);
 
     const loadItemsForWorkOrder = useCallback(async () => {
@@ -273,7 +329,7 @@ export default function WorkOrderDetailPage() {
 
         if (error) throw error;
 
-        return ((data as any) ?? []) as WorkOrderItem[];
+        return (data ?? []) as WorkOrderItem[];
     }, [workOrderId]);
 
     const loadCheckIns = useCallback(async () => {
@@ -282,14 +338,14 @@ export default function WorkOrderDetailPage() {
         const { data, error } = await supabase
             .from("work_order_check_ins")
             .select(
-                "check_in_id, check_in_at, geofence_status, policy_applied, distance_to_site_m, location_verified, user_id"
+                "check_in_id, check_in_at, check_out_at, geofence_status, policy_applied, distance_to_site_m, location_verified, user_id"
             )
             .eq("work_order_id", workOrderId)
             .order("check_in_at", { ascending: false });
 
         if (error) throw error;
 
-        return (data ?? []) as any[];
+        return (data ?? []) as WorkOrderCheckIn[];
     }, [workOrderId]);
 
     const syncDraftInvoiceIfNeeded = useCallback(async () => {
@@ -308,7 +364,7 @@ export default function WorkOrderDetailPage() {
             return;
         }
 
-        const currentInvoiceStatus = normalizeInvoiceStatus((invRow as any)?.status);
+        const currentInvoiceStatus = normalizeInvoiceStatus(invRow?.status);
 
         if (currentInvoiceStatus !== "draft") {
             console.log("ℹ️ Auto-sync omitido: invoice no está en draft.");
@@ -318,8 +374,11 @@ export default function WorkOrderDetailPage() {
         try {
             await createInvoiceFromWorkOrder(workOrderId);
             await loadInvoiceStatus(currentInvoiceId);
-        } catch (syncErr: any) {
-            console.log("⚠️ Auto-sync invoice falló:", syncErr?.message ?? syncErr);
+        } catch (syncErr: unknown) {
+            console.log(
+                "⚠️ Auto-sync invoice falló:",
+                syncErr instanceof Error ? syncErr.message : syncErr
+            );
         }
     }, [workOrderId, loadInvoiceStatus]);
 
@@ -328,12 +387,25 @@ export default function WorkOrderDetailPage() {
         if (syncingInvoice) return;
 
         if (anyPendingPricing) {
-            alert("Hay items en Pending pricing. Apruébalos primero antes de Sync.");
+            alert("There are items in pending pricing. Approve them before syncing the invoice.");
+            return;
+        }
+
+        const billableTotal = items.reduce((acc, it) => {
+            const qtyDone = Number(it.qty_done ?? 0);
+            const qtyPlanned = Number(it.qty_planned ?? 0);
+            const qty = qtyDone > 0 ? qtyDone : qtyPlanned;
+            const price = Number(it.unit_price ?? 0);
+            return acc + qty * price;
+        }, 0);
+
+        if (billableTotal <= 0) {
+            alert("This work order has no billable amount yet. Add approved items or priced extras before generating an invoice.");
             return;
         }
 
         if (hasInvoice && !invoiceIsDraft) {
-            alert(`La invoice asociada está en estado ${prettyInvoiceStatus(invoiceStatus)} y ya no permite Sync.`);
+            alert(`The linked invoice is in ${prettyInvoiceStatus(invoiceStatus)} status and can no longer be synced.`);
             return;
         }
 
@@ -342,15 +414,16 @@ export default function WorkOrderDetailPage() {
             const invoiceId = await createInvoiceFromWorkOrder(workOrderId);
             await loadInvoiceStatus(invoiceId);
             router.push(`/invoices/${invoiceId}`);
-        } catch (e: any) {
-            console.log("❌ Sync Invoice failed:", e?.message ?? e);
-            alert(`Sync Invoice failed: ${e?.message ?? e}`);
+        } catch (e: unknown) {
+            console.log("❌ Sync Invoice failed:", e instanceof Error ? e.message : e);
+            alert(`Sync Invoice failed: ${e instanceof Error ? e.message : e}`);
         } finally {
             setSyncingInvoice(false);
         }
     }, [
         workOrderId,
         anyPendingPricing,
+        items,
         syncingInvoice,
         router,
         hasInvoice,
@@ -358,18 +431,6 @@ export default function WorkOrderDetailPage() {
         invoiceStatus,
         loadInvoiceStatus,
     ]);
-    const loadPhotos = useCallback(async () => {
-        if (!workOrderId) return [];
-
-        const { data, error } = await supabase
-            .from("work_order_photos")
-            .select("photo_id, category, file_url, created_at, uploaded_by")
-            .eq("work_order_id", workOrderId)
-            .order("created_at", { ascending: true });
-
-        if (error) throw error;
-        return data ?? [];
-    }, [workOrderId]);
 
     const loadWorkOrder = useCallback(async () => {
         if (!workOrderId) return;
@@ -389,8 +450,8 @@ export default function WorkOrderDetailPage() {
             if (error) throw error;
 
             const mapped = {
-                ...(data as any),
-                status: safeStatus((data as any)?.status),
+                ...data,
+                status: safeStatus(data?.status),
             } as WorkOrder;
 
             setWo(mapped);
@@ -414,7 +475,7 @@ export default function WorkOrderDetailPage() {
                 });
 
                 if (!memberErr) {
-                    const fullName = (memberRow as any)?.full_name?.trim?.() || null;
+                    const fullName = memberRow?.full_name?.trim?.() || null;
                     setAssignedTechName(fullName || mapped.assigned_to.slice(0, 8));
                 } else {
                     setAssignedTechName(mapped.assigned_to.slice(0, 8));
@@ -423,10 +484,10 @@ export default function WorkOrderDetailPage() {
                 setAssignedTechName(null);
             }
             setCustomerForm({
-                customer_name: (mapped as any)?.customer_name ?? "",
-                customer_email: (mapped as any)?.customer_email ?? "",
-                customer_phone: (mapped as any)?.customer_phone ?? "",
-                service_address: (mapped as any)?.service_address ?? "",
+                customer_name: mapped.customer_name ?? "",
+                customer_email: mapped.customer_email ?? "",
+                customer_phone: mapped.customer_phone ?? "",
+                service_address: mapped.service_address ?? "",
             });
 
             await loadInvoiceStatus(mapped.invoice_id);
@@ -438,8 +499,8 @@ export default function WorkOrderDetailPage() {
             setCheckIns(checkInRows);
             const photoRows = await loadPhotos();
             setPhotos(photoRows);
-        } catch (e: any) {
-            setErr(e?.message ?? "Error cargando Work Order");
+        } catch (e: unknown) {
+            setErr(e instanceof Error ? e.message : "Error cargando Work Order");
             setWo(null);
             setItems([]);
             setCheckIns([]);
@@ -449,7 +510,7 @@ export default function WorkOrderDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [workOrderId, loadInvoiceStatus, loadItemsForWorkOrder, loadCheckIns]);
+    }, [workOrderId, loadInvoiceStatus, loadItemsForWorkOrder, loadCheckIns, loadPhotos, setPhotos]);
 
     useEffect(() => {
         loadRole();
@@ -498,8 +559,8 @@ export default function WorkOrderDetailPage() {
             if (woRef.current?.invoice_id) {
                 await loadInvoiceStatus(woRef.current.invoice_id);
             }
-        } catch (e: any) {
-            alert(`No se pudieron recargar items: ${e?.message ?? e}`);
+        } catch (e: unknown) {
+            alert(`No se pudieron recargar items: ${e instanceof Error ? e.message : e}`);
         }
     }, [workOrderId, loadItemsForWorkOrder, loadInvoiceStatus]);
 
@@ -539,7 +600,22 @@ export default function WorkOrderDetailPage() {
         },
         [items, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]
     );
+    const updateTechNote = useCallback(
+        async (itemId: string, note: string) => {
+            const { error } = await supabase
+                .from("work_order_items")
+                .update({ tech_note: note })
+                .eq("item_id", itemId);
 
+            if (error) {
+                alert(`Could not save tech note: ${error.message}`);
+                return;
+            }
+
+            await refreshItemsOnly();
+        },
+        [refreshItemsOnly]
+    );
     const priceItem = useCallback(
         async (itemId: string) => {
             const newPrice = Number(priceDraft[itemId] ?? 0);
@@ -579,7 +655,7 @@ export default function WorkOrderDetailPage() {
             const canChange = canChangeWorkOrderStatus({
                 userId: myUserId,
                 isAdminOrOwner: isAdmin,
-                role: myRole as any,
+                role: myRole,
                 canOperate: true,
                 assignedTo: wo.assigned_to,
             });
@@ -722,898 +798,218 @@ export default function WorkOrderDetailPage() {
 
             setNewItem({ description: "", quantity: 1, unit_price: 0, taxable: true });
             setShowForm(false);
-        } catch (e: any) {
-            setErr(e?.message ?? "Error creando item");
+        } catch (e: unknown) {
+            setErr(e instanceof Error ? e.message : "Error creando item");
         } finally {
             setSavingItem(false);
         }
-    }, [roleLoading, myRole, newItem, wo, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]);
+    }, [roleLoading, myRole, newItem, wo, isAdmin, workOrderId, refreshItemsOnly, syncDraftInvoiceIfNeeded]);
 
-    async function handlePhotoUpload(
-        file: File | null,
-        category: "before" | "during" | "after"
-    ) {
-        try {
-            console.log("PHOTO UPLOAD START", {
-                fileName: file?.name,
-                category,
-                workOrderId,
-                activeCompanyId,
-                userId: user?.id,
-            });
-
-            if (!file || !workOrderId || !activeCompanyId || !user?.id) return;
-            const { count, error: countError } = await supabase
-                .from("work_order_photos")
-                .select("*", { count: "exact", head: true })
-                .eq("company_id", activeCompanyId)
-                .eq("work_order_id", workOrderId);
-
-            if (countError) {
-                console.error("PHOTO COUNT ERROR", countError);
-                throw countError;
-            }
-
-            if ((count ?? 0) >= 6) {
-                setPhotoError("Maximum 6 photos per work order.");
-                return;
-            }
-
-            setUploadingPhoto(true);
-            setPhotoError(null);
-
-            const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-            const fileName = `${crypto.randomUUID()}.${ext}`;
-            const filePath = `${activeCompanyId}/${workOrderId}/${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-                .from("work-order-photos")
-                .upload(filePath, file, {
-                    upsert: false,
-                });
-
-            if (uploadError) {
-                console.error("UPLOAD ERROR", uploadError);
-                throw uploadError;
-            }
-
-            const { data: publicUrlData } = supabase.storage
-                .from("work-order-photos")
-                .getPublicUrl(filePath);
-
-            const publicUrl = publicUrlData.publicUrl;
-
-            const { error: insertError } = await supabase
-                .from("work_order_photos")
-                .insert({
-                    company_id: activeCompanyId,
-                    work_order_id: workOrderId,
-                    uploaded_by: user.id,
-                    category,
-                    file_url: publicUrl,
-                });
-
-            if (insertError) {
-                console.error("INSERT ERROR", insertError);
-                throw insertError;
-            }
-
-            const photoRows = await loadPhotos();
-            setPhotos(photoRows);
-
-            console.log("PHOTO UPLOAD SUCCESS", {
-                category,
-                filePath,
-                publicUrl,
-            });
-
-        } catch (err: any) {
-            console.error("PHOTO UPLOAD FAILED", err);
-            setPhotoError(err?.message ?? "Could not upload photo.");
-        } finally {
-            setUploadingPhoto(false);
-        }
-    }
-    async function handleDeletePhoto(photo: any) {
-        try {
-            if (!photo?.photo_id || !activeCompanyId || !workOrderId) return;
-
-            setPhotoError(null);
-
-            const fileUrl: string = String(photo.file_url ?? "");
-            const marker = "/storage/v1/object/public/work-order-photos/";
-            const markerIndex = fileUrl.indexOf(marker);
-
-            if (markerIndex >= 0) {
-                const filePath = fileUrl.slice(markerIndex + marker.length);
-
-                const { error: storageError } = await supabase.storage
-                    .from("work-order-photos")
-                    .remove([filePath]);
-
-                if (storageError) {
-                    console.error("PHOTO STORAGE DELETE ERROR", storageError);
-                    throw storageError;
-                }
-            }
-
-            const { error: deleteError } = await supabase
-                .from("work_order_photos")
-                .delete()
-                .eq("company_id", activeCompanyId)
-                .eq("work_order_id", workOrderId)
-                .eq("photo_id", photo.photo_id);
-
-            if (deleteError) {
-                console.error("PHOTO DB DELETE ERROR", deleteError);
-                throw deleteError;
-            }
-
-            const photoRows = await loadPhotos();
-            setPhotos(photoRows);
-        } catch (err: any) {
-            console.error("PHOTO DELETE FAILED", err);
-            setPhotoError(err?.message ?? "Could not delete photo.");
-        }
-    }
 
     return (
         <div
             style={{
-                padding: "16px 12px 24px",
-                maxWidth: 1180,
+                background: MR_THEME.colors.appBg,
+                minHeight: "100vh",
                 width: "100%",
-                margin: "0 auto",
-                boxSizing: "border-box",
-                background: MR_THEME.appBg,
             }}
         >
-            <WorkOrderDetailHeader
-                workOrderId={workOrderId}
-                title={wo?.job_type ?? "Work Order"}
-                myRole={myRole}
-                invoiceId={wo?.invoice_id}
-                invoiceStatus={invoiceStatus}
-                isAdmin={isAdmin}
-                syncingInvoice={syncingInvoice}
-                anyPendingPricing={anyPendingPricing}
-                hasInvoice={hasInvoice}
-                invoiceIsDraft={invoiceIsDraft}
-                prettyInvoiceStatus={prettyInvoiceStatus}
-                invoiceBadgeStyle={invoiceBadgeStyle}
-                onOpenInvoice={() => {
-                    if (wo?.invoice_id) {
-                        router.push(`/invoices/${wo.invoice_id}?fromWorkOrder=${workOrderId}`);
-                    }
+            <div
+                style={{
+                    padding: "28px 24px 40px",
+                    maxWidth: 1180,
+                    width: "100%",
+                    margin: "0 auto",
+                    boxSizing: "border-box",
                 }}
-                onSyncInvoice={onSyncInvoice}
-                onBack={() => router.push("/work-orders")}
-                showForm={showForm}
-                onToggleForm={() => setShowForm((s) => !s)}
-            />
-
-            {loading ? <div style={{ marginTop: 16 }}>Cargando…</div> : null}
-
-            {err ? (
-                <div
-                    style={{
-                        marginTop: 16,
-                        padding: 12,
-                        borderRadius: 10,
-                        border: "1px solid #f3caca",
-                        background: "#fff5f5",
-                        color: "#a40000",
-                        fontWeight: 700,
-                        whiteSpace: "pre-wrap",
+            >
+                <WorkOrderDetailHeader
+                    workOrderId={workOrderId}
+                    title={wo?.job_type ?? "Work Order"}
+                    myRole={myRole}
+                    invoiceId={wo?.invoice_id}
+                    invoiceStatus={invoiceStatus}
+                    isAdmin={isAdmin}
+                    syncingInvoice={syncingInvoice}
+                    anyPendingPricing={anyPendingPricing}
+                    hasInvoice={hasInvoice}
+                    invoiceIsDraft={invoiceIsDraft}
+                    prettyInvoiceStatus={prettyInvoiceStatus}
+                    invoiceBadgeStyle={invoiceBadgeStyle}
+                    onOpenInvoice={() => {
+                        if (wo?.invoice_id) {
+                            router.push(`/invoices/${wo.invoice_id}?fromWorkOrder=${workOrderId}`);
+                        }
                     }}
-                >
-                    {err}
-                </div>
-            ) : null}
+                    onSyncInvoice={onSyncInvoice}
+                    onBack={() => router.push("/work-orders")}
+                    showForm={showForm}
+                    onToggleForm={() => setShowForm((s) => !s)}
+                />
 
-            {wo ? (
-                <div
-                    style={{
-                        marginTop: 16,
-                        padding: "12px 10px",
-                        borderRadius: 12,
-                        border: "1px solid #eee",
-                        background: "white",
-                    }}
-                >
+                {loading ? <div style={{ marginTop: 10 }}>Cargando…</div> : null}
+
+                {err ? (
                     <div
                         style={{
-                            display: "grid",
-                            gap: 14,
+                            marginTop: 6,
+                            padding: 12,
+                            borderRadius: 10,
+                            border: "1px solid #f3caca",
+                            background: "#fff5f5",
+                            color: "#a40000",
+                            fontWeight: 700,
+                            whiteSpace: "pre-wrap",
                         }}
                     >
-                        <WorkOrderSummarySection
-                            wo={wo}
-                            checkIns={checkIns}
-                            googleMapsUrl={googleMapsUrl}
-                            invoiceIsLocked={invoiceIsLocked}
-                            invoiceStatus={invoiceStatus}
-                            prettyInvoiceStatus={prettyInvoiceStatus}
-                            myRole={myRole}
-                            isAdmin={isAdmin}
-                            myUserId={myUserId}
-                            onChangeStatus={handleChangeStatus}
-                            onCheckInRecorded={async () => {
-                                const rows = await loadCheckIns();
-                                setCheckIns(rows);
-                            }}
-                            allowedStatuses={allowedStatusesForRole(myRole as any, wo.status)}
-                            canChangeStatus={canChangeWorkOrderStatus({
-                                userId: myUserId,
-                                isAdminOrOwner: isAdmin,
-                                role: myRole as any,
-                                canOperate,
-                                assignedTo: wo.assigned_to,
-                            })}
-                            statusChangeReason={
-                                isAdmin
-                                    ? null
-                                    : !canOperate
-                                        ? "no_shift"
-                                        : null
-                            }
-                            assignedTechName={assignedTechName}
-                        />
+                        {err}
+                    </div>
+                ) : null}
 
-                        <WorkOrderCustomerSection
-                            customerForm={customerForm}
-                            setCustomerForm={setCustomerForm}
-                            saveCustomerInfo={saveCustomerInfo}
-                            savingCustomer={savingCustomer}
-                            isAdmin={isAdmin}
-                        />
-
+                {wo ? (
+                    <div
+                        style={{
+                            marginTop: 6,
+                            padding: "10px 8px",
+                            borderRadius: 12,
+                            border: "1px solid #eee",
+                            background: "white",
+                        }}
+                    >
                         <div
                             style={{
-                                marginTop: 0,
-                                padding: 14,
-                                borderRadius: MR_THEME.radiusCard,
-                                border: `1px solid ${MR_THEME.border}`,
-                                background: MR_THEME.cardBg,
-                                boxShadow: MR_THEME.shadowCard,
+                                display: "grid",
+                                gap: 14,
                             }}
                         >
-                            <div
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "space-between",
-                                    gap: 10,
-                                    marginBottom: 10,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontSize: 11,
-                                        textTransform: "uppercase",
-                                        letterSpacing: 0.6,
-                                        color: MR_THEME.textSecondary,
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    Photo Evidence
-                                </div>
-
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        fontWeight: 800,
-                                        color: photos.length >= 6 ? MR_THEME.danger : MR_THEME.textSecondary,
-                                        background: photos.length >= 6 ? "#fee2e2" : MR_THEME.cardBgSoft,
-                                        border: photos.length >= 6 ? "1px solid #fecaca" : `1px solid ${MR_THEME.border}`,
-                                        borderRadius: 999,
-                                        padding: "4px 8px",
-                                        lineHeight: 1.2,
-                                    }}
-                                >
-                                    {photos.length} / 6 photos
-                                </div>
-
-
-                            </div>
-                            {photos.length >= 6 ? (
-                                <div
-                                    style={{
-                                        marginBottom: 10,
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        color: "#b91c1c",
-                                        background: "#fee2e2",
-                                        border: "1px solid #fecaca",
-                                        borderRadius: 8,
-                                        padding: "6px 10px",
-                                        display: "inline-block",
-                                    }}
-                                >
-                                    Photo limit reached for this work order.
-                                </div>
-                            ) : null}
-
-                            {(
-                                photos.filter((p) => p.category === "before").length === 0 ||
-                                photos.filter((p) => p.category === "after").length === 0
-                            ) && (
-                                    <div
-                                        style={{
-                                            marginBottom: 10,
-                                            padding: "8px 10px",
-                                            borderRadius: 8,
-                                            background: "#fff7ed",
-                                            border: "1px solid #fed7aa",
-                                            color: "#9a3412",
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                        }}
-                                    >
-                                        Please add at least 1 before and 1 after photo.
-                                    </div>
-                                )}
-                            <div style={{ display: "grid", gap: 12 }}>
-                                <div
-                                    style={{
-                                        padding: "12px 12px",
-                                        borderRadius: MR_THEME.radiusControl,
-                                        border: `1px solid ${MR_THEME.border}`,
-                                        background: MR_THEME.cardBgSoft,
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 13,
-                                            fontWeight: 900,
-                                            color: "#111827",
-                                            marginBottom: 6,
-                                            lineHeight: 1.35,
-                                        }}
-                                    >
-                                        Before
-                                    </div>
-
-                                    <label
-                                        style={{
-                                            padding: "18px 12px",
-                                            minHeight: 56,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            borderRadius: MR_THEME.radiusControl,
-                                            border: `1px dashed ${MR_THEME.borderStrong}`,
-                                            background: MR_THEME.cardBg,
-                                            fontWeight: 900,
-                                            fontSize: 13,
-                                            lineHeight: 1.2,
-                                            cursor: photos.length >= 6 ? "not-allowed" : "pointer",
-                                            opacity: photos.length >= 6 ? 0.5 : 1,
-                                            width: "100%",
-                                            boxSizing: "border-box",
-                                            textAlign: "center",
-                                            color: MR_THEME.primary,
-                                        }}
-                                    >
-                                        + Add photo
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            capture="environment"
-                                            disabled={photos.length >= 6}
-                                            style={{ display: "none" }}
-                                            onChange={(e) =>
-                                                handlePhotoUpload(e.target.files?.[0] ?? null, "before")
-                                            }
-                                        />
-                                    </label>
-
-                                    {photos.filter((p) => p.category === "before").length > 0 && (
-                                        <div
-                                            style={{
-                                                display: "grid",
-                                                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                                                gap: 8,
-                                                marginTop: 10,
-                                            }}
-                                        >
-                                            {photos
-                                                .filter((p) => p.category === "before")
-                                                .map((photo) => (
-                                                    <div
-                                                        key={photo.photo_id}
-                                                        style={{
-                                                            position: "relative",
-                                                        }}
-                                                    >
-                                                        <img
-                                                            src={photo.file_url}
-                                                            alt="Before evidence"
-                                                            onClick={() => setSelectedPhotoUrl(photo.file_url)}
-                                                            style={{
-                                                                width: "100%",
-                                                                height: 96,
-                                                                objectFit: "cover",
-                                                                borderRadius: 10,
-                                                                border: "1px solid #e5e7eb",
-                                                                background: "#f8fafc",
-                                                                cursor: "pointer",
-                                                            }}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDeletePhoto(photo);
-                                                            }}
-                                                            style={{
-                                                                position: "absolute",
-                                                                top: 6,
-                                                                right: 6,
-                                                                width: 24,
-                                                                height: 24,
-                                                                borderRadius: "50%",
-                                                                border: "none",
-                                                                background: "rgba(0,0,0,0.6)",
-                                                                color: "#fff",
-                                                                fontSize: 14,
-                                                                fontWeight: 800,
-                                                                cursor: "pointer",
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                justifyContent: "center",
-                                                            }}
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                ))
-                                            }
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div
-                                    style={{
-                                        padding: "12px 12px",
-                                        borderRadius: MR_THEME.radiusControl,
-                                        border: `1px solid ${MR_THEME.border}`,
-                                        background: MR_THEME.cardBgSoft,
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            fontWeight: 800,
-                                            color: "#111827",
-                                            marginBottom: 6,
-                                            lineHeight: 1.35,
-                                        }}
-                                    >
-                                        During
-                                    </div>
-
-                                    <label
-                                        style={{
-                                            padding: "18px 12px",
-                                            minHeight: 56,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            borderRadius: MR_THEME.radiusControl,
-                                            border: `1px dashed ${MR_THEME.borderStrong}`,
-                                            background: MR_THEME.cardBg,
-                                            fontWeight: 900,
-                                            fontSize: 13,
-                                            lineHeight: 1.2,
-                                            cursor: photos.length >= 6 ? "not-allowed" : "pointer",
-                                            opacity: photos.length >= 6 ? 0.5 : 1,
-                                            width: "100%",
-                                            boxSizing: "border-box",
-                                            textAlign: "center",
-                                            color: MR_THEME.primary,
-                                        }}
-                                    >
-                                        + Add photo
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            capture="environment"
-                                            disabled={photos.length >= 6}
-                                            style={{ display: "none" }}
-                                            onChange={(e) =>
-                                                handlePhotoUpload(e.target.files?.[0] ?? null, "during")
-                                            }
-                                        />
-                                    </label>
-
-                                    {photos.filter((p) => p.category === "during").length > 0 && (
-                                        <div
-                                            style={{
-                                                display: "grid",
-                                                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                                                gap: 8,
-                                                marginTop: 10,
-                                            }}
-                                        >
-                                            {photos
-                                                .filter((p) => p.category === "during")
-                                                .map((photo) => (
-                                                    <div
-                                                        key={photo.photo_id}
-                                                        style={{
-                                                            position: "relative",
-                                                        }}
-                                                    >
-                                                        <img
-                                                            src={photo.file_url}
-                                                            alt="During evidence"
-                                                            onClick={() => setSelectedPhotoUrl(photo.file_url)}
-                                                            style={{
-                                                                width: "100%",
-                                                                height: 96,
-                                                                objectFit: "cover",
-                                                                borderRadius: 10,
-                                                                border: "1px solid #e5e7eb",
-                                                                background: "#f8fafc",
-                                                                cursor: "pointer",
-                                                            }}
-                                                        />
-
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDeletePhoto(photo);
-                                                            }}
-                                                            style={{
-                                                                position: "absolute",
-                                                                top: 6,
-                                                                right: 6,
-                                                                width: 24,
-                                                                height: 24,
-                                                                borderRadius: "50%",
-                                                                border: "none",
-                                                                background: "rgba(0,0,0,0.6)",
-                                                                color: "#fff",
-                                                                fontSize: 14,
-                                                                fontWeight: 800,
-                                                                cursor: "pointer",
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                justifyContent: "center",
-                                                            }}
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div
-                                    style={{
-                                        padding: "12px 12px",
-                                        borderRadius: MR_THEME.radiusControl,
-                                        border: `1px solid ${MR_THEME.border}`,
-                                        background: MR_THEME.cardBgSoft,
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            fontWeight: 800,
-                                            color: "#111827",
-                                            marginBottom: 6,
-                                            lineHeight: 1.35,
-                                        }}
-                                    >
-                                        After
-                                    </div>
-                                    <label
-                                        style={{
-                                            padding: "18px 12px",
-                                            minHeight: 56,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            borderRadius: MR_THEME.radiusControl,
-                                            border: `1px dashed ${MR_THEME.borderStrong}`,
-                                            background: MR_THEME.cardBg,
-                                            fontWeight: 900,
-                                            fontSize: 13,
-                                            lineHeight: 1.2,
-                                            cursor: photos.length >= 6 ? "not-allowed" : "pointer",
-                                            opacity: photos.length >= 6 ? 0.5 : 1,
-                                            width: "100%",
-                                            boxSizing: "border-box",
-                                            textAlign: "center",
-                                            color: MR_THEME.primary,
-                                        }}
-                                    >
-                                        + Add photo
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            capture="environment"
-                                            disabled={photos.length >= 6}
-                                            style={{ display: "none" }}
-                                            onChange={(e) =>
-                                                handlePhotoUpload(e.target.files?.[0] ?? null, "after")
-                                            }
-                                        />
-                                    </label>
-
-                                    {photos.filter((p) => p.category === "after").length > 0 && (
-                                        <div
-                                            style={{
-                                                display: "grid",
-                                                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                                                gap: 8,
-                                                marginTop: 10,
-                                            }}
-                                        >
-                                            {photos
-                                                .filter((p) => p.category === "after")
-                                                .map((photo) => (
-                                                    <div
-                                                        key={photo.photo_id}
-                                                        style={{
-                                                            position: "relative",
-                                                        }}
-                                                    >
-                                                        <img
-                                                            src={photo.file_url}
-                                                            alt="After evidence"
-                                                            onClick={() => setSelectedPhotoUrl(photo.file_url)}
-                                                            style={{
-                                                                width: "100%",
-                                                                height: 96,
-                                                                objectFit: "cover",
-                                                                borderRadius: 10,
-                                                                border: "1px solid #e5e7eb",
-                                                                background: "#f8fafc",
-                                                                cursor: "pointer",
-                                                            }}
-                                                        />
-
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDeletePhoto(photo);
-                                                            }}
-                                                            style={{
-                                                                position: "absolute",
-                                                                top: 6,
-                                                                right: 6,
-                                                                width: 24,
-                                                                height: 24,
-                                                                borderRadius: "50%",
-                                                                border: "none",
-                                                                background: "rgba(0,0,0,0.6)",
-                                                                color: "#fff",
-                                                                fontSize: 14,
-                                                                fontWeight: 800,
-                                                                cursor: "pointer",
-                                                                display: "flex",
-                                                                alignItems: "center",
-                                                                justifyContent: "center",
-                                                            }}
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        color: "#6b7280",
-                                        lineHeight: 1.4,
-                                        wordBreak: "break-word",
-                                    }}
-                                >
-                                    Up to 6 photos per work order. Recommended: at least 1 before and 1 after.
-                                </div>
-                            </div>
-                        </div>
-
-                        <div
-                            style={{
-                                marginTop: 0,
-                                padding: "10px 10px",
-                                borderRadius: 12,
-                                border: "1px solid #e5e7eb",
-                                background: "#ffffff",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: 11,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.6,
-                                    color: "#6b7280",
-                                    fontWeight: 700,
-                                    marginBottom: 10,
-                                }}
-                            >
-                                Check-in History
-                            </div>
-
-                            {checkIns.length === 0 ? (
-                                <div style={{ fontSize: 14, color: "#6b7280" }}>
-                                    No check-ins recorded yet.
-                                </div>
-                            ) : (
-                                <div style={{ display: "grid", gap: 8 }}>
-                                    {checkIns.map((checkIn) => (
-                                        <div
-                                            key={checkIn.check_in_id}
-                                            style={{
-                                                padding: "8px 9px",
-                                                borderRadius: 10,
-                                                border: "1px solid #e5e7eb",
-                                                background: "#f9fafb",
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    fontSize: 12,
-                                                    fontWeight: 800,
-                                                    color: "#111827",
-                                                    marginBottom: 4,
-                                                    lineHeight: 1.35,
-                                                    wordBreak: "break-word",
-                                                }}
-                                            >
-                                                {new Date(checkIn.check_in_at).toLocaleString()}
-                                            </div>
-
-                                            <div
-                                                style={{
-                                                    marginTop: 2,
-                                                    fontSize: 12,
-                                                    lineHeight: 1.35,
-                                                    color: "#374151",
-                                                    wordBreak: "break-word",
-                                                }}
-                                            >
-                                                Status: {String(checkIn.geofence_status ?? "—").replaceAll("_", " ")}
-                                            </div>
-
-                                            <div
-                                                style={{
-                                                    marginTop: 2,
-                                                    fontSize: 12,
-                                                    lineHeight: 1.35,
-                                                    color: "#374151",
-                                                    wordBreak: "break-word",
-                                                }}
-                                            >
-                                                Policy: {String(checkIn.policy_applied ?? "—").replaceAll("_", " ")}
-                                            </div>
-
-                                            <div
-                                                style={{
-                                                    marginTop: 2,
-                                                    fontSize: 12,
-                                                    lineHeight: 1.35,
-                                                    color: "#374151",
-                                                    wordBreak: "break-word",
-                                                }}
-                                            >
-                                                Distance: {checkIn.distance_to_site_m != null ? `${checkIn.distance_to_site_m} m` : "—"}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div
-                            style={{
-                                paddingTop: 10,
-                                borderTop: "1px solid #eee",
-                            }}
-                        >
-                            <WorkOrderItemsHeader
-                                itemsCount={items.length}
-                                showForm={showForm}
-                                setShowForm={setShowForm}
-                            />
-
-                            {showForm ? (
-                                <WorkOrderNewItemForm
-                                    isAdmin={isAdmin}
-                                    newItem={newItem}
-                                    setNewItem={setNewItem}
-                                    savingItem={savingItem}
-                                    roleLoading={roleLoading}
-                                    myRole={myRole}
-                                    onCreateItem={onCreateItem}
-                                    setShowForm={setShowForm}
-                                />
-                            ) : null}
-
-                            <WorkOrderItemsTable
-                                items={items}
+                            <WorkOrderSummarySection
+                                wo={wo}
+                                checkIns={checkIns}
+                                googleMapsUrl={googleMapsUrl}
+                                invoiceIsLocked={invoiceIsLocked}
+                                invoiceStatus={invoiceStatus}
+                                prettyInvoiceStatus={prettyInvoiceStatus}
+                                myRole={myRole}
                                 isAdmin={isAdmin}
-                                priceDraft={priceDraft}
-                                setPriceDraft={setPriceDraft}
-                                savingPrice={savingPrice}
-                                updateQtyDone={updateQtyDone}
-                                priceItem={priceItem}
+                                myUserId={myUserId}
+                                onChangeStatus={handleChangeStatus}
+                                onCheckInRecorded={async () => {
+                                    const rows = await loadCheckIns();
+                                    setCheckIns(rows);
+                                }}
+                                allowedStatuses={allowedStatusesForRole(myRole, wo.status)}
+                                canChangeStatus={canChangeWorkOrderStatus({
+                                    userId: myUserId,
+                                    isAdminOrOwner: isAdmin,
+                                    role: myRole,
+                                    canOperate,
+                                    assignedTo: wo.assigned_to,
+                                })}
+                                statusChangeReason={
+                                    isAdmin
+                                        ? null
+                                        : !canOperate
+                                            ? "no_shift"
+                                            : null
+                                }
+                                assignedTechName={assignedTechName}
+                            />
+
+                            <WorkOrderPhotosSection
+                                photos={photos}
+                                activePhotoTab={activePhotoTab}
+                                setActivePhotoTab={setActivePhotoTab}
+                                onUploadPhoto={handlePhotoUpload}
+                                onDeletePhoto={handleDeletePhoto}
+                                onOpenPhoto={setSelectedPhotoId}
+                            />
+                            {photoError ? (
+                                <div
+                                    style={{
+                                        marginTop: -4,
+                                        padding: "10px 12px",
+                                        borderRadius: 10,
+                                        border: "1px solid #fecaca",
+                                        background: "#fff1f2",
+                                        color: "#b91c1c",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        lineHeight: 1.4,
+                                    }}
+                                >
+                                    {photoError}
+                                </div>
+                            ) : null}
+
+                            <WorkOrderCheckInsSection checkIns={checkIns} />
+                            <div
+                                style={{
+                                    paddingTop: 6,
+                                    borderTop: "1px solid #eee",
+                                }}
+                            >
+                                <WorkOrderItemsHeader
+                                    itemsCount={items.length}
+                                    showForm={showForm}
+                                    setShowForm={setShowForm}
+                                    invoiceIsLocked={invoiceIsLocked}
+                                />
+
+                                {showForm ? (
+                                    <WorkOrderNewItemForm
+                                        isAdmin={isAdmin}
+                                        newItem={newItem}
+                                        setNewItem={setNewItem}
+                                        savingItem={savingItem}
+                                        roleLoading={roleLoading}
+                                        myRole={myRole}
+                                        onCreateItem={onCreateItem}
+                                        setShowForm={setShowForm}
+                                        invoiceIsLocked={invoiceIsLocked}
+                                        hasInvoice={hasInvoice}
+                                        invoiceStatus={invoiceStatus}
+                                    />
+                                ) : null}
+
+                                <WorkOrderItemsTable
+                                    items={items}
+                                    isAdmin={isAdmin}
+                                    priceDraft={priceDraft}
+                                    setPriceDraft={setPriceDraft}
+                                    savingPrice={savingPrice}
+                                    updateQtyDone={updateQtyDone}
+                                    updateTechNote={updateTechNote}
+                                    priceItem={priceItem}
+                                    invoiceIsLocked={invoiceIsLocked}
+                                    hasInvoice={hasInvoice}
+                                    invoiceStatus={invoiceStatus}
+                                />
+                            </div>
+
+                            <WorkOrderCustomerSection
+                                customerForm={customerForm}
+                                setCustomerForm={setCustomerForm}
+                                saveCustomerInfo={saveCustomerInfo}
+                                savingCustomer={savingCustomer}
+                                isAdmin={isAdmin}
                             />
                         </div>
                     </div>
-                </div>
-            ) : null}
+                ) : null
+                }
 
-            {selectedPhotoUrl && (
-                <div
-                    onClick={() => setSelectedPhotoUrl(null)}
-                    style={{
-                        position: "fixed",
-                        inset: 0,
-                        background: "rgba(15, 23, 42, 0.78)",
-                        zIndex: 2000,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        padding: 20,
-                    }}
-                >
-                    <div
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                            position: "relative",
-                            maxWidth: "92vw",
-                            maxHeight: "92vh",
-                        }}
-                    >
-                        <button
-                            type="button"
-                            onClick={() => setSelectedPhotoUrl(null)}
-                            style={{
-                                position: "absolute",
-                                top: -14,
-                                right: -14,
-                                width: 36,
-                                height: 36,
-                                borderRadius: "50%",
-                                border: "1px solid #d1d5db",
-                                background: "white",
-                                cursor: "pointer",
-                                fontSize: 18,
-                                fontWeight: 800,
-                                lineHeight: 1,
-                            }}
-                        >
-                            ×
-                        </button>
-
-                        <img
-                            src={selectedPhotoUrl}
-                            alt="Photo preview"
-                            style={{
-                                display: "block",
-                                maxWidth: "92vw",
-                                maxHeight: "92vh",
-                                borderRadius: 14,
-                                border: "1px solid rgba(255,255,255,0.15)",
-                                background: "#fff",
-                                boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
-                            }}
-                        />
-                    </div>
-                </div>
-            )}
+                <PhotoPreviewModal
+                    selectedPhoto={selectedPhoto}
+                    selectedPhotoGroup={selectedPhotoGroup}
+                    selectedPhotoIndex={selectedPhotoIndex}
+                    onClose={closePhotoPreview}
+                    onPrevious={showPreviousPhoto}
+                    onNext={showNextPhoto}
+                    onTouchStart={handlePhotoTouchStart}
+                    onTouchMove={handlePhotoTouchMove}
+                    onTouchEnd={handlePhotoTouchEnd}
+                />
+            </div>
         </div>
     );
 }

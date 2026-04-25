@@ -202,6 +202,22 @@ export default function TeamMemberDetailPage() {
         if (lastShiftRes.error) throw lastShiftRes.error;
 
         const profileRow = (memberRes.data as MemberProfileRow | null) ?? null;
+        let fallbackEmail: string | null = null;
+
+        if (!profileRow?.email) {
+            const { data: profileEmailRow, error: profileEmailErr } = await supabase
+                .from("profiles")
+                .select("email")
+                .eq("company_id", cid)
+                .eq("user_id", uid)
+                .maybeSingle();
+
+            if (profileEmailErr) {
+                console.warn("Could not load fallback email from profiles:", profileEmailErr.message);
+            } else {
+                fallbackEmail = profileEmailRow?.email ?? null;
+            }
+        }
 
         setMemberProfile(profileRow);
         setFullNameInput(profileRow?.full_name ?? "");
@@ -214,7 +230,12 @@ export default function TeamMemberDetailPage() {
         setTodaySummary(todayShiftSummary);
         setWeekSummary(weekShiftSummary);
 
-        setMemberEmail(profileRow?.email ?? "—");
+                const resolvedEmail =
+            profileRow?.email ||
+            fallbackEmail ||
+            "—";
+
+        setMemberEmail(resolvedEmail);
     }, []);
 
     const refreshHoursPay = useCallback(async (cid: string, uid: string) => {

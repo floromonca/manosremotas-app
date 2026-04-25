@@ -14,6 +14,8 @@ export function CompanyGuard({ children }: { children: React.ReactNode }) {
     const { companyId, myRole, isLoadingCompany } = useActiveCompany();
 
     const [checking, setChecking] = useState(true);
+    const SUPER_ADMIN_EMAILS = ["floromonca@gmail.com"];
+    const isSuperAdmin = !!user?.email && SUPER_ADMIN_EMAILS.includes(user.email);
 
     useEffect(() => {
         if (authLoading || isLoadingCompany) return;
@@ -53,6 +55,12 @@ export function CompanyGuard({ children }: { children: React.ReactNode }) {
         // 3) Si ya estás en onboarding, no te rebotes a ti mismo
         if (pathname?.startsWith("/onboarding")) {
             console.log("[CompanyGuard] allow (already on /onboarding)");
+            setChecking(false);
+            return;
+        }
+        // 3.5) Super admin puede entrar sin onboarding por empresa
+        if (isSuperAdmin) {
+            console.log("[CompanyGuard] allow (super admin bypass)");
             setChecking(false);
             return;
         }
@@ -101,7 +109,7 @@ export function CompanyGuard({ children }: { children: React.ReactNode }) {
         return () => {
             cancelled = true;
         };
-    }, [authLoading, isLoadingCompany, user?.id, companyId, myRole, pathname, router]);
+    }, [authLoading, isLoadingCompany, user?.id, companyId, myRole, pathname, router, isSuperAdmin]);
 
     if (authLoading || isLoadingCompany || checking) return null;
 

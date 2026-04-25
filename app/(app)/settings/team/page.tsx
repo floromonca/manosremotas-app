@@ -87,7 +87,12 @@ export default function TeamPage() {
 
             const membersOnly = (memRows ?? []) as MemberRow[];
 
-            setMembers(membersOnly);
+            // ocultar superadmin logueado del roster del cliente
+            const filteredMembers = membersOnly.filter(
+                (m) => m.user_id !== user?.id
+            );
+
+            setMembers(filteredMembers);
 
             const stats = await Promise.all(
                 membersOnly.map(async (member) => {

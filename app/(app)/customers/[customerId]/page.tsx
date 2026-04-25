@@ -55,6 +55,8 @@ export default function CustomerDetailPage() {
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [locations, setLocations] = useState<Location[]>([]);
     const [loading, setLoading] = useState(false);
+    const [recentWorkOrders, setRecentWorkOrders] = useState<any[]>([]);
+    const [hoveredRecentWO, setHoveredRecentWO] = useState<string | null>(null);
 
     // Billing state
     const [periodStart, setPeriodStart] = useState("");
@@ -110,8 +112,25 @@ export default function CustomerDetailPage() {
             console.error(error);
             alert(error.message);
             setCustomer(null);
+            setRecentWorkOrders([]);
         } else {
             setCustomer(data as Customer);
+
+            const { data: recentWOData, error: recentWOError } = await supabase
+                .from("work_orders")
+                .select("work_order_id, work_order_number, status, priority, service_address, created_at")
+                .eq("company_id", companyId)
+                .eq("customer_id", customerId)
+                .order("created_at", { ascending: false })
+                .limit(5);
+
+
+            if (recentWOError) {
+                console.warn("Could not load recent work orders:", recentWOError.message);
+                setRecentWorkOrders([]);
+            } else {
+                setRecentWorkOrders(recentWOData ?? []);
+            }
         }
 
         setLoading(false);
@@ -473,7 +492,24 @@ export default function CustomerDetailPage() {
                                         ) : null}
                                     </div>
                                 </div>
-
+                                <button
+                                    onClick={() =>
+                                        router.push(
+                                            `/work-orders?newFromCustomer=true&customerId=${customer.customer_id}`
+                                        )
+                                    }
+                                    style={{
+                                        padding: "10px 14px",
+                                        borderRadius: 12,
+                                        border: "1px solid #d1d5db",
+                                        background: "#0f172a",
+                                        color: "white",
+                                        fontWeight: 800,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    + New Work Order
+                                </button>
                                 <button
                                     type="button"
                                     style={{
@@ -514,7 +550,243 @@ export default function CustomerDetailPage() {
                         </div>
                     </div>
                 ) : null}
+                <div
+                    style={{
+                        border: "1px solid #e5e7eb",
+                        padding: 20,
+                        borderRadius: 18,
+                        background: "#ffffff",
+                        boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                        marginBottom: 20,
+                    }}
+                >
+                    <div style={{ marginBottom: 14 }}>
+                        <div
+                            style={{
+                                fontSize: 12,
+                                textTransform: "uppercase",
+                                letterSpacing: 1.2,
+                                color: "#64748b",
+                                fontWeight: 800,
+                                marginBottom: 6,
+                            }}
+                        >
+                            Recent Work Orders
+                        </div>
+                        <div
+                            style={{
+                                fontWeight: 900,
+                                fontSize: 24,
+                                color: "#0f172a",
+                                lineHeight: 1.15,
+                                letterSpacing: "-0.02em",
+                            }}
+                        >
+                            Latest work for this customer
+                        </div>
+                    </div>
 
+                    {recentWorkOrders.length === 0 ? (
+                        <div
+                            style={{
+                                color: "#64748b",
+                                fontSize: 14,
+                                lineHeight: 1.6,
+                            }}
+                        >
+                            No work orders found for this customer yet.
+                        </div>
+                    ) : (
+                        <div
+                            style={{
+                                display: "grid",
+                                gap: 10,
+                            }}
+                        >
+                            {recentWorkOrders.map((wo) => {
+                                const createdLabel = wo.created_at
+                                    ? new Date(wo.created_at).toLocaleDateString("en-CA", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                    })
+                                    : "—";
+
+                                const statusLabel =
+                                    wo.status === "completed"
+                                        ? "Completed"
+                                        : wo.status === "in_progress"
+                                            ? "In Progress"
+                                            : wo.status === "open"
+                                                ? "Open"
+                                                : wo.status === "cancelled"
+                                                    ? "Cancelled"
+                                                    : wo.status || "Unknown";
+
+                                const statusStyles =
+                                    wo.status === "completed"
+                                        ? {
+                                            background: "#ecfdf3",
+                                            color: "#027a48",
+                                            border: "1px solid #abefc6",
+                                        }
+                                        : wo.status === "in_progress"
+                                            ? {
+                                                background: "#eff8ff",
+                                                color: "#175cd3",
+                                                border: "1px solid #b2ddff",
+                                            }
+                                            : wo.status === "open"
+                                                ? {
+                                                    background: "#f9f5ff",
+                                                    color: "#7a3ea0",
+                                                    border: "1px solid #e9d7fe",
+                                                }
+                                                : wo.status === "cancelled"
+                                                    ? {
+                                                        background: "#fef3f2",
+                                                        color: "#b42318",
+                                                        border: "1px solid #fecdca",
+                                                    }
+                                                    : {
+                                                        background: "#f8fafc",
+                                                        color: "#475467",
+                                                        border: "1px solid #e5e7eb",
+                                                    };
+
+                                return (
+                                    <div
+                                        key={wo.work_order_id}
+                                        onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
+                                        onMouseEnter={() => setHoveredRecentWO(wo.work_order_id)}
+                                        onMouseLeave={() => setHoveredRecentWO(null)}
+                                        style={{
+                                            border:
+                                                hoveredRecentWO === wo.work_order_id
+                                                    ? "1px solid #d0d5dd"
+                                                    : "1px solid #e5e7eb",
+                                            borderRadius: 14,
+                                            padding: 16,
+                                            background: "#ffffff",
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "flex-start",
+                                            gap: 16,
+                                            flexWrap: "wrap",
+                                            cursor: "pointer",
+                                            transition: "all 0.15s ease",
+                                            boxShadow:
+                                                hoveredRecentWO === wo.work_order_id
+                                                    ? "0 4px 10px rgba(0,0,0,0.05)"
+                                                    : "0 1px 2px rgba(16,24,40,0.04)",
+                                            transform:
+                                                hoveredRecentWO === wo.work_order_id
+                                                    ? "translateY(-1px)"
+                                                    : "translateY(0)",
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                minWidth: 0,
+                                                display: "flex",
+                                                flexDirection: "column",
+                                                gap: 6,
+                                                flex: 1,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    fontWeight: 800,
+                                                    fontSize: 15,
+                                                    color: "#0f172a",
+                                                    letterSpacing: "-0.01em",
+                                                }}
+                                            >
+                                                {wo.work_order_number || "Work Order"}
+                                            </div>
+
+                                            <div
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: "#64748b",
+                                                    lineHeight: 1.5,
+                                                    wordBreak: "break-word",
+                                                }}
+                                            >
+                                                {wo.service_address || "No service address"}
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 10,
+                                                marginLeft: "auto",
+                                                flexWrap: "wrap",
+                                                justifyContent: "flex-end",
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    display: "flex",
+                                                    flexDirection: "column",
+                                                    alignItems: "flex-end",
+                                                    gap: 8,
+                                                }}
+                                            >
+                                                <span
+                                                    style={{
+                                                        ...statusStyles,
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        padding: "4px 10px",
+                                                        borderRadius: 999,
+                                                        fontSize: 12,
+                                                        fontWeight: 700,
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    {statusLabel}
+                                                </span>
+
+                                                <div
+                                                    style={{
+                                                        fontSize: 12,
+                                                        color: "#98a2b3",
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    {createdLabel}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/work-orders/${wo.work_order_id}`);
+                                                }}
+                                                style={{
+                                                    padding: "10px 14px",
+                                                    borderRadius: 10,
+                                                    border: "1px solid #d0d5dd",
+                                                    background: "#ffffff",
+                                                    fontWeight: 700,
+                                                    color: "#344054",
+                                                    cursor: "pointer",
+                                                }}
+                                            >
+                                                Open
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
                 <div
                     style={{
                         border: "1px solid #e5e7eb",
@@ -715,17 +987,24 @@ export default function CustomerDetailPage() {
                                     const checked = selectedWOs.includes(wo.work_order_id);
 
                                     return (
-                                        <label
+                                        <div
                                             key={wo.work_order_id}
+                                            onClick={() => {
+                                                if (checked) {
+                                                    setSelectedWOs(selectedWOs.filter((id) => id !== wo.work_order_id));
+                                                } else {
+                                                    setSelectedWOs([...selectedWOs, wo.work_order_id]);
+                                                }
+                                            }}
                                             style={{
                                                 display: "flex",
                                                 alignItems: "center",
                                                 justifyContent: "space-between",
                                                 gap: 12,
-                                                border: "1px solid #e5e7eb",
+                                                border: checked ? "1px solid #c7d7fe" : "1px solid #e5e7eb",
                                                 borderRadius: 14,
                                                 padding: 14,
-                                                background: checked ? "#f9fafb" : "#fff",
+                                                background: checked ? "#f3f7ff" : "#fff",
                                                 cursor: "pointer",
                                             }}
                                         >
@@ -733,6 +1012,7 @@ export default function CustomerDetailPage() {
                                                 <input
                                                     type="checkbox"
                                                     checked={checked}
+                                                    onClick={(e) => e.stopPropagation()}
                                                     onChange={(e) => {
                                                         if (e.target.checked) {
                                                             setSelectedWOs([...selectedWOs, wo.work_order_id]);
@@ -744,28 +1024,58 @@ export default function CustomerDetailPage() {
                                                     }}
                                                 />
 
-                                                <div>
-                                                    <div style={{ fontWeight: 800, color: "#111827" }}>
-                                                        {wo.job_type || "Work Order"}
+                                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                    <div
+                                                        style={{
+                                                            fontWeight: 800,
+                                                            fontSize: 14,
+                                                            color: "#111827",
+                                                            letterSpacing: "-0.01em",
+                                                        }}
+                                                    >
+                                                        {wo.work_order_number || "Work Order"}
                                                     </div>
-                                                    <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                                                        Ref:{" "}
-                                                        <span style={{ fontFamily: "monospace" }}>
-                                                            {String(wo.work_order_id).slice(0, 8)}
-                                                        </span>
+
+                                                    <div
+                                                        style={{
+                                                            fontSize: 13,
+                                                            color: "#64748b",
+                                                        }}
+                                                    >
+                                                        {wo.service_address || "No service address"}
+                                                    </div>
+
+                                                    <div
+                                                        style={{
+                                                            fontSize: 12,
+                                                            color: "#9ca3af",
+                                                        }}
+                                                    >
+                                                        {wo.created_at
+                                                            ? new Date(wo.created_at).toLocaleDateString("en-CA", {
+                                                                year: "numeric",
+                                                                month: "short",
+                                                                day: "numeric",
+                                                            })
+                                                            : ""}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             <div style={{ textAlign: "right" }}>
-                                                <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 4 }}>
+                                                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
                                                     Subtotal
                                                 </div>
                                                 <div style={{ fontWeight: 900, color: "#111827" }}>
-                                                    ${Number(wo.subtotal ?? 0).toFixed(2)}
+                                                    {Number(wo.subtotal ?? 0).toLocaleString("en-CA", {
+                                                        style: "currency",
+                                                        currency: "CAD",
+                                                        minimumFractionDigits: 2,
+                                                        maximumFractionDigits: 2,
+                                                    })}
                                                 </div>
                                             </div>
-                                        </label>
+                                        </div>
                                     );
                                 })}
                             </div>

@@ -28,10 +28,12 @@ export default function InvoicesPage() {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState("");
+    const [page, setPage] = useState(1);
+    const [hoveredInvoiceId, setHoveredInvoiceId] = useState<string | null>(null);
 
     const [search, setSearch] = useState("");
     const [customerFilter, setCustomerFilter] = useState("all");
-    const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
+    const [quickFilter, setQuickFilter] = useState<QuickFilter>("unpaid");
 
     useEffect(() => {
         if (authLoading) return;
@@ -92,6 +94,10 @@ export default function InvoicesPage() {
         loadInvoices();
     }, [loadInvoices, myRole]);
 
+    useEffect(() => {
+        setPage(1);
+    }, [search, customerFilter, quickFilter]);
+
     const customerOptions = useMemo(() => {
         return Array.from(
             new Set(
@@ -101,6 +107,9 @@ export default function InvoicesPage() {
             )
         ).sort((a, b) => a.localeCompare(b));
     }, [invoices]);
+
+    const PAGE_SIZE = 25;
+
 
     const filteredInvoices = useMemo(() => {
         return invoices
@@ -148,10 +157,17 @@ export default function InvoicesPage() {
             });
     }, [invoices, search, customerFilter, quickFilter]);
 
+    const paginatedInvoices = filteredInvoices.slice(
+        (page - 1) * PAGE_SIZE,
+        page * PAGE_SIZE
+    );
+
     const draftCount = invoices.filter((inv) => isDraftStatus(inv.status)).length;
     const unpaidCount = invoices.filter((inv) => isUnpaidStatus(inv.status)).length;
     const paidCount = invoices.filter((inv) => isPaidStatus(inv.status)).length;
     const overdueCount = invoices.filter((inv) => isOverdueStatus(inv.status)).length;
+
+    const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
 
     const outstandingBalance = invoices.reduce((acc, inv) => {
         return acc + Number(inv.balance_due ?? 0);
@@ -159,6 +175,7 @@ export default function InvoicesPage() {
 
     const activeCurrency =
         filteredInvoices[0]?.currency_code || invoices[0]?.currency_code || "CAD";
+
 
     return (
         <div
@@ -259,9 +276,9 @@ export default function InvoicesPage() {
                                 }}
                             >
                                 <QuickTab
-                                    active={quickFilter === "all"}
-                                    label="All"
-                                    onClick={() => setQuickFilter("all")}
+                                    active={quickFilter === "unpaid"}
+                                    label="Pending Payment"
+                                    onClick={() => setQuickFilter("unpaid")}
                                 />
                                 <QuickTab
                                     active={quickFilter === "drafts"}
@@ -269,14 +286,14 @@ export default function InvoicesPage() {
                                     onClick={() => setQuickFilter("drafts")}
                                 />
                                 <QuickTab
-                                    active={quickFilter === "unpaid"}
-                                    label="Unpaid"
-                                    onClick={() => setQuickFilter("unpaid")}
-                                />
-                                <QuickTab
                                     active={quickFilter === "paid"}
                                     label="Paid"
                                     onClick={() => setQuickFilter("paid")}
+                                />
+                                <QuickTab
+                                    active={quickFilter === "all"}
+                                    label="All"
+                                    onClick={() => setQuickFilter("all")}
                                 />
                             </div>
 
@@ -355,12 +372,23 @@ export default function InvoicesPage() {
                                     </thead>
 
                                     <tbody>
-                                        {filteredInvoices.map((inv, index) => {
-                                            const isLast = index === filteredInvoices.length - 1;
+                                        {paginatedInvoices.map((inv, index) => {
+                                            const isLast = index === paginatedInvoices.length - 1;
 
                                             return (
-                                                <tr key={inv.invoice_id}>
-                                                    <TableBodyCell isLast={isLast}>
+                                                <tr
+                                                    key={inv.invoice_id}
+                                                    onClick={() => router.push(`/invoices/${inv.invoice_id}`)}
+                                                    onMouseEnter={() => setHoveredInvoiceId(inv.invoice_id)}
+                                                    onMouseLeave={() => setHoveredInvoiceId(null)}
+                                                    style={{
+                                                        cursor: "pointer",
+                                                    }}
+                                                >
+                                                    <TableBodyCell
+                                                        isLast={isLast}
+                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                    >
                                                         <div
                                                             style={{
                                                                 fontSize: 15,
@@ -374,7 +402,10 @@ export default function InvoicesPage() {
                                                         </div>
                                                     </TableBodyCell>
 
-                                                    <TableBodyCell isLast={isLast}>
+                                                    <TableBodyCell
+                                                        isLast={isLast}
+                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                    >
                                                         <div
                                                             style={{
                                                                 fontSize: 14,
@@ -398,13 +429,21 @@ export default function InvoicesPage() {
                                                         </div>
                                                     </TableBodyCell>
 
-                                                    <TableBodyCell isLast={isLast} align="right">
+                                                    <TableBodyCell
+                                                        isLast={isLast}
+                                                        align="right"
+                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                    >
                                                         <div style={tableMoneyStyle}>
                                                             {formatMoney(inv.total, inv.currency_code)}
                                                         </div>
                                                     </TableBodyCell>
 
-                                                    <TableBodyCell isLast={isLast} align="right">
+                                                    <TableBodyCell
+                                                        isLast={isLast}
+                                                        align="right"
+                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                    >
                                                         <div style={tableMoneyStyle}>
                                                             {formatMoney(inv.balance_due, inv.currency_code)}
                                                         </div>
@@ -414,8 +453,13 @@ export default function InvoicesPage() {
                                                         <StatusBadge status={inv.status} />
                                                     </TableBodyCell>
 
-                                                    <TableBodyCell isLast={isLast} align="right">
+                                                    <TableBodyCell
+                                                        isLast={isLast}
+                                                        align="right"
+                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                    >
                                                         <div
+                                                            onClick={(e) => e.stopPropagation()}
                                                             style={{
                                                                 display: "flex",
                                                                 justifyContent: "flex-end",
@@ -449,6 +493,90 @@ export default function InvoicesPage() {
                                         })}
                                     </tbody>
                                 </table>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        gap: 12,
+                                        paddingTop: 18,
+                                        borderTop: "1px solid #f1f5f9",
+                                        marginTop: 14,
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            color: "#6b7280",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        Showing{" "}
+                                        {filteredInvoices.length === 0
+                                            ? 0
+                                            : (page - 1) * PAGE_SIZE + 1}
+                                        {"–"}
+                                        {Math.min(page * PAGE_SIZE, filteredInvoices.length)} of{" "}
+                                        {filteredInvoices.length} invoices
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                        }}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                            disabled={page === 1}
+                                            style={{
+                                                height: 38,
+                                                padding: "0 14px",
+                                                borderRadius: 10,
+                                                border: "1px solid #d1d5db",
+                                                background: page === 1 ? "#f9fafb" : "#ffffff",
+                                                color: page === 1 ? "#9ca3af" : "#111827",
+                                                cursor: page === 1 ? "not-allowed" : "pointer",
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            Previous
+                                        </button>
+
+                                        <div
+                                            style={{
+                                                minWidth: 88,
+                                                textAlign: "center",
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                color: "#374151",
+                                            }}
+                                        >
+                                            Page {page} of {totalPages}
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                            disabled={page === totalPages}
+                                            style={{
+                                                height: 38,
+                                                padding: "0 14px",
+                                                borderRadius: 10,
+                                                border: "1px solid #d1d5db",
+                                                background: page === totalPages ? "#f9fafb" : "#ffffff",
+                                                color: page === totalPages ? "#9ca3af" : "#111827",
+                                                cursor: page === totalPages ? "not-allowed" : "pointer",
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </section>
@@ -490,21 +618,24 @@ function TableHeaderCell({
 
 function TableBodyCell({
     children,
+    isLast,
     align = "left",
-    isLast = false,
+    isHovered = false,
 }: {
     children: React.ReactNode;
-    align?: "left" | "right";
     isLast?: boolean;
+    align?: "left" | "right";
+    isHovered?: boolean;
 }) {
     return (
         <td
             style={{
-                padding: "14px 16px",
+                padding: "12px 12px",
                 borderBottom: isLast ? "none" : "1px solid #eef2f7",
                 textAlign: align,
                 verticalAlign: "middle",
-                background: "#ffffff",
+                background: isHovered ? "#f9fafb" : "#ffffff",
+                transition: "background 0.15s ease",
             }}
         >
             {children}

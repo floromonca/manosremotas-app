@@ -298,7 +298,11 @@ export default function InvoiceItemRow({
 
                     <button
                         type="button"
-                        onClick={() => onDeleteItem(item.invoice_item_id)}
+                        disabled={!canEdit}
+                        onClick={() => {
+                            if (!canEdit) return;
+                            onDeleteItem(item.invoice_item_id);
+                        }}
                         style={{
                             height: 40,
                             padding: "0 14px",
@@ -306,10 +310,11 @@ export default function InvoiceItemRow({
                             border: "1px solid #ef4444",
                             background: "#ef4444",
                             color: "#ffffff",
-                            cursor: "pointer",
+                            cursor: !canEdit ? "not-allowed" : "pointer",
                             fontWeight: 800,
                             whiteSpace: "nowrap",
                             boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                            opacity: !canEdit ? 0.6 : 1,
                         }}
                     >
                         Delete

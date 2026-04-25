@@ -5,7 +5,8 @@ import AppSidebar from "../components/AppSidebar";
 import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 import { supabase } from "../../lib/supabaseClient";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { MR_THEME } from "@/lib/theme";
 
 export default function AppShellLayout({
     children,
@@ -17,6 +18,14 @@ export default function AppShellLayout({
     const { companyName } = useActiveCompany();
     const [isMobile, setIsMobile] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [platformMode, setPlatformMode] = useState(false);
+
+    const SUPER_ADMIN_EMAILS = ["floromonca@gmail.com"];
+    const isSuperAdmin = !!user?.email && SUPER_ADMIN_EMAILS.includes(user.email);
+
+    const showPlatformBanner = useMemo(() => {
+        return isSuperAdmin && platformMode;
+    }, [isSuperAdmin, platformMode]);
 
     const mainBg = "#F3F4F6";
 
@@ -30,6 +39,23 @@ export default function AppShellLayout({
 
         return () => {
             window.removeEventListener("resize", checkMobile);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const syncPlatformMode = () => {
+            setPlatformMode(localStorage.getItem("platformMode") === "true");
+        };
+
+        syncPlatformMode();
+        window.addEventListener("storage", syncPlatformMode);
+        window.addEventListener("active-company-refresh", syncPlatformMode as EventListener);
+
+        return () => {
+            window.removeEventListener("storage", syncPlatformMode);
+            window.removeEventListener("active-company-refresh", syncPlatformMode as EventListener);
         };
     }, []);
 
@@ -73,61 +99,85 @@ export default function AppShellLayout({
             <main
                 style={{
                     flex: 1,
-                    padding: "28px 24px 40px",
+                    padding: "16px 24px 40px",
                     background: mainBg,
                 }}
             >
-                <div style={{ maxWidth: 1180, margin: "0 auto 20px" }}>
+                <div
+                    style={{
+                        maxWidth: 1080,
+                        margin: "0 auto 18px",
+                    }}
+                >
                     <div
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            gap: 16,
-                            padding: "16px 18px",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 16,
-                            background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
-                            boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                            gap: MR_THEME.spacing.md,
+                            padding: `${MR_THEME.spacing.md}px ${MR_THEME.spacing.lg}px`,
+                            borderRadius: MR_THEME.radius.card,
+                            background: "linear-gradient(135deg, #eef4ff 0%, #dbeafe 45%, #c7dafe 100%)",
+                            borderTop: `1px solid ${MR_THEME.colors.border}`,
+                            borderRight: `1px solid ${MR_THEME.colors.border}`,
+                            borderBottom: `1px solid ${MR_THEME.colors.border}`,
+                            borderLeft: `4px solid ${MR_THEME.colors.primary}`,
+                            boxShadow: MR_THEME.shadows.cardSoft,
                             flexWrap: "wrap",
                         }}
                     >
-                        {isMobile && (
-                            <button
-                                onClick={() => setSidebarOpen(!sidebarOpen)}
-                                style={{
-                                    fontSize: 22,
-                                    padding: "6px 10px",
-                                    borderRadius: 8,
-                                    border: "1px solid #e5e7eb",
-                                    background: "white",
-                                    cursor: "pointer",
-                                }}
-                            >
-                                ☰
-                            </button>
-                        )}
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <div
-                                style={{
-                                    fontSize: 12,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.8,
-                                    color: "#64748b",
-                                    fontWeight: 800,
-                                }}
-                            >
-                                Company
-                            </div>
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: MR_THEME.spacing.sm,
+                                minWidth: 0,
+                            }}
+                        >
+                            {isMobile && (
+                                <button
+                                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                                    style={{
+                                        width: 42,
+                                        height: 42,
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.primary,
+                                        cursor: "pointer",
+                                        fontSize: 22,
+                                        fontWeight: 900,
+                                        boxShadow: MR_THEME.shadows.card,
+                                    }}
+                                >
+                                    ☰
+                                </button>
+                            )}
 
-                            <div
-                                style={{
-                                    fontSize: 17,
-                                    fontWeight: 800,
-                                    color: "#0f172a",
-                                }}
-                            >
-                                {companyName || "—"}
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                                <div
+                                    style={{
+                                        ...MR_THEME.typography.small,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 1.2,
+                                        color: MR_THEME.colors.primary,
+                                        fontWeight: 900,
+                                    }}
+                                >
+                                    Company
+                                </div>
+
+                                <div
+                                    style={{
+                                        ...MR_THEME.typography.cardTitle,
+                                        color: MR_THEME.colors.textPrimary,
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                    }}
+                                >
+                                    {companyName || "—"}
+                                </div>
                             </div>
                         </div>
 
@@ -135,20 +185,20 @@ export default function AppShellLayout({
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: 14,
+                                gap: MR_THEME.spacing.md,
                                 flexWrap: "wrap",
                                 marginLeft: "auto",
                             }}
                         >
-                            <div style={{ textAlign: "right" }}>
+                            <div style={{ textAlign: "right", minWidth: 0 }}>
                                 <div
                                     style={{
-                                        fontSize: 12,
+                                        ...MR_THEME.typography.small,
                                         textTransform: "uppercase",
-                                        letterSpacing: 0.8,
-                                        color: "#64748b",
-                                        fontWeight: 800,
-                                        marginBottom: 4,
+                                        letterSpacing: 1.2,
+                                        color: MR_THEME.colors.primary,
+                                        fontWeight: 900,
+                                        marginBottom: 2,
                                     }}
                                 >
                                     User
@@ -156,9 +206,12 @@ export default function AppShellLayout({
 
                                 <div
                                     style={{
-                                        fontSize: 13,
-                                        color: "#334155",
-                                        fontWeight: 500,
+                                        ...MR_THEME.typography.small,
+                                        color: MR_THEME.colors.textSecondary,
+                                        maxWidth: isMobile ? 150 : 260,
+                                        whiteSpace: "nowrap",
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
                                     }}
                                 >
                                     {user?.email ?? "—"}
@@ -168,13 +221,15 @@ export default function AppShellLayout({
                             <button
                                 onClick={handleSignOut}
                                 style={{
-                                    padding: "10px 14px",
-                                    borderRadius: 12,
-                                    border: "1px solid #d1d5db",
-                                    background: "white",
+                                    height: MR_THEME.components.button.height,
+                                    padding: `0 ${MR_THEME.components.button.paddingX}px`,
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    background: MR_THEME.colors.cardBg,
                                     cursor: "pointer",
-                                    fontWeight: 800,
-                                    color: "#0f172a",
+                                    fontWeight: MR_THEME.components.button.fontWeight,
+                                    color: MR_THEME.colors.textPrimary,
+                                    boxShadow: MR_THEME.shadows.card,
                                 }}
                             >
                                 Sign out
@@ -182,6 +237,74 @@ export default function AppShellLayout({
                         </div>
                     </div>
                 </div>
+                {showPlatformBanner && (
+                    <div
+                        style={{
+                            maxWidth: 1180,
+                            margin: "0 auto 16px",
+                            padding: "14px 16px",
+                            borderRadius: 14,
+                            border: "1px solid #dbe4f0",
+                            background: "linear-gradient(180deg, #f8fbff 0%, #f1f6fd 100%)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: 12,
+                            boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                        }}
+                    >
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div
+                                style={{
+                                    fontSize: 11,
+                                    fontWeight: 900,
+                                    letterSpacing: "0.08em",
+                                    textTransform: "uppercase",
+                                    color: "#2563eb",
+                                }}
+                            >
+                                Platform Mode
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 14,
+                                    fontWeight: 700,
+                                    color: "#0f172a",
+                                }}
+                            >
+                                You are operating as{" "}
+                                <span style={{ color: "#1d4ed8" }}>
+                                    {companyName || "—"}
+                                </span>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                localStorage.removeItem("platformMode");
+                                localStorage.removeItem("activeCompanyId");
+                                window.dispatchEvent(new CustomEvent("active-company-refresh"));
+                                setPlatformMode(false);
+                                router.push("/platform/companies");
+                            }}
+                            style={{
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                border: "1px solid #c7d7ee",
+                                background: "#ffffff",
+                                cursor: "pointer",
+                                fontSize: 12,
+                                fontWeight: 800,
+                                color: "#1d4ed8",
+                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                            }}
+                        >
+                            ← Back to Companies
+                        </button>
+                    </div>
+                )}
                 {children}
             </main>
         </div>

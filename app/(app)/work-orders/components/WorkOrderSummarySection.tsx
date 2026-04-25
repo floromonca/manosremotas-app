@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import type { WorkOrderStatus } from "../../../../lib/supabase/workOrders";
 import { supabase } from "../../../../lib/supabaseClient";
 import { MR_THEME } from "../../../../lib/theme";
+import { getOpenShiftForUser } from "@/lib/supabase/shifts";
 
 type WorkOrderSummary = {
     work_order_id: string;
@@ -69,8 +70,9 @@ export default function WorkOrderSummarySection({
     const [checkInMessage, setCheckInMessage] = useState<string | null>(null);
     const latestCheckIn =
         Array.isArray(checkIns) && checkIns.length > 0 ? checkIns[0] : null;
-
-    const hasCheckedIn = latestCheckIn != null;
+    const hasAnyCheckIn = latestCheckIn != null;
+    const hasCheckedIn = latestCheckIn != null && !latestCheckIn.check_out_at;
+    const hasCheckedOut = latestCheckIn?.check_out_at != null;
 
     function formatCheckInLabel(value: string | null | undefined) {
         const raw = String(value ?? "").trim();
@@ -83,6 +85,20 @@ export default function WorkOrderSummarySection({
     const handleCheckIn = async () => {
         setCheckInMessage(null);
         setCheckingIn(true);
+
+        if (!wo.company_id || !myUserId) {
+            setCheckInMessage("Missing company or user for shift validation.");
+            setCheckingIn(false);
+            return;
+        }
+
+        const openShift = await getOpenShiftForUser(wo.company_id, myUserId);
+
+        if (!openShift) {
+            setCheckInMessage("You must start your shift in My Day before checking in.");
+            setCheckingIn(false);
+            return;
+        }
 
         if (!navigator.geolocation) {
             setCheckInMessage("Geolocation is not supported by your browser.");
@@ -161,50 +177,77 @@ export default function WorkOrderSummarySection({
         );
     };
 
+    const handleCheckOut = async () => {
+        if (!latestCheckIn?.check_in_id) {
+            setCheckInMessage("No active check-in found.");
+            return;
+        }
+
+        setCheckingIn(true);
+        setCheckInMessage(null);
+
+        const { error } = await supabase
+            .from("work_order_check_ins")
+            .update({ check_out_at: new Date().toISOString() })
+            .eq("check_in_id", latestCheckIn.check_in_id);
+
+        if (error) {
+            setCheckInMessage(error.message || "Check-out failed.");
+            setCheckingIn(false);
+            return;
+        }
+
+        await onCheckInRecorded();
+
+        setCheckInMessage("Check-out successful.");
+        setCheckingIn(false);
+    };
     return (
         <div
             style={{
-                padding: 14,
-                borderRadius: MR_THEME.radiusCard,
-                border: `1px solid ${MR_THEME.border}`,
-                background: MR_THEME.cardBg,
-                boxShadow: MR_THEME.shadowCard,
+                padding: MR_THEME.layout.cardPadding,
+                borderRadius: MR_THEME.radius.card,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                background: MR_THEME.colors.cardBg,
+                boxShadow: MR_THEME.shadows.card,
             }}
         >
             <div
                 style={{
                     display: "flex",
                     justifyContent: "space-between",
-                    alignItems: "start",
-                    gap: 16,
+                    alignItems: "flex-start",
+                    gap: MR_THEME.spacing.lg,
                     flexWrap: "wrap",
+                    marginBottom: MR_THEME.spacing.md,
                 }}
             >
-                <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                    style={{
+                        minWidth: 0,
+                        flex: 1,
+                        display: "grid",
+                        gap: MR_THEME.spacing.xs,
+                    }}
+                >
                     <div
                         style={{
-                            fontSize: 12,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: MR_THEME.textSecondary,
-                            fontWeight: 800,
-                            marginBottom: 8,
+                            ...MR_THEME.typography.sectionTitle,
+                            color: MR_THEME.colors.textPrimary,
+                            marginBottom: MR_THEME.spacing.sm,
                         }}
                     >
                         Work Order Summary
                     </div>
 
-
-
                     <div
                         style={{
-                            fontSize: 15,
-                            lineHeight: 1.6,
-                            color: MR_THEME.textSecondary,
+                            ...MR_THEME.typography.body,
+                            color: MR_THEME.colors.textSecondary,
                             maxWidth: 760,
                         }}
                     >
-                        {wo.description}
+                        {wo.description || "No description provided."}
                     </div>
                 </div>
 
@@ -214,44 +257,69 @@ export default function WorkOrderSummarySection({
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: 10,
-                    marginTop: 16,
+                    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                    gap: MR_THEME.spacing.sm,
+                    marginTop: MR_THEME.spacing.lg,
                 }}
             >
                 <div
                     style={{
-                        padding: 12,
-                        borderRadius: MR_THEME.radiusControl,
-                        background: MR_THEME.cardBgSoft,
-                        border: `1px solid ${MR_THEME.border}`,
+                        padding: MR_THEME.layout.compactCardPadding,
+                        borderRadius: MR_THEME.radius.control,
+                        background: MR_THEME.colors.cardBgSoft,
+                        border: `1px solid ${MR_THEME.colors.border}`,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: MR_THEME.textSecondary, fontWeight: 700, marginBottom: 6 }}>
+                    <div
+                        style={{
+                            ...MR_THEME.typography.small,
+                            color: MR_THEME.colors.textSecondary,
+                            fontWeight: 700,
+                            marginBottom: MR_THEME.spacing.xs,
+                        }}
+                    >
                         Customer
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: MR_THEME.textPrimary }}>
+                    <div
+                        style={{
+                            ...MR_THEME.typography.cardTitle,
+                            color: MR_THEME.colors.textPrimary,
+                        }}
+                    >
                         {wo.customer_name || "—"}
                     </div>
                 </div>
 
                 <div
                     style={{
-                        padding: 14,
-                        borderRadius: MR_THEME.radiusControl,
-                        background: MR_THEME.cardBg,
-                        border: `1px solid ${MR_THEME.borderStrong}`,
-                        boxShadow: MR_THEME.shadowCardSoft,
+                        padding: MR_THEME.layout.compactCardPadding,
+                        borderRadius: MR_THEME.radius.control,
+                        background: MR_THEME.colors.cardBg,
+                        border: `1px solid ${MR_THEME.colors.border}`,
+                        boxShadow: MR_THEME.shadows.card,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: MR_THEME.textSecondary, fontWeight: 700, marginBottom: 6 }}>
+                    <div
+                        style={{
+                            ...MR_THEME.typography.small,
+                            color: MR_THEME.colors.textSecondary,
+                            fontWeight: 700,
+                            marginBottom: MR_THEME.spacing.xs,
+                        }}
+                    >
                         Address
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: MR_THEME.textPrimary }}>
+                    <div
+                        style={{
+                            ...MR_THEME.typography.body,
+                            color: MR_THEME.colors.textPrimary,
+                            fontWeight: 700,
+                        }}
+                    >
                         {wo.service_address || "—"}
                     </div>
                     {googleMapsUrl ? (
-                        <div style={{ marginTop: 6 }}>
+                        <div style={{ marginTop: MR_THEME.spacing.sm }}>
                             <a
                                 href={googleMapsUrl}
                                 target="_blank"
@@ -259,15 +327,15 @@ export default function WorkOrderSummarySection({
                                 style={{
                                     display: "inline-flex",
                                     alignItems: "center",
-                                    gap: 6,
+                                    gap: MR_THEME.spacing.xs,
                                     padding: "6px 10px",
-                                    borderRadius: 999,
-                                    border: "1px solid #e5e7eb",
+                                    borderRadius: MR_THEME.radius.pill,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
                                     textDecoration: "none",
-                                    color: "#374151",
+                                    color: MR_THEME.colors.textSecondary,
                                     fontWeight: 700,
-                                    fontSize: 12,
-                                    background: "#f9fafb",
+                                    fontSize: MR_THEME.typography.small.fontSize,
+                                    background: MR_THEME.colors.cardBgSoft,
                                 }}
                             >
                                 Ver en Google Maps
@@ -278,16 +346,22 @@ export default function WorkOrderSummarySection({
 
                 <div
                     style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        background: "#ffffff",
-                        border: "1px solid #e5e7eb",
+                        padding: MR_THEME.layout.compactCardPadding,
+                        borderRadius: MR_THEME.radius.control,
+                        background: MR_THEME.colors.cardBg,
+                        border: `1px solid ${MR_THEME.colors.border}`,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                    <div
+                        style={{
+                            ...MR_THEME.typography.small,
+                            color: MR_THEME.colors.textSecondary,
+                            fontWeight: 700,
+                            marginBottom: MR_THEME.spacing.xs,
+                        }}
+                    >
                         Status
                     </div>
-
                     <select
                         value={wo.status}
                         disabled={!canChangeStatus}
@@ -297,16 +371,18 @@ export default function WorkOrderSummarySection({
                         }}
                         style={{
                             width: "100%",
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            border: "1px solid #d1d5db",
-                            background: "white",
-                            fontSize: 14,
+                            height: MR_THEME.components.input.height,
+                            padding: `0 ${MR_THEME.components.input.paddingX}px`,
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            background: MR_THEME.colors.cardBg,
+                            fontSize: MR_THEME.components.input.fontSize,
                             fontWeight: 800,
-                            color: "#111827",
+                            color: MR_THEME.colors.textPrimary,
                             cursor: canChangeStatus ? "pointer" : "not-allowed",
                             opacity: canChangeStatus ? 1 : 0.65,
                             textTransform: "capitalize",
+                            outline: "none",
                         }}
                     >
                         {allowedStatuses.map((status) => (
@@ -315,7 +391,6 @@ export default function WorkOrderSummarySection({
                             </option>
                         ))}
                     </select>
-
                     {!canChangeStatus ? (
                         <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280", lineHeight: 1.4 }}>
                             {statusChangeReason === "no_shift"
@@ -328,29 +403,29 @@ export default function WorkOrderSummarySection({
                 </div>
                 <div
                     style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        background: "#ffffff",
-                        border: "1px solid #e5e7eb",
+                        padding: MR_THEME.layout.compactCardPadding,
+                        borderRadius: MR_THEME.radius.control,
+                        background: MR_THEME.colors.cardBg,
+                        border: `1px solid ${MR_THEME.colors.border}`,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>
                         Priority
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827", textTransform: "capitalize" }}>
+                    <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", textTransform: "capitalize" }}>
                         {niceLabel(wo.priority)}
                     </div>
                 </div>
 
                 <div
                     style={{
-                        padding: 12,
-                        borderRadius: 12,
-                        background: "#ffffff",
-                        border: "1px solid #e5e7eb",
+                        padding: MR_THEME.layout.compactCardPadding,
+                        borderRadius: MR_THEME.radius.control,
+                        background: MR_THEME.colors.cardBg,
+                        border: `1px solid ${MR_THEME.colors.border}`,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>
                         Assigned to
                     </div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
@@ -364,19 +439,19 @@ export default function WorkOrderSummarySection({
                     style={{
                         marginTop: 14,
                         padding: 14,
-                        borderRadius: MR_THEME.radiusCard,
-                        background: MR_THEME.primarySoft,
-                        border: `1px solid ${MR_THEME.primary}`,
+                        borderRadius: MR_THEME.radius.card,
+                        background: MR_THEME.colors.primarySurface,
+                        border: `1px solid ${MR_THEME.colors.primary}`,
                     }}
                 >
                     <div
                         style={{
-                            fontSize: 11,
+                            fontSize: 10,
                             textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: MR_THEME.primary,
+                            letterSpacing: 0.8,
+                            color: MR_THEME.colors.primary,
                             fontWeight: 800,
-                            marginBottom: 6,
+                            marginBottom: 4,
                         }}
                     >
                         On-site Check-in
@@ -384,27 +459,27 @@ export default function WorkOrderSummarySection({
 
                     <div
                         style={{
-                            fontSize: 13,
-                            color: MR_THEME.textSecondary,
-                            marginBottom: 10,
-                            lineHeight: 1.45,
+                            fontSize: 11,
+                            color: MR_THEME.colors.textSecondary,
+                            marginBottom: 8,
+                            lineHeight: 1.35,
                         }}
                     >
                         We use your location only to validate check-in for this work order.
                     </div>
-                    {hasCheckedIn ? (
+                    {hasAnyCheckIn ? (
                         <div
                             style={{
-                                padding: 10,
+                                padding: "8px 10px",
                                 borderRadius: 10,
-                                background: "#ffffff",
+                                background: "#f9fafb",
                                 border: "1px solid #e5e7eb",
-                                fontSize: 13,
-                                lineHeight: 1.45,
+                                fontSize: 12,
+                                lineHeight: 1.35,
                                 color: "#374151",
                             }}
                         >
-                            <div style={{ fontWeight: 800, color: "#111827", marginBottom: 4 }}>
+                            <div style={{ fontWeight: 800, color: "#111827", marginBottom: 2 }}>
                                 Checked in at{" "}
                                 {latestCheckIn?.check_in_at
                                     ? new Date(latestCheckIn.check_in_at).toLocaleString("en-CA", {
@@ -424,6 +499,41 @@ export default function WorkOrderSummarySection({
                             <div style={{ marginTop: 4 }}>
                                 Distance: {latestCheckIn?.distance_to_site_m != null ? `${latestCheckIn.distance_to_site_m} m` : "—"}
                             </div>
+
+                            {hasCheckedOut ? (
+                                <div style={{ marginTop: 8, fontWeight: 800, color: MR_THEME.colors.success }}>
+                                    Checked out at{" "}
+                                    {latestCheckIn?.check_out_at
+                                        ? new Date(latestCheckIn.check_out_at).toLocaleString("en-CA", {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                        })
+                                        : "—"}
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleCheckOut}
+                                    disabled={checkingIn}
+                                    style={{
+                                        marginTop: 10,
+                                        padding: "8px 12px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.primary}`,
+                                        background: MR_THEME.colors.primary,
+                                        color: "white",
+                                        fontWeight: 900,
+                                        fontSize: 12,
+                                        cursor: checkingIn ? "not-allowed" : "pointer",
+                                        opacity: checkingIn ? 0.7 : 1,
+                                    }}
+                                >
+                                    {checkingIn ? "Checking out..." : "Check Out"}
+                                </button>
+                            )}
                         </div>
                     ) : (
                         <>
@@ -432,9 +542,9 @@ export default function WorkOrderSummarySection({
                                 disabled={checkingIn}
                                 style={{
                                     padding: "10px 14px",
-                                    borderRadius: MR_THEME.radiusControl,
-                                    border: `1px solid ${MR_THEME.primary}`,
-                                    background: MR_THEME.primary,
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.primary}`,
+                                    background: MR_THEME.colors.primary,
                                     color: "white",
                                     fontWeight: 900,
                                     fontSize: 13,

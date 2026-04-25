@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MR_THEME } from "../../../../lib/theme";
 
 type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
 
@@ -39,6 +40,7 @@ export default function CurrentWorkCard({
 
     const isInProgress = currentWork?.status === "in_progress";
     const isAssigned = currentWork?.status === "new";
+    const [browseHover, setBrowseHover] = React.useState(false);
 
     return (
         <div
@@ -100,6 +102,7 @@ export default function CurrentWorkCard({
                     >
                         {currentWorkMessage}
                     </div>
+
                 </div>
 
                 {currentWork ? (
@@ -139,9 +142,9 @@ export default function CurrentWorkCard({
                             alignItems: "center",
                             padding: "8px 12px",
                             borderRadius: 999,
-                            border: "1px solid #e5e7eb",
-                            background: "#f8fafc",
-                            color: "#475569",
+                            border: `1px solid ${MR_THEME.border}`,
+                            background: MR_THEME.cardBgSoft,
+                            color: MR_THEME.textSecondary,
                             fontSize: 13,
                             fontWeight: 800,
                             whiteSpace: "nowrap",
@@ -155,9 +158,9 @@ export default function CurrentWorkCard({
             {!currentWork ? (
                 <div
                     style={{
-                        border: "1px dashed #dbe3ef",
-                        borderRadius: 16,
-                        background: "#f8fafc",
+                        border: `1px dashed ${MR_THEME.border}`,
+                        borderRadius: MR_THEME.radiusCard,
+                        background: MR_THEME.cardBgSoft,
                         padding: 18,
                     }}
                 >
@@ -185,7 +188,26 @@ export default function CurrentWorkCard({
                             : "Start your shift to begin operating assigned work orders."}
                     </div>
 
-                    {!openShift ? (
+                    {openShift ? (
+                        <div style={{ marginTop: 10 }}>
+                            <button
+                                type="button"
+                                onClick={() => window.location.assign("/work-orders")}
+                                onMouseEnter={() => setBrowseHover(true)}
+                                onMouseLeave={() => setBrowseHover(false)}
+                                style={{
+                                    ...accentButtonStyle,
+                                    background: browseHover ? MR_THEME.primaryHover : MR_THEME.primarySoft,
+                                    color: browseHover ? "#ffffff" : MR_THEME.primaryHover,
+                                    boxShadow: browseHover ? MR_THEME.shadowCard : "none",
+                                    transform: browseHover ? "translateY(-1px)" : "translateY(0)",
+                                    transition: "all 0.16s ease",
+                                }}
+                            >
+                                Browse work orders
+                            </button>
+                        </div>
+                    ) : (
                         <button
                             type="button"
                             onClick={onStartShift}
@@ -194,7 +216,7 @@ export default function CurrentWorkCard({
                         >
                             {shiftBusy ? "Processing..." : "Start shift"}
                         </button>
-                    ) : null}
+                    )}
                 </div>
             ) : (
                 <>
@@ -227,33 +249,6 @@ export default function CurrentWorkCard({
                         />
                     </div>
 
-                    <div
-                        style={{
-                            marginTop: 14,
-                            display: "flex",
-                            gap: 10,
-                            flexWrap: "wrap",
-                        }}
-                    >
-                        {openShift ? (
-                            <button
-                                type="button"
-                                onClick={() => onResumeWork(currentWork.work_order_id)}
-                                style={primaryButtonStyle}
-                            >
-                                Resume work
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={onStartShift}
-                                disabled={shiftBusy || loading || !companyId}
-                                style={primaryButtonStyle}
-                            >
-                                {shiftBusy ? "Processing..." : "Start shift"}
-                            </button>
-                        )}
-                    </div>
                 </>
             )}
         </div>
@@ -264,16 +259,16 @@ function InfoCard({ label, value }: { label: string; value: string }) {
     return (
         <div
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 14,
+                border: `1px solid ${MR_THEME.border}`,
+                borderRadius: MR_THEME.radiusCard,
                 padding: 16,
-                background: "#f8fafc",
+                background: MR_THEME.cardBgSoft,
             }}
         >
             <div
                 style={{
                     fontSize: 12,
-                    color: "#64748b",
+                    color: MR_THEME.textMuted,
                     marginBottom: 8,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
@@ -286,7 +281,7 @@ function InfoCard({ label, value }: { label: string; value: string }) {
                 style={{
                     fontSize: 18,
                     fontWeight: 800,
-                    color: "#111827",
+                    color: MR_THEME.textPrimary,
                     lineHeight: 1.3,
                     wordBreak: "break-word",
                 }}
@@ -296,12 +291,11 @@ function InfoCard({ label, value }: { label: string; value: string }) {
         </div>
     );
 }
-
 const primaryButtonStyle: React.CSSProperties = {
     padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #111827",
-    background: "#111827",
+    borderRadius: MR_THEME.radiusControl,
+    border: `1px solid ${MR_THEME.textPrimary}`,
+    background: MR_THEME.textPrimary,
     color: "#fff",
     cursor: "pointer",
     fontWeight: 700,
@@ -309,10 +303,20 @@ const primaryButtonStyle: React.CSSProperties = {
 
 const secondaryButtonStyle: React.CSSProperties = {
     padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111827",
+    borderRadius: MR_THEME.radiusControl,
+    border: `1px solid ${MR_THEME.borderStrong}`,
+    background: MR_THEME.cardBg,
+    color: MR_THEME.textPrimary,
     cursor: "pointer",
     fontWeight: 600,
+};
+
+const accentButtonStyle: React.CSSProperties = {
+    padding: "10px 14px",
+    borderRadius: MR_THEME.radiusControl,
+    border: `1px solid ${MR_THEME.primary}`,
+    background: MR_THEME.primarySoft,
+    color: MR_THEME.primaryHover,
+    cursor: "pointer",
+    fontWeight: 700,
 };

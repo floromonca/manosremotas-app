@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MR_THEME } from "../../../../lib/theme";
 
 type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
 
@@ -23,11 +24,11 @@ export default function RecentWorkOrdersCard({
     return (
         <div
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 18,
-                background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
+                border: `1px solid ${MR_THEME.border}`,
+                borderRadius: MR_THEME.radiusCard,
+                background: MR_THEME.cardBg,
                 padding: 20,
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                boxShadow: MR_THEME.shadowCard,
             }}
         >
             <div
@@ -46,7 +47,7 @@ export default function RecentWorkOrdersCard({
                             fontSize: 12,
                             textTransform: "uppercase",
                             letterSpacing: "0.08em",
-                            color: "#64748b",
+                            color: MR_THEME.textMuted,
                             fontWeight: 800,
                             marginBottom: 8,
                         }}
@@ -59,7 +60,7 @@ export default function RecentWorkOrdersCard({
                             fontSize: 26,
                             fontWeight: 800,
                             lineHeight: 1.1,
-                            color: "#111827",
+                            color: MR_THEME.textPrimary,
                             letterSpacing: "-0.02em",
                             marginBottom: 8,
                         }}
@@ -69,7 +70,7 @@ export default function RecentWorkOrdersCard({
 
                     <div
                         style={{
-                            color: "#6b7280",
+                            color: MR_THEME.textSecondary,
                             fontSize: 14,
                             lineHeight: 1.6,
                             maxWidth: 760,
@@ -86,10 +87,10 @@ export default function RecentWorkOrdersCard({
                         display: "inline-flex",
                         alignItems: "center",
                         padding: "8px 12px",
-                        borderRadius: 999,
-                        border: "1px solid #dbe3ef",
-                        background: "#f8fafc",
-                        color: "#334155",
+                        borderRadius: MR_THEME.radiusPill,
+                        border: `1px solid ${MR_THEME.border}`,
+                        background: MR_THEME.cardBgSoft,
+                        color: MR_THEME.textSecondary,
                         fontSize: 13,
                         fontWeight: 800,
                         whiteSpace: "nowrap",
@@ -102,9 +103,9 @@ export default function RecentWorkOrdersCard({
             {rows.length === 0 ? (
                 <div
                     style={{
-                        border: "1px dashed #dbe3ef",
-                        borderRadius: 16,
-                        background: "#f8fafc",
+                        border: `1px dashed ${MR_THEME.border}`,
+                        borderRadius: MR_THEME.radiusCard,
+                        background: MR_THEME.cardBgSoft,
                         padding: 18,
                     }}
                 >
@@ -112,7 +113,7 @@ export default function RecentWorkOrdersCard({
                         style={{
                             fontSize: 15,
                             fontWeight: 700,
-                            color: "#111827",
+                            color: MR_THEME.textPrimary,
                             marginBottom: 6,
                         }}
                     >
@@ -122,7 +123,7 @@ export default function RecentWorkOrdersCard({
                     <div
                         style={{
                             fontSize: 14,
-                            color: "#6b7280",
+                            color: MR_THEME.textSecondary,
                             lineHeight: 1.6,
                         }}
                     >
@@ -135,66 +136,79 @@ export default function RecentWorkOrdersCard({
                         <div
                             key={wo.work_order_id}
                             style={{
-                                border: "1px solid #e5e7eb",
-                                borderRadius: 16,
+                                border: `1px solid ${MR_THEME.border}`,
+                                borderRadius: MR_THEME.radiusCard,
                                 padding: 16,
-                                background: "#f8fafc",
+                                background: MR_THEME.cardBgSoft,
                                 display: "grid",
-                                gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr) auto auto",
-                                gap: 14,
-                                alignItems: "center",
+                                gap: 12,
                             }}
                         >
-                            <div style={{ minWidth: 0 }}>
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.06em",
-                                        color: "#64748b",
-                                        fontWeight: 700,
-                                        marginBottom: 6,
-                                    }}
-                                >
-                                    Work order
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div
+                                        style={{
+                                            fontSize: 20,
+                                            fontWeight: 800,
+                                            color: MR_THEME.textPrimary,
+                                            lineHeight: 1.2,
+                                            marginBottom: 4,
+                                            wordBreak: "break-word",
+                                        }}
+                                    >
+                                        {wo.job_type || "Work order"}
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            fontSize: 14,
+                                            color: MR_THEME.textSecondary,
+                                            lineHeight: 1.5,
+                                            wordBreak: "break-word",
+                                        }}
+                                    >
+                                        {wo.customer_name || "No customer name"}
+                                    </div>
                                 </div>
+
                                 <div
                                     style={{
-                                        fontSize: 17,
-                                        fontWeight: 800,
-                                        color: "#111827",
-                                        lineHeight: 1.3,
-                                        marginBottom: 4,
+                                        display: "flex",
+                                        gap: 8,
+                                        alignItems: "center",
+                                        flexWrap: "wrap",
+                                        justifyContent: "flex-end",
+                                        marginTop: 2,
                                     }}
                                 >
-                                    {wo.job_type || "Work order"}
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: 14,
-                                        color: "#6b7280",
-                                        lineHeight: 1.5,
-                                    }}
-                                >
-                                    Ref: {wo.work_order_id.slice(0, 8)}
+                                    <StatusPill status={wo.status} />
+
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpenWorkOrder(wo.work_order_id)}
+                                        style={secondaryButtonStyle}
+                                    >
+                                        Open
+                                    </button>
                                 </div>
                             </div>
 
-                            <InfoBlock
-                                label="Customer"
-                                value={wo.customer_name || "—"}
-                            />
-
-                            <StatusPill status={wo.status} />
-
-                            <div>
-                                <button
-                                    type="button"
-                                    onClick={() => onOpenWorkOrder(wo.work_order_id)}
-                                    style={secondaryButtonStyle}
-                                >
-                                    Open
-                                </button>
+                            <div
+                                style={{
+                                    fontSize: 13,
+                                    color: MR_THEME.textSecondary,
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                Ref: {wo.work_order_id.slice(0, 8)}
                             </div>
                         </div>
                     ))}
@@ -204,69 +218,33 @@ export default function RecentWorkOrdersCard({
     );
 }
 
-function InfoBlock({
-    label,
-    value,
-}: {
-    label: string;
-    value: string;
-}) {
-    return (
-        <div style={{ minWidth: 0 }}>
-            <div
-                style={{
-                    fontSize: 12,
-                    color: "#64748b",
-                    marginBottom: 6,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    fontWeight: 700,
-                }}
-            >
-                {label}
-            </div>
-            <div
-                style={{
-                    fontSize: 15,
-                    fontWeight: 700,
-                    color: "#111827",
-                    lineHeight: 1.4,
-                    wordBreak: "break-word",
-                }}
-            >
-                {value}
-            </div>
-        </div>
-    );
-}
-
 function StatusPill({ status }: { status: WorkOrderStatus }) {
     const tone =
         status === "in_progress"
             ? {
-                border: "1px solid #bfdbfe",
-                background: "#eff6ff",
-                color: "#1d4ed8",
+                border: `1px solid ${MR_THEME.primary}`,
+                background: MR_THEME.primarySoft,
+                color: MR_THEME.primaryHover,
                 label: "In progress",
             }
             : status === "new"
                 ? {
-                    border: "1px solid #dbeafe",
-                    background: "#f8fbff",
-                    color: "#1e40af",
+                    border: `1px solid ${MR_THEME.primary}`,
+                    background: MR_THEME.primarySoft,
+                    color: MR_THEME.primaryHover,
                     label: "Assigned",
                 }
                 : status === "resolved"
                     ? {
-                        border: "1px solid #fde68a",
-                        background: "#fffbeb",
-                        color: "#92400e",
+                        border: `1px solid ${MR_THEME.success}`,
+                        background: "#f0fdf4",
+                        color: "#166534",
                         label: "Resolved",
                     }
                     : {
-                        border: "1px solid #bbf7d0",
-                        background: "#f0fdf4",
-                        color: "#166534",
+                        border: `1px solid ${MR_THEME.borderStrong}`,
+                        background: MR_THEME.cardBg,
+                        color: MR_THEME.textSecondary,
                         label: "Closed",
                     };
 
@@ -276,8 +254,8 @@ function StatusPill({ status }: { status: WorkOrderStatus }) {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                padding: "8px 12px",
-                borderRadius: 999,
+                padding: "8px 14px",
+                borderRadius: MR_THEME.radiusPill,
                 border: tone.border,
                 background: tone.background,
                 color: tone.color,
@@ -292,11 +270,12 @@ function StatusPill({ status }: { status: WorkOrderStatus }) {
 }
 
 const secondaryButtonStyle: React.CSSProperties = {
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111827",
+    padding: "8px 12px",
+    borderRadius: MR_THEME.radiusControl,
+    border: `1px solid ${MR_THEME.borderStrong}`,
+    background: MR_THEME.cardBg,
+    color: MR_THEME.textPrimary,
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 600,
+    fontSize: 13,
 };
