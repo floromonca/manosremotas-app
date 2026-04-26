@@ -904,11 +904,7 @@ export default function WorkOrderDetailPage() {
                 {wo ? (
                     <div
                         style={{
-                            marginTop: 6,
-                            padding: "10px 8px",
-                            borderRadius: 12,
-                            border: "1px solid #eee",
-                            background: "white",
+                            marginTop: 14,
                         }}
                     >
                         <div

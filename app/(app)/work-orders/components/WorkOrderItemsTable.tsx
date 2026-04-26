@@ -162,14 +162,20 @@ export default function WorkOrderItemsTable({
                             </div>
 
                             {/* Quantities */}
-                            <div style={{ display: "flex", gap: 12 }}>
-                                <div style={{ fontSize: 12 }}>
-                                    <strong>Planned:</strong>{" "}
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: 12,
+                                    color: MR_THEME.colors.textSecondary,
+                                }}
+                            >
+                                <div style={{ fontSize: 12, fontWeight: 600 }}>
+                                    <strong style={{ color: MR_THEME.colors.textPrimary }}>Planned:</strong>{" "}
                                     {hasPlanned ? qtyPlanned : "—"}
                                 </div>
 
-                                <div style={{ fontSize: 12 }}>
-                                    <strong>Done:</strong>{" "}
+                                <div style={{ fontSize: 12, fontWeight: 600 }}>
+                                    <strong style={{ color: MR_THEME.colors.textPrimary }}>Done:</strong>{" "}
                                     {isAdmin ? (
                                         qtyDone ?? 0
                                     ) : (
