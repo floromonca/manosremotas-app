@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MR_THEME } from "@/lib/theme";
 
 type Props = {
     itemsCount: number;
@@ -32,28 +33,36 @@ export default function WorkOrderItemsHeader({
                         fontSize: 12,
                         textTransform: "uppercase",
                         letterSpacing: 1,
-                        color: "#6b7280",
+                        color: MR_THEME.colors.textSecondary,
                         fontWeight: 800,
                         marginBottom: 6,
                     }}
                 >
                     Work Order Items
                 </div>
-                <div style={{ fontWeight: 900, fontSize: 22, color: "#111827" }}>Items</div>
+                <div
+                    style={{
+                        fontWeight: 900,
+                        fontSize: 22,
+                        color: MR_THEME.colors.textPrimary,
+                    }}
+                >
+                    Items
+                </div>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <div
                     style={{
                         padding: "6px 9px",
-                        borderRadius: 999,
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
+                        borderRadius: MR_THEME.radius.pill,
+                        background: MR_THEME.colors.cardBgSoft,
+                        border: `1px solid ${MR_THEME.colors.border}`,
                         fontSize: 13,
-                        color: "#4b5563",
+                        color: MR_THEME.colors.textSecondary,
                     }}
                 >
-                    <b>{itemsCount}</b> items
+                    <b style={{ color: MR_THEME.colors.textPrimary }}>{itemsCount}</b> items
                 </div>
 
                 <button
@@ -63,15 +72,26 @@ export default function WorkOrderItemsHeader({
                         if (invoiceIsLocked) return;
                         setShowForm((s) => !s);
                     }}
+                    title={
+                        invoiceIsLocked
+                            ? "This invoice is locked. Items cannot be changed."
+                            : undefined
+                    }
                     style={{
                         padding: "8px 12px",
-                        borderRadius: 12,
-                        border: "1px solid #d1d5db",
-                        background: "white",
+                        borderRadius: MR_THEME.radius.control,
+                        border: invoiceIsLocked
+                            ? `1px solid ${MR_THEME.colors.borderStrong}`
+                            : `1px solid ${MR_THEME.colors.primary}`,
+                        background: invoiceIsLocked
+                            ? MR_THEME.colors.cardBgSoft
+                            : MR_THEME.colors.primary,
+                        color: invoiceIsLocked
+                            ? MR_THEME.colors.textSecondary
+                            : "#ffffff",
                         cursor: invoiceIsLocked ? "not-allowed" : "pointer",
                         fontWeight: 900,
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                        opacity: invoiceIsLocked ? 0.6 : 1,
+                        boxShadow: invoiceIsLocked ? "none" : MR_THEME.shadows.cardSoft,
                     }}
                 >
                     {showForm ? "Close" : "+ Add item"}
