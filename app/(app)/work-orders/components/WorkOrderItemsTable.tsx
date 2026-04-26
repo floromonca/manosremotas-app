@@ -136,11 +136,12 @@ export default function WorkOrderItemsTable({
                                 <span
                                     style={{
                                         padding: "4px 8px",
-                                        borderRadius: 999,
+                                        borderRadius: MR_THEME.radius.pill,
                                         fontSize: 11,
                                         fontWeight: 800,
-                                        border: "1px solid #d1d5db",
-                                        background: tipo === "Extra" ? "#eff6ff" : "#fafafa",
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        background: tipo === "Extra" ? MR_THEME.colors.primarySoft : MR_THEME.colors.cardBgSoft,
+                                        color: tipo === "Extra" ? MR_THEME.colors.primary : MR_THEME.colors.textPrimary,
                                     }}
                                 >
                                     {tipo}
@@ -149,18 +150,17 @@ export default function WorkOrderItemsTable({
                                 <span
                                     style={{
                                         padding: "4px 8px",
-                                        borderRadius: 999,
+                                        borderRadius: MR_THEME.radius.pill,
                                         fontSize: 11,
                                         fontWeight: 800,
-                                        border: "1px solid",
-                                        borderColor: isPendingPricing ? "#f5c542" : "#22c55e",
-                                        background: isPendingPricing ? "#fff7e6" : "#ecfdf5",
+                                        border: `1px solid ${isPendingPricing ? MR_THEME.colors.warning : MR_THEME.colors.success}`,
+                                        background: isPendingPricing ? "#fff7ed" : "#ecfdf5",
+                                        color: isPendingPricing ? "#9a3412" : "#166534",
                                     }}
                                 >
                                     {isPendingPricing ? "Pending pricing" : "Approved"}
                                 </span>
                             </div>
-
                             {/* Quantities */}
                             <div
                                 style={{
@@ -186,10 +186,12 @@ export default function WorkOrderItemsTable({
                                             style={{
                                                 width: 70,
                                                 padding: "4px 6px",
-                                                borderRadius: 6,
-                                                border: "1px solid #d1d5db",
-                                            }}
-                                            onChange={(e) => {
+                                                borderRadius: MR_THEME.radius.control,
+                                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                color: MR_THEME.colors.textPrimary,
+                                                background: MR_THEME.colors.cardBg,
+                                                fontWeight: 700,
+                                            }} onChange={(e) => {
                                                 const v = e.target.value;
                                                 const n = v === "" ? null : Number(v);
                                                 updateQtyDone(it.item_id, n);
