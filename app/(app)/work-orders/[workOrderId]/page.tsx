@@ -851,7 +851,7 @@ export default function WorkOrderDetailPage() {
         >
             <div
                 style={{
-                    padding: "28px 24px 40px",
+                    padding: "28px clamp(14px, 4vw, 24px) 40px",
                     maxWidth: 1180,
                     width: "100%",
                     margin: "0 auto",
