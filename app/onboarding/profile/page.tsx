@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
+import { MR_THEME } from "../../../lib/theme";
 
 export default function OnboardingProfilePage() {
     const router = useRouter();
     const { user, authLoading } = useAuthState();
-
-    // ✅ OJO: aquí necesitamos refreshCompany para que el app “se entere” rápido
     const { companyId, isLoadingCompany, refreshCompany } = useActiveCompany();
 
     const [fullName, setFullName] = useState("");
@@ -26,6 +25,7 @@ export default function OnboardingProfilePage() {
             router.replace("/auth");
             return;
         }
+
         if (!companyId) {
             router.replace("/control-center");
             return;
@@ -65,8 +65,9 @@ export default function OnboardingProfilePage() {
         if (!user || !companyId) return;
 
         const name = fullName.trim();
+
         if (!name) {
-            setMsg("Por favor escribe tu nombre completo.");
+            setMsg("Please enter your full name.");
             return;
         }
 
@@ -74,8 +75,6 @@ export default function OnboardingProfilePage() {
         setMsg(null);
 
         try {
-            // ✅ Evitamos UPSERT con onConflict porque tu tabla NO tiene unique(user_id, company_id)
-            // 1) Intentar UPDATE primero
             const payload = {
                 full_name: name,
                 language: language || "en",
@@ -91,7 +90,6 @@ export default function OnboardingProfilePage() {
 
             if (updErr) throw updErr;
 
-            // 2) Si no existía fila, hacemos INSERT
             if (!updatedRow) {
                 const { error: insErr } = await supabase.from("profiles").insert({
                     user_id: user.id,
@@ -112,7 +110,6 @@ export default function OnboardingProfilePage() {
 
             if (memberErr) throw memberErr;
 
-            // 3) refrescar estado + salir
             const { data: companyRow, error: companyErr } = await supabase
                 .from("companies")
                 .select("company_name")
@@ -124,7 +121,6 @@ export default function OnboardingProfilePage() {
             const isNewCompany = companyRow?.company_name === "My Company";
 
             await refreshCompany();
-
             router.refresh();
 
             if (isNewCompany) {
@@ -142,69 +138,165 @@ export default function OnboardingProfilePage() {
     if (authLoading || isLoadingCompany || loading) return null;
 
     return (
-        <div style={{ padding: 24, maxWidth: 560, margin: "0 auto" }}>
-            <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 6 }}>
-                Completa tu perfil
-            </h1>
-
-            <div style={{ opacity: 0.7, marginBottom: 14 }}>
-                Solo es una vez. Esto ayuda a que los reportes y el equipo te identifiquen bien.
-            </div>
-
-            <div style={{ display: "grid", gap: 10 }}>
-                <label style={{ display: "grid", gap: 6 }}>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>Nombre completo</span>
-                    <input
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Ej: Juan Pérez"
-                        style={{ padding: 12, borderRadius: 10, border: "1px solid #ddd" }}
-                    />
-                </label>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>Idioma</span>
-                    <select
-                        value={language}
-                        onChange={(e) => setLanguage(e.target.value)}
-                        style={{ padding: 12, borderRadius: 10, border: "1px solid #ddd" }}
-                    >
-                        <option value="en">English</option>
-                        <option value="es">Español</option>
-                    </select>
-                </label>
-
-                <button
-                    onClick={save}
-                    disabled={saving}
+        <main
+            style={{
+                minHeight: "100vh",
+                background: MR_THEME.colors.appBg,
+                padding: "32px 18px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+            }}
+        >
+            <section
+                style={{
+                    width: "100%",
+                    maxWidth: 560,
+                    border: `1px solid ${MR_THEME.colors.border}`,
+                    borderRadius: MR_THEME.radius.card,
+                    background: MR_THEME.colors.cardBg,
+                    boxShadow: MR_THEME.shadows.card,
+                    padding: 24,
+                }}
+            >
+                <div
                     style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #111",
-                        background: "#111",
-                        color: "white",
+                        fontSize: 12,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.12em",
+                        color: MR_THEME.colors.primary,
                         fontWeight: 900,
-                        cursor: "pointer",
-                        opacity: saving ? 0.7 : 1,
+                        marginBottom: 10,
                     }}
                 >
-                    {saving ? "Guardando..." : "Guardar y continuar"}
-                </button>
+                    ManosRemotas
+                </div>
 
-                {msg ? (
-                    <div
+                <h1
+                    style={{
+                        fontSize: 34,
+                        lineHeight: 1.05,
+                        fontWeight: 900,
+                        letterSpacing: "-0.03em",
+                        color: MR_THEME.colors.textPrimary,
+                        margin: "0 0 10px",
+                    }}
+                >
+                    Complete your profile
+                </h1>
+
+                <p
+                    style={{
+                        margin: "0 0 22px",
+                        color: MR_THEME.colors.textSecondary,
+                        fontSize: 16,
+                        lineHeight: 1.55,
+                    }}
+                >
+                    This helps your team identify you correctly in work orders, reports, and activity history.
+                </p>
+
+                <div style={{ display: "grid", gap: 16 }}>
+                    <label style={{ display: "grid", gap: 8 }}>
+                        <span
+                            style={{
+                                fontSize: 13,
+                                color: MR_THEME.colors.textSecondary,
+                                fontWeight: 800,
+                            }}
+                        >
+                            Full name
+                        </span>
+
+                        <input
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="Example: Juan Pérez"
+                            style={{
+                                width: "100%",
+                                padding: "14px 16px",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                background: MR_THEME.colors.cardBg,
+                                color: MR_THEME.colors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: 700,
+                                outlineColor: MR_THEME.colors.primary,
+                                opacity: 1,
+                            }}
+                        />
+                    </label>
+
+                    <label style={{ display: "grid", gap: 8 }}>
+                        <span
+                            style={{
+                                fontSize: 13,
+                                color: MR_THEME.colors.textSecondary,
+                                fontWeight: 800,
+                            }}
+                        >
+                            Language
+                        </span>
+
+                        <select
+                            value={language}
+                            onChange={(e) => setLanguage(e.target.value)}
+                            style={{
+                                width: "100%",
+                                padding: "14px 16px",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                background: MR_THEME.colors.cardBg,
+                                color: MR_THEME.colors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: 700,
+                                outlineColor: MR_THEME.colors.primary,
+                                opacity: 1,
+                            }}
+                        >
+                            <option value="en">English</option>
+                            <option value="es">Español</option>
+                        </select>
+                    </label>
+
+                    <button
+                        type="button"
+                        onClick={save}
+                        disabled={saving}
                         style={{
-                            padding: 10,
-                            border: "1px solid #eee",
-                            borderRadius: 10,
-                            background: "#fafafa",
-                            fontSize: 13,
+                            marginTop: 4,
+                            padding: "14px 16px",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${saving ? MR_THEME.colors.borderStrong : MR_THEME.colors.primary}`,
+                            background: saving ? MR_THEME.colors.cardBgSoft : MR_THEME.colors.primary,
+                            color: saving ? MR_THEME.colors.textMuted : "#ffffff",
+                            fontWeight: 900,
+                            fontSize: 16,
+                            cursor: saving ? "not-allowed" : "pointer",
+                            opacity: 1,
                         }}
                     >
-                        {msg}
-                    </div>
-                ) : null}
-            </div>
-        </div>
+                        {saving ? "Saving..." : "Save and continue"}
+                    </button>
+
+                    {msg ? (
+                        <div
+                            style={{
+                                padding: 12,
+                                border: `1px solid ${MR_THEME.colors.border}`,
+                                borderRadius: MR_THEME.radius.control,
+                                background: MR_THEME.colors.cardBgSoft,
+                                color: MR_THEME.colors.textPrimary,
+                                fontSize: 14,
+                                lineHeight: 1.45,
+                                fontWeight: 700,
+                            }}
+                        >
+                            {msg}
+                        </div>
+                    ) : null}
+                </div>
+            </section>
+        </main>
     );
 }
