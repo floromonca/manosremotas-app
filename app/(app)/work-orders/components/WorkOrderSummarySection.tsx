@@ -219,7 +219,7 @@ export default function WorkOrderSummarySection({
                     alignItems: "flex-start",
                     gap: MR_THEME.spacing.lg,
                     flexWrap: "wrap",
-                    marginBottom: MR_THEME.spacing.md,
+                    marginBottom: MR_THEME.spacing.sm,
                 }}
             >
                 <div
@@ -234,7 +234,7 @@ export default function WorkOrderSummarySection({
                         style={{
                             ...MR_THEME.typography.sectionTitle,
                             color: MR_THEME.colors.textPrimary,
-                            marginBottom: MR_THEME.spacing.sm,
+                            marginBottom: 4,
                         }}
                     >
                         Work Order Summary
@@ -257,9 +257,9 @@ export default function WorkOrderSummarySection({
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                    gap: MR_THEME.spacing.sm,
-                    marginTop: MR_THEME.spacing.lg,
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: 10,
+                    marginTop: MR_THEME.spacing.md,
                 }}
             >
                 <div
@@ -403,33 +403,71 @@ export default function WorkOrderSummarySection({
                 </div>
                 <div
                     style={{
-                        padding: MR_THEME.layout.compactCardPadding,
-                        borderRadius: MR_THEME.radius.control,
-                        background: MR_THEME.colors.cardBg,
-                        border: `1px solid ${MR_THEME.colors.border}`,
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: MR_THEME.spacing.md,
                     }}
                 >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>
-                        Priority
+                    <div
+                        style={{
+                            padding: MR_THEME.layout.compactCardPadding,
+                            borderRadius: MR_THEME.radius.control,
+                            background: MR_THEME.colors.cardBg,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 12,
+                                color: MR_THEME.colors.textSecondary,
+                                fontWeight: 700,
+                                marginBottom: 4,
+                            }}
+                        >
+                            Priority
+                        </div>
+                        <div
+                            style={{
+                                fontSize: 14,
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textPrimary,
+                                textTransform: "capitalize",
+                            }}
+                        >
+                            {niceLabel(wo.priority)}
+                        </div>
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", textTransform: "capitalize" }}>
-                        {niceLabel(wo.priority)}
-                    </div>
-                </div>
 
-                <div
-                    style={{
-                        padding: MR_THEME.layout.compactCardPadding,
-                        borderRadius: MR_THEME.radius.control,
-                        background: MR_THEME.colors.cardBg,
-                        border: `1px solid ${MR_THEME.colors.border}`,
-                    }}
-                >
-                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>
-                        Assigned to
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>
-                        {assignedTechName || "—"}
+                    <div
+                        style={{
+                            padding: MR_THEME.layout.compactCardPadding,
+                            borderRadius: MR_THEME.radius.control,
+                            background: MR_THEME.colors.cardBg,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 12,
+                                color: MR_THEME.colors.textSecondary,
+                                fontWeight: 700,
+                                marginBottom: 4,
+                            }}
+                        >
+                            Assigned to
+                        </div>
+                        <div
+                            style={{
+                                fontSize: 14,
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textPrimary,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            {assignedTechName || "—"}
+                        </div>
                     </div>
                 </div>
             </div>

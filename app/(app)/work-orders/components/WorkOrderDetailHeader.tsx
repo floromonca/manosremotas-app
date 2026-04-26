@@ -42,29 +42,10 @@ export default function WorkOrderDetailHeader({
         <div
             style={{
                 display: "grid",
-                gap: 12,
+                gap: 8,
                 marginBottom: 12,
             }}
         >
-            <div>
-                <button
-                    onClick={onBack}
-                    style={{
-                        padding: "8px 10px",
-                        borderRadius: MR_THEME.radius.control,
-                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                        background: MR_THEME.colors.cardBg,
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        fontSize: 12,
-                        color: MR_THEME.colors.textSecondary,
-                        boxShadow: MR_THEME.shadows.card,
-                    }}
-                >
-                    ← Back
-                </button>
-            </div>
-
             <div
                 style={{
                     padding: "14px 14px 12px",
@@ -74,6 +55,22 @@ export default function WorkOrderDetailHeader({
                     boxShadow: MR_THEME.shadows.card,
                 }}
             >
+                <div style={{ marginBottom: 6 }}>
+                    <button
+                        onClick={onBack}
+                        style={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: MR_THEME.colors.textSecondary,
+                            background: "transparent",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                        }}
+                    >
+                        ← Back
+                    </button>
+                </div>
                 <div
                     style={{
                         fontSize: 11,

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { MR_THEME } from "@/lib/theme";
 
 type WorkOrderItem = {
@@ -52,8 +52,8 @@ export default function WorkOrderItemsTable({
     invoiceStatus,
 }: Props) {
     const [openNoteItemId, setOpenNoteItemId] = React.useState<string | null>(null);
+    const [localQtyDone, setLocalQtyDone] = useState<Record<string, string>>({});
     const [isMobile, setIsMobile] = React.useState(false);
-
     React.useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768);
@@ -181,7 +181,7 @@ export default function WorkOrderItemsTable({
                                     ) : (
                                         <input
                                             type="number"
-                                            value={qtyDone ?? ""}
+                                            value={localQtyDone[it.item_id] ?? (qtyDone ?? "").toString()}
                                             placeholder="0"
                                             style={{
                                                 width: 70,
@@ -191,10 +191,24 @@ export default function WorkOrderItemsTable({
                                                 color: MR_THEME.colors.textPrimary,
                                                 background: MR_THEME.colors.cardBg,
                                                 fontWeight: 700,
-                                            }} onChange={(e) => {
-                                                const v = e.target.value;
-                                                const n = v === "" ? null : Number(v);
-                                                updateQtyDone(it.item_id, n);
+                                            }}
+                                            onChange={(e) => {
+                                                setLocalQtyDone((prev) => ({
+                                                    ...prev,
+                                                    [it.item_id]: e.target.value,
+                                                }));
+                                            }}
+                                            onBlur={async () => {
+                                                const raw = localQtyDone[it.item_id];
+                                                const n = raw === "" || raw === undefined ? null : Number(raw);
+
+                                                await updateQtyDone(it.item_id, n);
+
+                                                setLocalQtyDone((prev) => {
+                                                    const copy = { ...prev };
+                                                    delete copy[it.item_id];
+                                                    return copy;
+                                                });
                                             }}
                                         />
                                     )}
@@ -406,7 +420,7 @@ export default function WorkOrderItemsTable({
                                             <input
                                                 type="number"
                                                 disabled={invoiceIsLocked}
-                                                value={qtyDone ?? ""}
+                                                value={localQtyDone[it.item_id] ?? (qtyDone ?? "").toString()}
                                                 placeholder="0"
                                                 style={{
                                                     width: 70,
@@ -415,9 +429,22 @@ export default function WorkOrderItemsTable({
                                                     border: "1px solid #d1d5db",
                                                 }}
                                                 onChange={(e) => {
-                                                    const v = e.target.value;
-                                                    const n = v === "" ? null : Number(v);
-                                                    updateQtyDone(it.item_id, n);
+                                                    setLocalQtyDone((prev) => ({
+                                                        ...prev,
+                                                        [it.item_id]: e.target.value,
+                                                    }));
+                                                }}
+                                                onBlur={async () => {
+                                                    const raw = localQtyDone[it.item_id];
+                                                    const n = raw === "" || raw === undefined ? null : Number(raw);
+
+                                                    await updateQtyDone(it.item_id, n);
+
+                                                    setLocalQtyDone((prev) => {
+                                                        const copy = { ...prev };
+                                                        delete copy[it.item_id];
+                                                        return copy;
+                                                    });
                                                 }}
                                             />
                                         )}

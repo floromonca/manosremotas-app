@@ -99,7 +99,7 @@ export default function AppShellLayout({
             <main
                 style={{
                     flex: 1,
-                    padding: "16px 24px 40px",
+                    padding: isMobile ? "12px 12px 32px" : "16px 24px 40px",
                     background: mainBg,
                 }}
             >
@@ -115,7 +115,9 @@ export default function AppShellLayout({
                             justifyContent: "space-between",
                             alignItems: "center",
                             gap: MR_THEME.spacing.md,
-                            padding: `${MR_THEME.spacing.md}px ${MR_THEME.spacing.lg}px`,
+                            padding: isMobile
+                                ? `${MR_THEME.spacing.sm}px ${MR_THEME.spacing.md}px`
+                                : `${MR_THEME.spacing.md}px ${MR_THEME.spacing.lg}px`,
                             borderRadius: MR_THEME.radius.card,
                             background: "linear-gradient(135deg, #eef4ff 0%, #dbeafe 45%, #c7dafe 100%)",
                             borderTop: `1px solid ${MR_THEME.colors.border}`,
@@ -138,8 +140,8 @@ export default function AppShellLayout({
                                 <button
                                     onClick={() => setSidebarOpen(!sidebarOpen)}
                                     style={{
-                                        width: 42,
-                                        height: 42,
+                                        width: isMobile ? 38 : 42,
+                                        height: isMobile ? 38 : 42,
                                         borderRadius: MR_THEME.radius.control,
                                         border: `1px solid ${MR_THEME.colors.border}`,
                                         background: MR_THEME.colors.cardBg,
@@ -185,7 +187,7 @@ export default function AppShellLayout({
                             style={{
                                 display: "flex",
                                 alignItems: "center",
-                                gap: MR_THEME.spacing.md,
+                                gap: isMobile ? MR_THEME.spacing.sm : MR_THEME.spacing.md,
                                 flexWrap: "wrap",
                                 marginLeft: "auto",
                             }}
@@ -221,13 +223,14 @@ export default function AppShellLayout({
                             <button
                                 onClick={handleSignOut}
                                 style={{
-                                    height: MR_THEME.components.button.height,
-                                    padding: `0 ${MR_THEME.components.button.paddingX}px`,
+                                    height: isMobile ? 34 : MR_THEME.components.button.height,
+                                    padding: isMobile ? "0 10px" : `0 ${MR_THEME.components.button.paddingX}px`,
                                     borderRadius: MR_THEME.radius.control,
                                     border: `1px solid ${MR_THEME.colors.borderStrong}`,
                                     background: MR_THEME.colors.cardBg,
                                     cursor: "pointer",
                                     fontWeight: MR_THEME.components.button.fontWeight,
+                                    fontSize: isMobile ? 12 : 14,
                                     color: MR_THEME.colors.textPrimary,
                                     boxShadow: MR_THEME.shadows.card,
                                 }}
