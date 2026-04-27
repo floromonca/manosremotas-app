@@ -180,22 +180,24 @@ export default function WorkOrderItemsTable({
                                         qtyDone ?? 0
                                     ) : (
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
                                             value={localQtyDone[it.item_id] ?? (qtyDone ?? "").toString()}
                                             placeholder="0"
                                             style={{
-                                                width: 70,
-                                                padding: "4px 6px",
-                                                borderRadius: MR_THEME.radius.control,
+                                                width: 110,
+                                                padding: "8px 10px",
+                                                borderRadius: 10,
                                                 border: `1px solid ${MR_THEME.colors.borderStrong}`,
                                                 color: MR_THEME.colors.textPrimary,
-                                                background: MR_THEME.colors.cardBg,
                                                 fontWeight: 700,
+                                                background: MR_THEME.colors.cardBg,
                                             }}
                                             onChange={(e) => {
                                                 setLocalQtyDone((prev) => ({
                                                     ...prev,
-                                                    [it.item_id]: e.target.value,
+                                                    [it.item_id]: e.target.value.replace(/[^\d]/g, ""),
                                                 }));
                                             }}
                                             onBlur={async () => {
@@ -231,6 +233,13 @@ export default function WorkOrderItemsTable({
                                         borderRadius: 10,
                                         border: "1px solid #d1d5db",
                                         fontSize: 12,
+                                        lineHeight: 1.4,
+                                        resize: "vertical",
+                                        boxSizing: "border-box",
+
+                                        // 🔥 FIX
+                                        color: MR_THEME.colors.textPrimary,
+                                        background: MR_THEME.colors.cardBg,
                                     }}
                                 />
                             ) : (
@@ -423,10 +432,14 @@ export default function WorkOrderItemsTable({
                                                 value={localQtyDone[it.item_id] ?? (qtyDone ?? "").toString()}
                                                 placeholder="0"
                                                 style={{
-                                                    width: 70,
-                                                    padding: "6px 8px",
-                                                    borderRadius: 8,
+                                                    width: 110,
+                                                    padding: "8px 10px",
+                                                    borderRadius: 10,
                                                     border: "1px solid #d1d5db",
+
+                                                    // 🔥 FIX
+                                                    color: MR_THEME.colors.textPrimary,
+                                                    background: MR_THEME.colors.cardBg,
                                                 }}
                                                 onChange={(e) => {
                                                     setLocalQtyDone((prev) => ({
@@ -472,6 +485,10 @@ export default function WorkOrderItemsTable({
                                                             padding: "8px 10px",
                                                             borderRadius: 10,
                                                             border: "1px solid #d1d5db",
+
+                                                            // 🔥 FIX
+                                                            color: MR_THEME.colors.textPrimary,
+                                                            background: MR_THEME.colors.cardBg,
                                                         }}
                                                         onChange={(e) =>
                                                             setPriceDraft((s) => ({
@@ -574,6 +591,10 @@ export default function WorkOrderItemsTable({
                                                     lineHeight: 1.4,
                                                     resize: "vertical",
                                                     boxSizing: "border-box",
+
+                                                    // 🔥 FIX
+                                                    color: MR_THEME.colors.textPrimary,
+                                                    background: MR_THEME.colors.cardBg,
                                                 }}
                                             />
                                         ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MR_THEME } from "@/lib/theme";
 
 type NewItemDraft = {
     description: string;
@@ -33,19 +34,16 @@ export default function WorkOrderNewItemForm({
     onCreateItem,
     setShowForm,
     invoiceIsLocked,
-    hasInvoice,
-    invoiceStatus,
 }: Props) {
     const [descError, setDescError] = React.useState(false);
 
     return (
         <div
             style={{
-                marginTop: 12,
-                padding: 16,
-                border: "1px solid #e5e7eb",
+                padding: 12,
+                border: "1px dashed #cbd5e1",
                 borderRadius: 14,
-                background: "#fafafa",
+                background: "#f8fafc",
                 display: "grid",
                 gap: 12,
                 maxWidth: 620,
@@ -61,6 +59,7 @@ export default function WorkOrderNewItemForm({
             >
                 New item
             </div>
+
             {invoiceIsLocked ? (
                 <div
                     style={{
@@ -77,7 +76,9 @@ export default function WorkOrderNewItemForm({
                     This work order is already invoiced and billing items are read-only.
                 </div>
             ) : null}
+
             <input
+                className="mr-form-input"
                 placeholder="Description (e.g. Laminate flooring 20 m²)"
                 value={newItem.description}
                 onChange={(e) => {
@@ -91,6 +92,7 @@ export default function WorkOrderNewItemForm({
                     background: "#ffffff",
                     outline: "none",
                     fontSize: 15,
+                    color: MR_THEME.colors.textPrimary,
                 }}
             />
 
@@ -120,6 +122,7 @@ export default function WorkOrderNewItemForm({
                     </div>
 
                     <input
+                        className="mr-form-input"
                         placeholder="E.g. 10"
                         type="number"
                         value={newItem.quantity === 0 ? "" : newItem.quantity}
@@ -132,9 +135,7 @@ export default function WorkOrderNewItemForm({
                             }
 
                             value = value.replace(/^0+(?=\d)/, "");
-
                             const num = Number(value);
-
                             if (isNaN(num)) return;
 
                             setNewItem((s) => ({ ...s, quantity: num }));
@@ -147,6 +148,8 @@ export default function WorkOrderNewItemForm({
                             background: "#ffffff",
                             outline: "none",
                             fontSize: 15,
+                            color: MR_THEME.colors.textPrimary,
+                            fontWeight: 600,
                         }}
                     />
                 </div>
@@ -164,6 +167,7 @@ export default function WorkOrderNewItemForm({
                         </div>
 
                         <input
+                            className="mr-form-input"
                             placeholder="E.g. 8.00"
                             type="number"
                             value={newItem.unit_price === 0 ? "" : newItem.unit_price}
@@ -176,9 +180,7 @@ export default function WorkOrderNewItemForm({
                                 }
 
                                 value = value.replace(/^0+(?=\d)/, "");
-
                                 const num = Number(value);
-
                                 if (isNaN(num)) return;
 
                                 setNewItem((s) => ({ ...s, unit_price: num }));
@@ -191,6 +193,7 @@ export default function WorkOrderNewItemForm({
                                 background: "#ffffff",
                                 outline: "none",
                                 fontSize: 15,
+                                color: MR_THEME.colors.textPrimary,
                             }}
                         />
                     </div>
@@ -287,6 +290,14 @@ export default function WorkOrderNewItemForm({
                     Cancel
                 </button>
             </div>
+
+            {/* 🔥 FIX GLOBAL PLACEHOLDER (Safari / iPhone) */}
+            <style jsx global>{`
+                .mr-form-input::placeholder {
+                    color: ${MR_THEME.colors.textSecondary};
+                    opacity: 1;
+                }
+            `}</style>
         </div>
     );
 }
