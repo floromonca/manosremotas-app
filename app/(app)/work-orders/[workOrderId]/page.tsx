@@ -409,6 +409,16 @@ export default function WorkOrderDetailPage() {
             return;
         }
 
+        const hasZeroPriceItems = items.some((it) => Number(it.unit_price ?? 0) === 0);
+
+        if (hasZeroPriceItems) {
+            const confirmed = window.confirm(
+                "This work order contains one or more items with a unit price of $0. Are you sure you want to generate the invoice?"
+            );
+
+            if (!confirmed) return;
+        }
+
         if (hasInvoice && !invoiceIsDraft) {
             alert(`The linked invoice is in ${prettyInvoiceStatus(invoiceStatus)} status and can no longer be synced.`);
             return;
@@ -434,6 +444,7 @@ export default function WorkOrderDetailPage() {
         hasInvoice,
         invoiceIsDraft,
         invoiceStatus,
+        prettyInvoiceStatus,
         loadInvoiceStatus,
     ]);
 

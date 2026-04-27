@@ -36,6 +36,8 @@ export default function WorkOrderNewItemForm({
     invoiceIsLocked,
 }: Props) {
     const [descError, setDescError] = React.useState(false);
+    const [priceError, setPriceError] = React.useState(false);
+    const [unitPriceInput, setUnitPriceInput] = React.useState("");
 
     return (
         <div
@@ -170,12 +172,14 @@ export default function WorkOrderNewItemForm({
                             className="mr-form-input"
                             placeholder="E.g. 8.00"
                             type="number"
-                            value={newItem.unit_price === 0 ? "" : newItem.unit_price}
+                            value={unitPriceInput}
                             onChange={(e) => {
                                 let value = e.target.value;
 
                                 if (value === "") {
+                                    setUnitPriceInput("");
                                     setNewItem((s) => ({ ...s, unit_price: 0 }));
+                                    if (priceError) setPriceError(false);
                                     return;
                                 }
 
@@ -183,7 +187,10 @@ export default function WorkOrderNewItemForm({
                                 const num = Number(value);
                                 if (isNaN(num)) return;
 
+                                setUnitPriceInput(value);
                                 setNewItem((s) => ({ ...s, unit_price: num }));
+
+                                if (priceError) setPriceError(false);
                             }}
                             style={{
                                 padding: 12,
@@ -196,6 +203,18 @@ export default function WorkOrderNewItemForm({
                                 color: MR_THEME.colors.textPrimary,
                             }}
                         />
+                        {priceError && (
+                            <div
+                                style={{
+                                    color: "#dc2626",
+                                    fontSize: 12,
+                                    fontWeight: 700,
+                                    marginTop: -2,
+                                }}
+                            >
+                                Enter a unit price. Use 0 only if this item is free.
+                            </div>
+                        )}
                     </div>
                 ) : null}
             </div>
@@ -253,8 +272,12 @@ export default function WorkOrderNewItemForm({
                             setDescError(true);
                             return;
                         }
-
+                        if (isAdmin && unitPriceInput.trim() === "") {
+                            setPriceError(true);
+                            return;
+                        }
                         setDescError(false);
+                        setPriceError(false);
                         onCreateItem();
                     }}
                     style={{
