@@ -1,50 +1,50 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { MR_THEME } from "@/lib/theme";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 
-const MR_THEME = {
-    primary: "#2563eb",
-    primarySoft: "#dbeafe",
-    primaryHover: "#1d4ed8",
-    sidebarBg: "#0f172a",
-    sidebarBorder: "#1e293b",
-    sidebarText: "#cbd5e1",
-    sidebarTextMuted: "#94a3b8",
-    sidebarActiveText: "#ffffff",
-    sidebarActiveBg: "#2563eb",
-};
-
-function SidebarItem({
-    href,
-    label,
-    isActive,
-}: {
+type SidebarItemProps = {
     href: string;
     label: string;
     isActive: boolean;
-}) {
+    onNavigate?: () => void;
+};
+
+const SIDEBAR = {
+    bg: "#0f172a",
+    border: "#1e293b",
+    text: "#cbd5e1",
+    textMuted: "#94a3b8",
+    activeText: "#ffffff",
+};
+
+function SidebarItem({ href, label, isActive, onNavigate }: SidebarItemProps) {
+    const itemStyle: CSSProperties = {
+        display: "block",
+        padding: "10px 12px",
+        borderRadius: MR_THEME.radius.control,
+        textDecoration: "none",
+        fontWeight: isActive ? 800 : 700,
+        background: isActive ? MR_THEME.colors.primary : "transparent",
+        color: isActive ? SIDEBAR.activeText : SIDEBAR.text,
+        border: isActive ? `1px solid ${MR_THEME.colors.primaryHover}` : "1px solid transparent",
+    };
+
     return (
-        <Link
-            href={href}
-            style={{
-                display: "block",
-                padding: "10px 12px",
-                borderRadius: 10,
-                textDecoration: "none",
-                fontWeight: isActive ? 700 : 600,
-                background: isActive ? MR_THEME.sidebarActiveBg : "transparent",
-                color: isActive ? MR_THEME.sidebarActiveText : MR_THEME.sidebarText,
-                border: isActive ? `1px solid ${MR_THEME.primaryHover}` : "1px solid transparent",
-            }}
-        >
+        <Link href={href} onClick={onNavigate} style={itemStyle}>
             {label}
         </Link>
     );
 }
 
-export default function AppSidebar() {
+type Props = {
+    onNavigate?: () => void;
+};
+
+export default function AppSidebar({ onNavigate }: Props) {
     const pathname = usePathname();
     const { myRole } = useActiveCompany();
 
@@ -54,13 +54,13 @@ export default function AppSidebar() {
         <aside
             style={{
                 width: 220,
-                background: MR_THEME.sidebarBg,
-                color: MR_THEME.sidebarActiveText,
+                background: SIDEBAR.bg,
+                color: SIDEBAR.activeText,
                 padding: 20,
                 display: "flex",
                 flexDirection: "column",
                 gap: 10,
-                borderRight: `1px solid ${MR_THEME.sidebarBorder}`,
+                borderRight: `1px solid ${SIDEBAR.border}`,
                 minHeight: "100vh",
             }}
         >
@@ -69,18 +69,20 @@ export default function AppSidebar() {
                     style={{
                         margin: 0,
                         fontSize: 19,
-                        fontWeight: 800,
+                        fontWeight: 900,
                         letterSpacing: -0.3,
+                        color: SIDEBAR.activeText,
                     }}
                 >
                     ManosRemotas
                 </h2>
+
                 <div
                     style={{
                         marginTop: 4,
                         fontSize: 11,
-                        color: MR_THEME.sidebarTextMuted,
-                        fontWeight: 700,
+                        color: SIDEBAR.textMuted,
+                        fontWeight: 800,
                         textTransform: "uppercase",
                         letterSpacing: 0.8,
                     }}
@@ -94,6 +96,7 @@ export default function AppSidebar() {
                     href="/control-center"
                     label="Control Center"
                     isActive={pathname.startsWith("/control-center")}
+                    onNavigate={onNavigate}
                 />
             ) : null}
 
@@ -101,18 +104,21 @@ export default function AppSidebar() {
                 href="/my-day"
                 label="My Day"
                 isActive={pathname.startsWith("/my-day")}
+                onNavigate={onNavigate}
             />
 
             <SidebarItem
                 href="/work-orders"
                 label="Work Orders"
                 isActive={pathname.startsWith("/work-orders")}
+                onNavigate={onNavigate}
             />
 
             <SidebarItem
                 href="/profile"
                 label="Profile"
                 isActive={pathname.startsWith("/profile")}
+                onNavigate={onNavigate}
             />
 
             {isAdmin ? (
@@ -121,19 +127,21 @@ export default function AppSidebar() {
                         href="/customers"
                         label="Customers"
                         isActive={pathname.startsWith("/customers")}
+                        onNavigate={onNavigate}
                     />
 
                     <SidebarItem
                         href="/invoices"
                         label="Invoices"
                         isActive={pathname.startsWith("/invoices")}
+                        onNavigate={onNavigate}
                     />
 
                     <div
                         style={{
                             height: 1,
                             margin: "6px 0",
-                            background: MR_THEME.sidebarBorder,
+                            background: SIDEBAR.border,
                         }}
                     />
 
@@ -141,6 +149,7 @@ export default function AppSidebar() {
                         href="/settings"
                         label="Settings"
                         isActive={pathname.startsWith("/settings")}
+                        onNavigate={onNavigate}
                     />
                 </>
             ) : null}

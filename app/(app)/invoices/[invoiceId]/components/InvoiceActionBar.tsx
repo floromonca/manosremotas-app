@@ -1,5 +1,7 @@
 "use client";
 
+import { MR_THEME } from "@/lib/theme";
+
 type Props = {
     invoiceId: string;
     fromWorkOrder: string | null;
@@ -25,6 +27,26 @@ export default function InvoiceActionBar({
     onRecordPayment,
     onBack,
 }: Props) {
+    const showSendButton = hasInvoice && (isDraft || canResend);
+    const showRecordPaymentButton = hasInvoice && canRecordPayment && !isDraft;
+
+    const actionButtonBase: React.CSSProperties = {
+        padding: "10px 14px",
+        borderRadius: MR_THEME.radius.control,
+        color: "#ffffff",
+        textDecoration: "none",
+        cursor: "pointer",
+        fontWeight: 900,
+        height: "fit-content",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 42,
+        lineHeight: 1.2,
+        whiteSpace: "nowrap",
+        boxShadow: MR_THEME.shadows.cardSoft,
+    };
+
     return (
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             {hasInvoice ? (
@@ -37,19 +59,11 @@ export default function InvoiceActionBar({
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #2563eb",
-                        background: "#2563eb",
-                        color: "white",
-                        textDecoration: "none",
-                        cursor: "pointer",
-                        fontWeight: 900,
-                        height: "fit-content",
-                        display: "inline-flex",
-                        alignItems: "center",
+                        ...actionButtonBase,
+                        border: `1px solid ${MR_THEME.colors.primary}`,
+                        background: MR_THEME.colors.primary,
                     }}
-                    title="Abrir vista HTML de la factura"
+                    title="Open invoice HTML preview"
                 >
                     View HTML
                 </a>
@@ -61,63 +75,41 @@ export default function InvoiceActionBar({
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #0f172a",
-                        background: "#0f172a",
-                        color: "white",
-                        textDecoration: "none",
-                        cursor: "pointer",
-                        fontWeight: 900,
-                        height: "fit-content",
-                        display: "inline-flex",
-                        alignItems: "center",
+                        ...actionButtonBase,
+                        border: `1px solid ${MR_THEME.colors.textPrimary}`,
+                        background: MR_THEME.colors.textPrimary,
                     }}
-                    title="Abrir PDF de la factura"
+                    title="Open invoice PDF"
                 >
                     Download PDF
                 </a>
             ) : null}
 
-            <button
-                onClick={onSendInvoice}
-                disabled={!hasInvoice || (!isDraft && !canResend) || sendingInvoice}
-                title={
-                    !hasInvoice
-                        ? "Invoice no disponible"
-                        : !isDraft && !canResend
-                            ? "Esta factura no se puede enviar"
-                            : canResend
-                                ? "Resend invoice"
-                                : "Send invoice"
-                }
-                style={{
-                    padding: "10px 14px",
-                    borderRadius: 10,
-                    border: "1px solid #7c3aed",
-                    background: !hasInvoice || (!isDraft && !canResend) ? "#c4b5fd" : "#7c3aed",
-                    color: "white",
-                    cursor: !hasInvoice || (!isDraft && !canResend) || sendingInvoice ? "not-allowed" : "pointer",
-                    fontWeight: 900,
-                    opacity: !hasInvoice || (!isDraft && !canResend) || sendingInvoice ? 0.85 : 1,
-                }}
-            >
-                {sendingInvoice ? "Sending..." : canResend ? "Resend Invoice" : "Send Invoice"}
-            </button>
+            {showSendButton ? (
+                <button
+                    onClick={onSendInvoice}
+                    disabled={sendingInvoice}
+                    title={canResend ? "Resend invoice to customer" : "Send invoice to customer"}
+                    style={{
+                        ...actionButtonBase,
+                        border: `1px solid ${MR_THEME.colors.primary}`,
+                        background: MR_THEME.colors.primary,
+                        opacity: sendingInvoice ? 0.75 : 1,
+                        cursor: sendingInvoice ? "not-allowed" : "pointer",
+                    }}
+                >
+                    {sendingInvoice ? "Sending..." : canResend ? "Resend Invoice" : "Send Invoice"}
+                </button>
+            ) : null}
 
-            {canRecordPayment ? (
+            {showRecordPaymentButton ? (
                 <button
                     onClick={onRecordPayment}
-                    title="Record a payment"
+                    title="Record a customer payment"
                     style={{
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #16a34a",
-                        background: "#16a34a",
-                        color: "white",
-                        cursor: "pointer",
-                        fontWeight: 900,
-                        height: "fit-content",
+                        ...actionButtonBase,
+                        border: `1px solid ${MR_THEME.colors.success}`,
+                        background: MR_THEME.colors.success,
                     }}
                 >
                     Record Payment
@@ -128,12 +120,17 @@ export default function InvoiceActionBar({
                 onClick={onBack}
                 style={{
                     padding: "10px 14px",
-                    borderRadius: 10,
-                    border: "1px solid #ddd",
-                    background: "white",
+                    borderRadius: MR_THEME.radius.control,
+                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                    background: MR_THEME.colors.cardBg,
+                    color: MR_THEME.colors.textPrimary,
                     cursor: "pointer",
-                    fontWeight: 800,
+                    fontWeight: 900,
                     height: "fit-content",
+                    minHeight: 42,
+                    lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                    boxShadow: MR_THEME.shadows.cardSoft,
                 }}
             >
                 {fromWorkOrder ? "← Back to Work Order" : "← Back"}

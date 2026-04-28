@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MR_THEME } from "@/lib/theme";
 
 type InvoiceRow = {
     invoice_id: string;
@@ -68,6 +69,8 @@ export default function InvoiceDetailsCard({
             ? Math.min(100, Math.round((paymentsTotal / Math.max(totalAmount, 1)) * 100))
             : 0;
 
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+
     return (
         <section
             style={{
@@ -82,10 +85,8 @@ export default function InvoiceDetailsCard({
                 <div
                     style={{
                         display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 16,
-                        flexWrap: "wrap",
+                        flexDirection: "column",
+                        gap: 12,
                     }}
                 >
                     <div style={{ display: "grid", gap: 8 }}>
@@ -150,7 +151,7 @@ export default function InvoiceDetailsCard({
                         ) : null}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-start" }}>
                         <span
                             style={{
                                 padding: "7px 12px",
@@ -166,27 +167,32 @@ export default function InvoiceDetailsCard({
                         </span>
                     </div>
                 </div>
-
                 {!isDraft ? (
                     <div
                         style={{
                             padding: "12px 14px",
-                            borderRadius: 14,
-                            background: "#fff7e6",
-                            border: "1px solid #fde3a7",
+                            borderRadius: MR_THEME.radius.control,
+                            background: MR_THEME.colors.cardBgSoft,
+                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
                             fontWeight: 700,
                             fontSize: 14,
-                            color: "#7c4a03",
+                            color: MR_THEME.colors.textSecondary,
+                            lineHeight: 1.45,
                         }}
                     >
-                        This invoice is in <b>{prettyStatus(inv.status)}</b> status and is currently read-only.
+                        {inv.status === "sent"
+                            ? "This invoice has been sent to the customer. Editing is disabled."
+                            : inv.status === "partial"
+                                ? "This invoice is partially paid. Editing is disabled."
+                                : inv.status === "paid"
+                                    ? "This invoice has been fully paid. No further changes are allowed."
+                                    : `This invoice is ${prettyStatus(inv.status)}. Editing is disabled.`}
                     </div>
                 ) : null}
-
                 <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
                         gap: 14,
                     }}
                 >
@@ -269,7 +275,7 @@ export default function InvoiceDetailsCard({
                 <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: "minmax(280px, 1.25fr) minmax(260px, 0.95fr)",
+                        gridTemplateColumns: isMobile ? "1fr" : "minmax(280px, 1.25fr) minmax(260px, 0.95fr)",
                         gap: 16,
                     }}
                 >
@@ -297,10 +303,12 @@ export default function InvoiceDetailsCard({
 
                         <div
                             style={{
-                                display: "flex",
-                                gap: 10,
-                                flexWrap: "wrap",
-                                alignItems: "center",
+                                display: "grid",
+                                gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1fr) auto",
+                                gap: isMobile ? 12 : 10,
+                                alignItems: "stretch",
+                                width: "100%",
+                                marginTop: isMobile ? 14 : 0,
                             }}
                         >
                             <input
@@ -310,13 +318,13 @@ export default function InvoiceDetailsCard({
                                 placeholder="customer@example.com"
                                 style={{
                                     padding: "12px 14px",
-                                    borderRadius: 12,
-                                    border: "1px solid #d1d5db",
-                                    minWidth: 280,
-                                    flex: "1 1 320px",
-                                    background: "#ffffff",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    width: "100%",
+                                    minWidth: 0,
+                                    background: MR_THEME.colors.cardBg,
                                     fontSize: 14,
-                                    color: "#111827",
+                                    color: MR_THEME.colors.textPrimary,
                                     boxSizing: "border-box",
                                 }}
                             />
@@ -326,17 +334,18 @@ export default function InvoiceDetailsCard({
                                 onClick={onSaveBillingEmail}
                                 disabled={savingBillingEmail || !inv?.invoice_id}
                                 style={{
-                                    height: 44,
+                                    height: isMobile ? 48 : 44,
                                     padding: "0 16px",
-                                    borderRadius: 12,
-                                    border: "1px solid #111827",
-                                    background: "#111827",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.textPrimary}`,
+                                    background: MR_THEME.colors.textPrimary,
                                     color: "#ffffff",
-                                    cursor: savingBillingEmail ? "not-allowed" : "pointer",
-                                    fontWeight: 800,
-                                    opacity: savingBillingEmail ? 0.7 : 1,
+                                    cursor: savingBillingEmail || !inv?.invoice_id ? "not-allowed" : "pointer",
+                                    fontWeight: 900,
+                                    opacity: savingBillingEmail || !inv?.invoice_id ? 0.75 : 1,
                                     whiteSpace: "nowrap",
-                                    boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                                    width: isMobile ? "100%" : "auto",
+                                    boxShadow: MR_THEME.shadows.cardSoft,
                                 }}
                             >
                                 {savingBillingEmail ? "Saving..." : "Save Billing Email"}

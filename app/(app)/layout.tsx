@@ -91,7 +91,7 @@ export default function AppShellLayout({
                             boxShadow: "0 8px 30px rgba(15, 23, 42, 0.22)",
                         }}
                     >
-                        <AppSidebar />
+                        <AppSidebar onNavigate={() => setSidebarOpen(false)} />
                     </div>
                 </div>
             )}
