@@ -42,6 +42,8 @@ type WorkOrder = {
     customer_email?: string | null;
     customer_phone?: string | null;
     service_address?: string | null;
+    customer_id?: string | null;
+    location_id?: string | null;
     invoice_id?: string | null;
     site_report?: string | null;
 };
@@ -458,7 +460,7 @@ export default function WorkOrderDetailPage() {
             const { data, error } = await supabase
                 .from("work_orders")
                 .select(
-                    "work_order_id, company_id, job_type, description, site_report, status, priority, scheduled_for, created_at, assigned_to, customer_name, customer_email, customer_phone, service_address, invoice_id"
+                    "work_order_id, company_id, customer_id, location_id, job_type, description, site_report, status, priority, scheduled_for, created_at, assigned_to, customer_name, customer_email, customer_phone, service_address, invoice_id"
                 )
                 .eq("work_order_id", workOrderId)
                 .single();
@@ -1048,9 +1050,7 @@ export default function WorkOrderDetailPage() {
 
                             <WorkOrderCustomerSection
                                 customerForm={customerForm}
-                                setCustomerForm={setCustomerForm}
-                                saveCustomerInfo={saveCustomerInfo}
-                                savingCustomer={savingCustomer}
+                                customerId={wo?.customer_id ?? null}
                                 isAdmin={isAdmin}
                             />
                         </div>

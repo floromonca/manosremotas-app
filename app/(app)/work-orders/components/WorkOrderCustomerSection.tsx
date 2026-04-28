@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { MR_THEME } from "@/lib/theme";
 
 type CustomerForm = {
@@ -12,19 +13,16 @@ type CustomerForm = {
 
 type Props = {
     customerForm: CustomerForm;
-    setCustomerForm: React.Dispatch<React.SetStateAction<CustomerForm>>;
-    saveCustomerInfo: () => void | Promise<void>;
-    savingCustomer: boolean;
+    customerId?: string | null;
     isAdmin: boolean;
 };
 
 export default function WorkOrderCustomerSection({
     customerForm,
-    setCustomerForm,
-    saveCustomerInfo,
-    savingCustomer,
+    customerId,
     isAdmin,
 }: Props) {
+    const router = useRouter();
     const isTech = !isAdmin;
     const [showCustomerDetails, setShowCustomerDetails] = useState(!isTech);
 
@@ -102,7 +100,6 @@ export default function WorkOrderCustomerSection({
                     </div>
                 </div>
 
-
                 <button
                     type="button"
                     onClick={() => setShowCustomerDetails((v) => !v)}
@@ -124,7 +121,6 @@ export default function WorkOrderCustomerSection({
                         {showCustomerDetails ? "▴" : "▾"}
                     </span>
                 </button>
-
             </div>
 
             {showCustomerDetails ? (
@@ -142,108 +138,57 @@ export default function WorkOrderCustomerSection({
                 >
                     <label style={labelStyle}>
                         <span style={labelTextStyle}>Customer Name</span>
-
-                        {isAdmin ? (
-                            <input
-                                value={customerForm.customer_name}
-                                onChange={(e) =>
-                                    setCustomerForm((s) => ({
-                                        ...s,
-                                        customer_name: e.target.value,
-                                    }))
-                                }
-                                style={inputStyle}
-                            />
-                        ) : (
-                            <div style={readOnlyValueStyle}>
-                                {customerForm.customer_name || "—"}
-                            </div>
-                        )}
+                        <div style={readOnlyValueStyle}>
+                            {customerForm.customer_name || "—"}
+                        </div>
                     </label>
 
                     <label style={labelStyle}>
                         <span style={labelTextStyle}>Customer Email</span>
-
-                        {isAdmin ? (
-                            <input
-                                value={customerForm.customer_email}
-                                onChange={(e) =>
-                                    setCustomerForm((s) => ({
-                                        ...s,
-                                        customer_email: e.target.value,
-                                    }))
-                                }
-                                style={inputStyle}
-                            />
-                        ) : (
-                            <div style={readOnlyValueStyle}>
-                                {customerForm.customer_email || "—"}
-                            </div>
-                        )}
+                        <div style={readOnlyValueStyle}>
+                            {customerForm.customer_email || "—"}
+                        </div>
                     </label>
 
                     <label style={labelStyle}>
                         <span style={labelTextStyle}>Customer Phone</span>
-
-                        {isAdmin ? (
-                            <input
-                                value={customerForm.customer_phone}
-                                onChange={(e) =>
-                                    setCustomerForm((s) => ({
-                                        ...s,
-                                        customer_phone: e.target.value,
-                                    }))
-                                }
-                                style={inputStyle}
-                            />
-                        ) : (
-                            <div style={readOnlyValueStyle}>
-                                {customerForm.customer_phone || "—"}
-                            </div>
-                        )}
+                        <div style={readOnlyValueStyle}>
+                            {customerForm.customer_phone || "—"}
+                        </div>
                     </label>
 
                     <label style={labelStyle}>
                         <span style={labelTextStyle}>Service Address</span>
-
-                        {isAdmin ? (
-                            <input
-                                value={customerForm.service_address}
-                                onChange={(e) =>
-                                    setCustomerForm((s) => ({
-                                        ...s,
-                                        service_address: e.target.value,
-                                    }))
-                                }
-                                style={inputStyle}
-                            />
-                        ) : (
-                            <div style={readOnlyValueStyle}>
-                                {customerForm.service_address || "—"}
-                            </div>
-                        )}
+                        <div style={readOnlyValueStyle}>
+                            {customerForm.service_address || "—"}
+                        </div>
                     </label>
 
                     {isAdmin ? (
                         <div style={{ paddingTop: 4 }}>
                             <button
                                 type="button"
-                                onClick={saveCustomerInfo}
-                                disabled={savingCustomer}
+                                onClick={() => {
+                                    if (!customerId) {
+                                        alert("This work order is not linked to a customer record.");
+                                        return;
+                                    }
+
+                                    router.push(`/customers/${customerId}`);
+                                }}
                                 style={{
                                     padding: "12px 16px",
                                     borderRadius: MR_THEME.radius.control,
-                                    border: `1px solid ${MR_THEME.colors.textPrimary}`,
-                                    background: MR_THEME.colors.textPrimary,
+                                    border: `1px solid ${MR_THEME.colors.primary}`,
+                                    background: MR_THEME.colors.primary,
                                     color: "#ffffff",
-                                    cursor: savingCustomer ? "not-allowed" : "pointer",
+                                    cursor: "pointer",
                                     fontWeight: 900,
                                     fontSize: 14,
-                                    opacity: savingCustomer ? 0.7 : 1,
                                     boxShadow: MR_THEME.shadows.cardSoft,
                                 }}
                             >
-                                {savingCustomer ? "Saving..." : "Save Customer Info"}
+                                Edit Customer
                             </button>
                         </div>
                     ) : null}
