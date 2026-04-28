@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { chromium } from "playwright";
+import chromium from "@sparticuz/chromium";
+import { chromium as playwright } from "playwright-core";
 import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
 import { renderInvoiceHtml } from "../../../../../lib/invoices";
+
+export const runtime = "nodejs";
 
 type MembershipRow = {
     company_id: string;
@@ -13,7 +16,7 @@ export async function GET(
     _req: Request,
     context: { params: Promise<{ invoiceId: string }> }
 ) {
-    let browser: Awaited<ReturnType<typeof chromium.launch>> | null = null;
+    let browser: any = null;
 
     try {
         const { invoiceId } = await context.params;
@@ -29,12 +32,7 @@ export async function GET(
             error: userErr,
         } = await supabase.auth.getUser();
 
-        if (userErr) {
-            console.error("auth.getUser error:", userErr);
-            return new NextResponse("No autorizado", { status: 401 });
-        }
-
-        if (!user) {
+        if (userErr || !user) {
             return new NextResponse("No autorizado", { status: 401 });
         }
 
@@ -77,10 +75,14 @@ export async function GET(
 
         const html = renderInvoiceHtml(data);
 
-        browser = await chromium.launch({ headless: true });
+        // ✅ USAR CHROMIUM SERVERLESS
+        browser = await playwright.launch({
+            args: chromium.args,
+            executablePath: await chromium.executablePath(),
+            headless: true,
+        });
+
         const page = await browser.newPage();
-        page.setDefaultTimeout(20000);
-        page.setDefaultNavigationTimeout(20000);
 
         await page.setContent(html, {
             waitUntil: "networkidle",
@@ -98,9 +100,7 @@ export async function GET(
             },
         });
 
-        const pdfBytes = new Uint8Array(pdfBuffer);
-
-        return new NextResponse(pdfBytes, {
+        return new NextResponse(new Uint8Array(pdfBuffer), {
             status: 200,
             headers: {
                 "Content-Type": "application/pdf",
