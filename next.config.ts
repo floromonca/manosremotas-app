@@ -4,9 +4,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@sparticuz/chromium"],
 
   outputFileTracingIncludes: {
-    "/api/invoices/[invoiceId]/pdf": [
-      "./node_modules/@sparticuz/chromium/**/*",
-    ],
+    "/*": ["./node_modules/@sparticuz/chromium/**/*"],
+    "/api/invoices/[invoiceId]/pdf": ["./node_modules/@sparticuz/chromium/**/*"],
+    "/api/invoices/*/pdf": ["./node_modules/@sparticuz/chromium/**/*"],
   },
 };
 
