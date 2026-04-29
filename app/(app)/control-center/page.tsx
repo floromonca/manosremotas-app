@@ -8,6 +8,8 @@ import {
     fetchControlCenterKpis,
     type AttentionLists,
     type ControlCenterKpis,
+    fetchTeamStatusToday,
+    type TeamStatusTodayRow,
 } from "../../../lib/supabase/controlCenter";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
@@ -18,6 +20,7 @@ import ControlCenterKpisSection from "./components/ControlCenterKpis";
 import MissingRatesAlert from "./components/MissingRatesAlert";
 import AttentionTodayCard from "./components/AttentionTodayCard";
 import OperationalShiftCard from "./components/OperationalShiftCard";
+import TeamStatusTodayCard from "./components/TeamStatusTodayCard";
 
 type MissingRateAlert = {
     user_id: string;
@@ -49,13 +52,15 @@ export default function ControlCenterPage() {
         inProgressOld: [],
         completedNotInvoiced: [],
     });
-
+    const [teamStatus, setTeamStatus] = useState<TeamStatusTodayRow[]>([]);
+    const [teamStatusLoading, setTeamStatusLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [prettyDate, setPrettyDate] = useState("");
     const [openShift, setOpenShift] = useState<ShiftRow | null>(null);
     const [shiftLoading, setShiftLoading] = useState(false);
     const [shiftBusy, setShiftBusy] = useState(false);
     const [shiftMsg, setShiftMsg] = useState("");
+
 
     useEffect(() => {
         setMounted(true);
@@ -92,7 +97,16 @@ export default function ControlCenterPage() {
 
         setKpis(k);
         setLists(l);
-
+        setTeamStatusLoading(true);
+        try {
+            const teamRows = await fetchTeamStatusToday(cid);
+            setTeamStatus(teamRows);
+        } catch (e) {
+            console.error("Team status error:", e);
+            setTeamStatus([]);
+        } finally {
+            setTeamStatusLoading(false);
+        }
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
         const nextMonthFirstDay = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -118,6 +132,7 @@ export default function ControlCenterPage() {
 
         setRevenueMonth(total);
     }, []);
+
     const refreshShift = useCallback(async (cid: string) => {
         setShiftLoading(true);
         try {
@@ -317,7 +332,10 @@ export default function ControlCenterPage() {
                         onOpenTechnician={(userId) => go(`/settings/team/${userId}`)}
                     />
                 ) : null}
-
+                <TeamStatusTodayCard
+                    rows={teamStatus}
+                    loading={teamStatusLoading}
+                />
                 <section
                     style={{
                         display: "grid",
