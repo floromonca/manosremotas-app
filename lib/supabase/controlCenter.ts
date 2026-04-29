@@ -13,6 +13,14 @@ export type AttentionLists = {
   inProgressOld: { work_order_id: string; job_type: string; created_at: string }[];
   completedNotInvoiced: { work_order_id: string; job_type: string; created_at: string }[];
 };
+export type TeamStatusTodayRow = {
+  user_id: string;
+  full_name: string | null;
+  role: string;
+  is_on_shift: boolean;
+  check_in_at: string | null;
+  check_out_at: string | null;
+};
 
 function daysAgoIso(days: number) {
   const d = new Date();
@@ -161,4 +169,69 @@ export async function fetchAttentionLists(
     inProgressOld: (inProgressOld ?? []) as any[],
     completedNotInvoiced: completedNotInvoiced as any[],
   };
+}
+
+export async function fetchTeamStatusToday(
+  companyId: string,
+): Promise<TeamStatusTodayRow[]> {
+  if (!companyId) throw new Error("companyId requerido");
+
+  const { data: membersData, error: membersError } = await supabase
+    .from("company_members")
+    .select("user_id, role, full_name")
+    .eq("company_id", companyId)
+    .eq("active", true)
+    .in("role", ["tech"]);
+
+  if (membersError) throw membersError;
+
+  const members =
+    (membersData as { user_id: string; role: string; full_name: string | null }[] | null) ?? [];
+
+  if (members.length === 0) return [];
+
+  const userIds = members.map((m) => m.user_id);
+
+  const { data: openShiftsData, error: shiftsError } = await supabase
+    .from("shifts")
+    .select("user_id, check_in_at, check_out_at")
+    .eq("company_id", companyId)
+    .in("user_id", userIds)
+    .is("check_out_at", null)
+    .order("check_in_at", { ascending: false });
+
+  if (shiftsError) throw shiftsError;
+
+  const openShiftByUser = new Map<
+    string,
+    { check_in_at: string | null; check_out_at: string | null }
+  >();
+
+  (
+    (openShiftsData as {
+      user_id: string;
+      check_in_at: string | null;
+      check_out_at: string | null;
+    }[] | null) ?? []
+  ).forEach((shift) => {
+    if (!openShiftByUser.has(shift.user_id)) {
+      openShiftByUser.set(shift.user_id, {
+        check_in_at: shift.check_in_at,
+        check_out_at: shift.check_out_at,
+      });
+    }
+  });
+
+  return members.map((member) => {
+    const openShift = openShiftByUser.get(member.user_id);
+
+    return {
+      user_id: member.user_id,
+      full_name: member.full_name,
+      role: member.role,
+      is_on_shift: !!openShift,
+      check_in_at: openShift?.check_in_at ?? null,
+      check_out_at: openShift?.check_out_at ?? null,
+    };
+  });
 }
