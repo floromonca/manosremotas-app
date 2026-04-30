@@ -2,6 +2,8 @@
 
 import React from "react";
 import { MR_THEME } from "@/lib/theme";
+import { fetchServiceCatalogItems, type ServiceCatalogItem } from "@/lib/supabase/serviceCatalog";
+import { useActiveCompany } from "@/hooks/useActiveCompany";
 
 type NewItemDraft = {
     description: string;
@@ -38,6 +40,70 @@ export default function WorkOrderNewItemForm({
     const [descError, setDescError] = React.useState(false);
     const [priceError, setPriceError] = React.useState(false);
     const [unitPriceInput, setUnitPriceInput] = React.useState("");
+    const { companyId } = useActiveCompany();
+    const [catalogItems, setCatalogItems] = React.useState<ServiceCatalogItem[]>([]);
+    const [showCatalogSuggestions, setShowCatalogSuggestions] = React.useState(false);
+    const wrapperRef = React.useRef<HTMLDivElement | null>(null);
+
+    React.useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                wrapperRef.current &&
+                !wrapperRef.current.contains(event.target as Node)
+            ) {
+                setShowCatalogSuggestions(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    React.useEffect(() => {
+        if (!companyId || !isAdmin) {
+            setCatalogItems([]);
+            return;
+        }
+
+        let cancelled = false;
+        const activeCompanyId = companyId;
+
+        async function loadCatalog() {
+            try {
+                const data = await fetchServiceCatalogItems(activeCompanyId);
+                if (!cancelled) {
+                    setCatalogItems(data.filter((item) => item.active));
+                }
+            } catch (e) {
+                console.error("Error loading service catalog:", e);
+                if (!cancelled) setCatalogItems([]);
+            }
+        }
+
+        void loadCatalog();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId, isAdmin]);
+
+    const catalogSuggestions = React.useMemo(() => {
+        const q = newItem.description.trim().toLowerCase();
+
+        if (!q) return [];
+
+        return catalogItems
+            .filter((item) => {
+                return (
+                    item.name.toLowerCase().includes(q) ||
+                    (item.description || "").toLowerCase().includes(q)
+                );
+            })
+            .slice(0, 6);
+    }, [catalogItems, newItem.description]);
 
     return (
         <div
@@ -79,25 +145,100 @@ export default function WorkOrderNewItemForm({
                 </div>
             ) : null}
 
-            <input
-                className="mr-form-input"
-                placeholder="Description (e.g. Laminate flooring 20 m²)"
-                value={newItem.description}
-                onChange={(e) => {
-                    setNewItem((s) => ({ ...s, description: e.target.value }));
-                    if (descError) setDescError(false);
-                }}
-                style={{
-                    padding: 12,
-                    borderRadius: 10,
-                    border: descError ? "1px solid #dc2626" : "1px solid #d1d5db",
-                    background: "#ffffff",
-                    outline: "none",
-                    fontSize: 15,
-                    color: MR_THEME.colors.textPrimary,
-                }}
-            />
+            <div ref={wrapperRef} style={{ position: "relative" }}>
+                <input
+                    className="mr-form-input"
+                    placeholder="Description (e.g. Laminate flooring 20 m²)"
+                    value={newItem.description}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        setNewItem((s) => ({ ...s, description: value }));
+                        setShowCatalogSuggestions(true);
+                        if (descError) setDescError(false);
+                    }}
+                    onFocus={() => setShowCatalogSuggestions(true)}
+                    style={{
+                        padding: 12,
+                        borderRadius: 10,
+                        border: descError ? "1px solid #dc2626" : "1px solid #d1d5db",
+                        background: "#ffffff",
+                        outline: "none",
+                        fontSize: 15,
+                        color: MR_THEME.colors.textPrimary,
+                        width: "100%",
+                        boxSizing: "border-box",
+                    }}
+                />
 
+                {showCatalogSuggestions && catalogSuggestions.length > 0 && isAdmin ? (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            background: "#ffffff",
+                            border: "1px solid #e5e7eb",
+                            borderRadius: 10,
+                            marginTop: 4,
+                            boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+                            zIndex: 20,
+                            maxHeight: 220,
+                            overflowY: "auto",
+                        }}
+                    >
+                        {catalogSuggestions.map((item) => (
+                            <button
+                                key={item.service_catalog_item_id}
+                                type="button"
+                                onClick={() => {
+                                    setNewItem((s) => ({
+                                        ...s,
+                                        description: item.name,
+                                        unit_price: item.unit_price ?? 0,
+                                        taxable: item.taxable,
+                                    }));
+
+                                    setUnitPriceInput(
+                                        item.unit_price === null ? "" : String(item.unit_price)
+                                    );
+
+                                    setShowCatalogSuggestions(false);
+                                }}
+                                style={{
+                                    width: "100%",
+                                    textAlign: "left",
+                                    padding: "10px 12px",
+                                    cursor: "pointer",
+                                    border: "none",
+                                    borderBottom: "1px solid #f1f5f9",
+                                    background: "#ffffff",
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontWeight: 800,
+                                        color: MR_THEME.colors.textPrimary,
+                                    }}
+                                >
+                                    {item.name}
+                                </div>
+
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        color: MR_THEME.colors.textSecondary,
+                                        marginTop: 2,
+                                    }}
+                                >
+                                    {item.uom} •{" "}
+                                    {item.unit_price === null ? "No price" : `$${item.unit_price}`}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
+            </div>
             {descError && (
                 <div
                     style={{

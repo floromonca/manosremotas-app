@@ -129,7 +129,14 @@ export default function SettingsLayout({
                                     pathname.startsWith("/settings/company/")
                                 }
                             />
-
+                            <SettingsNavItem
+                                href="/settings/services"
+                                label="Services"
+                                isActive={
+                                    pathname === "/settings/services" ||
+                                    pathname.startsWith("/settings/services/")
+                                }
+                            />
                             <SettingsNavItem
                                 href="/settings/billing"
                                 label="Billing"
