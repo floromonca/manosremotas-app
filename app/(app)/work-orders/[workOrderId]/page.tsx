@@ -245,6 +245,7 @@ export default function WorkOrderDetailPage() {
         quantity: 1,
         unit_price: 0,
         taxable: true,
+        catalog_item_id: null as string | null,
     });
     const invoiceStatusNormalized = useMemo(
         () => normalizeInvoiceStatus(invoiceStatus),
@@ -815,6 +816,7 @@ export default function WorkOrderDetailPage() {
                 work_order_id: workOrderId,
                 item_type: "service",
                 description: desc,
+                catalog_item_id: newItem.catalog_item_id ?? null,
             };
 
             const payload = isAdmin
@@ -844,7 +846,13 @@ export default function WorkOrderDetailPage() {
 
             await refreshItemsOnly();
 
-            setNewItem({ description: "", quantity: 1, unit_price: 0, taxable: true });
+            setNewItem({
+                description: "",
+                quantity: 1,
+                unit_price: 0,
+                taxable: true,
+                catalog_item_id: null,
+            });
             setShowForm(false);
         } catch (e: unknown) {
             setErr(e instanceof Error ? e.message : "Error creando item");

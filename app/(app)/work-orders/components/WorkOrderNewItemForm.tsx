@@ -10,6 +10,7 @@ type NewItemDraft = {
     quantity: number;
     unit_price: number;
     taxable: boolean;
+    catalog_item_id: string | null;
 };
 
 type Props = {
@@ -197,6 +198,7 @@ export default function WorkOrderNewItemForm({
                                         description: item.name,
                                         unit_price: item.unit_price ?? 0,
                                         taxable: item.taxable,
+                                        catalog_item_id: item.service_catalog_item_id,
                                     }));
 
                                     setUnitPriceInput(
