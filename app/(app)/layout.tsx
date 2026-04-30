@@ -5,7 +5,7 @@ import AppSidebar from "../components/AppSidebar";
 import { useAuthState } from "../../hooks/useAuthState";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 import { supabase } from "../../lib/supabaseClient";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { MR_THEME } from "@/lib/theme";
 
 export default function AppShellLayout({
@@ -19,6 +19,8 @@ export default function AppShellLayout({
     const [isMobile, setIsMobile] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [platformMode, setPlatformMode] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const userMenuRef = useRef<HTMLDivElement | null>(null);
 
     const SUPER_ADMIN_EMAILS = ["floromonca@gmail.com"];
     const isSuperAdmin = !!user?.email && SUPER_ADMIN_EMAILS.includes(user.email);
@@ -27,7 +29,7 @@ export default function AppShellLayout({
         return isSuperAdmin && platformMode;
     }, [isSuperAdmin, platformMode]);
 
-    const mainBg = "#F3F4F6";
+    const mainBg = MR_THEME.colors.appBg;
 
     useEffect(() => {
         const checkMobile = () => {
@@ -41,7 +43,19 @@ export default function AppShellLayout({
             window.removeEventListener("resize", checkMobile);
         };
     }, []);
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+                setUserMenuOpen(false);
+            }
+        }
 
+        document.addEventListener("mousedown", handleClickOutside);
+
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
     useEffect(() => {
         if (typeof window === "undefined") return;
 
@@ -62,6 +76,17 @@ export default function AppShellLayout({
     const handleSignOut = async () => {
         await supabase.auth.signOut();
         router.replace("/auth");
+    };
+    const menuItemStyle: React.CSSProperties = {
+        width: "100%",
+        textAlign: "left",
+        padding: "10px 12px",
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        fontSize: 14,
+        color: MR_THEME.colors.textPrimary,
+        transition: "background 0.15s ease",
     };
 
     return (
@@ -105,29 +130,25 @@ export default function AppShellLayout({
             >
                 <div
                     style={{
-                        maxWidth: 1080,
-                        margin: "0 auto 18px",
+                        width: "100%",
+                        margin: "0 0 18px",
                     }}
                 >
+
                     <div
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
                             gap: MR_THEME.spacing.md,
-                            padding: isMobile
-                                ? `${MR_THEME.spacing.sm}px ${MR_THEME.spacing.md}px`
-                                : `${MR_THEME.spacing.md}px ${MR_THEME.spacing.lg}px`,
-                            borderRadius: MR_THEME.radius.card,
-                            background: "linear-gradient(135deg, #eef4ff 0%, #dbeafe 45%, #c7dafe 100%)",
-                            borderTop: `1px solid ${MR_THEME.colors.border}`,
-                            borderRight: `1px solid ${MR_THEME.colors.border}`,
+                            padding: isMobile ? "10px 12px" : "12px 16px",
+                            borderRadius: 0,
+                            background: MR_THEME.colors.cardBg,
                             borderBottom: `1px solid ${MR_THEME.colors.border}`,
-                            borderLeft: `4px solid ${MR_THEME.colors.primary}`,
-                            boxShadow: MR_THEME.shadows.cardSoft,
-                            flexWrap: "wrap",
+                            boxShadow: "none",
                         }}
                     >
+                        {/* LEFT */}
                         <div
                             style={{
                                 display: "flex",
@@ -140,30 +161,30 @@ export default function AppShellLayout({
                                 <button
                                     onClick={() => setSidebarOpen(!sidebarOpen)}
                                     style={{
-                                        width: isMobile ? 38 : 42,
-                                        height: isMobile ? 38 : 42,
+                                        width: 38,
+                                        height: 38,
                                         borderRadius: MR_THEME.radius.control,
                                         border: `1px solid ${MR_THEME.colors.border}`,
-                                        background: MR_THEME.colors.cardBg,
-                                        color: MR_THEME.colors.primary,
+                                        background: MR_THEME.colors.cardBgSoft,
+                                        color: MR_THEME.colors.textPrimary,
                                         cursor: "pointer",
                                         fontSize: 22,
                                         fontWeight: 900,
-                                        boxShadow: MR_THEME.shadows.card,
                                     }}
                                 >
                                     ☰
                                 </button>
                             )}
 
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                            <div style={{ minWidth: 0 }}>
                                 <div
                                     style={{
-                                        ...MR_THEME.typography.small,
-                                        textTransform: "uppercase",
-                                        letterSpacing: 1.2,
-                                        color: MR_THEME.colors.primary,
+                                        fontSize: 12,
                                         fontWeight: 900,
+                                        letterSpacing: 1,
+                                        textTransform: "uppercase",
+                                        color: MR_THEME.colors.textMuted,
+                                        marginBottom: 2,
                                     }}
                                 >
                                     Company
@@ -171,11 +192,13 @@ export default function AppShellLayout({
 
                                 <div
                                     style={{
-                                        ...MR_THEME.typography.cardTitle,
+                                        fontSize: 15,
+                                        fontWeight: 800,
                                         color: MR_THEME.colors.textPrimary,
                                         whiteSpace: "nowrap",
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
+                                        maxWidth: isMobile ? 170 : 360,
                                     }}
                                 >
                                     {companyName || "—"}
@@ -183,133 +206,211 @@ export default function AppShellLayout({
                             </div>
                         </div>
 
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: isMobile ? MR_THEME.spacing.sm : MR_THEME.spacing.md,
-                                flexWrap: "wrap",
-                                marginLeft: "auto",
-                            }}
-                        >
-                            <div style={{ textAlign: "right", minWidth: 0 }}>
+                        {/* RIGHT */}
+                        <div ref={userMenuRef} style={{ position: "relative" }}>
+                            <button
+                                type="button"
+                                onClick={() => setUserMenuOpen((s) => !s)}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    background: MR_THEME.colors.cardBg,
+                                    borderRadius: 999,
+                                    padding: "6px 10px 6px 6px",
+                                    cursor: "pointer",
+                                    boxShadow: MR_THEME.shadows.cardSoft,
+                                }}
+                            >
                                 <div
                                     style={{
-                                        ...MR_THEME.typography.small,
-                                        textTransform: "uppercase",
-                                        letterSpacing: 1.2,
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 999,
+                                        background: MR_THEME.colors.primarySoft,
                                         color: MR_THEME.colors.primary,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontSize: 12,
                                         fontWeight: 900,
-                                        marginBottom: 2,
                                     }}
                                 >
-                                    User
+                                    {(user?.email?.[0] ?? "U").toUpperCase()}
+                                </div>
+
+                                {!isMobile && (
+                                    <div style={{ textAlign: "left" }}>
+                                        <div
+                                            style={{
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                color: MR_THEME.colors.textPrimary,
+                                            }}
+                                        >
+                                            {user?.email?.split("@")[0] ?? "User"}
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: MR_THEME.colors.textMuted,
+                                                maxWidth: 190,
+                                                overflow: "hidden",
+                                                whiteSpace: "nowrap",
+                                                textOverflow: "ellipsis",
+                                            }}
+                                        >
+                                            {user?.email ?? "—"}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <span
+                                    style={{
+                                        color: MR_THEME.colors.textMuted,
+                                        fontSize: 14,
+                                        fontWeight: 900,
+                                    }}
+                                >
+                                    ▾
+                                </span>
+                            </button>
+                            {userMenuOpen && (
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        right: -4,
+                                        top: "135%",
+                                        background: "#ffffff",
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        borderTop: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        borderRadius: MR_THEME.radius.card,
+                                        boxShadow: MR_THEME.shadows.cardSoft,
+                                        minWidth: 180,
+                                        padding: "4px 0",
+                                        overflow: "hidden",
+                                        zIndex: 50,
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setUserMenuOpen(false);
+                                            router.push("/profile");
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = MR_THEME.colors.cardBgSoft)}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                        style={menuItemStyle}
+                                    >
+                                        Profile
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setUserMenuOpen(false);
+                                            router.push("/settings");
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = MR_THEME.colors.cardBgSoft)}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                        style={menuItemStyle}
+                                    >
+                                        Settings
+                                    </button>
+                                    <div
+                                        style={{
+                                            height: 1,
+                                            background: MR_THEME.colors.border,
+                                            margin: "4px 0",
+                                        }}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={handleSignOut}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = MR_THEME.colors.cardBgSoft)}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                        style={{ ...menuItemStyle, color: MR_THEME.colors.danger }}
+                                    >
+                                        Sign out
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                {
+                    showPlatformBanner && (
+                        <div
+                            style={{
+                                maxWidth: 1180,
+                                margin: "0 auto 16px",
+                                padding: "14px 16px",
+                                borderRadius: 14,
+                                border: "1px solid #dbe4f0",
+                                background: "linear-gradient(180deg, #f8fbff 0%, #f1f6fd 100%)",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                flexWrap: "wrap",
+                                gap: 12,
+                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                            }}
+                        >
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                <div
+                                    style={{
+                                        fontSize: 11,
+                                        fontWeight: 900,
+                                        letterSpacing: "0.08em",
+                                        textTransform: "uppercase",
+                                        color: "#2563eb",
+                                    }}
+                                >
+                                    Platform Mode
                                 </div>
 
                                 <div
                                     style={{
-                                        ...MR_THEME.typography.small,
-                                        color: MR_THEME.colors.textSecondary,
-                                        maxWidth: isMobile ? 150 : 260,
-                                        whiteSpace: "nowrap",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
+                                        fontSize: 14,
+                                        fontWeight: 700,
+                                        color: "#0f172a",
                                     }}
                                 >
-                                    {user?.email ?? "—"}
+                                    You are operating as{" "}
+                                    <span style={{ color: "#1d4ed8" }}>
+                                        {companyName || "—"}
+                                    </span>
                                 </div>
                             </div>
 
                             <button
-                                onClick={handleSignOut}
+                                onClick={() => {
+                                    localStorage.removeItem("platformMode");
+                                    localStorage.removeItem("activeCompanyId");
+                                    window.dispatchEvent(new CustomEvent("active-company-refresh"));
+                                    setPlatformMode(false);
+                                    router.push("/platform/companies");
+                                }}
                                 style={{
-                                    height: isMobile ? 34 : MR_THEME.components.button.height,
-                                    padding: isMobile ? "0 10px" : `0 ${MR_THEME.components.button.paddingX}px`,
-                                    borderRadius: MR_THEME.radius.control,
-                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                    background: MR_THEME.colors.cardBg,
+                                    padding: "8px 12px",
+                                    borderRadius: 10,
+                                    border: "1px solid #c7d7ee",
+                                    background: "#ffffff",
                                     cursor: "pointer",
-                                    fontWeight: MR_THEME.components.button.fontWeight,
-                                    fontSize: isMobile ? 12 : 14,
-                                    color: MR_THEME.colors.textPrimary,
-                                    boxShadow: MR_THEME.shadows.card,
+                                    fontSize: 12,
+                                    fontWeight: 800,
+                                    color: "#1d4ed8",
+                                    boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                                 }}
                             >
-                                Sign out
+                                ← Back to Companies
                             </button>
                         </div>
-                    </div>
-                </div>
-                {showPlatformBanner && (
-                    <div
-                        style={{
-                            maxWidth: 1180,
-                            margin: "0 auto 16px",
-                            padding: "14px 16px",
-                            borderRadius: 14,
-                            border: "1px solid #dbe4f0",
-                            background: "linear-gradient(180deg, #f8fbff 0%, #f1f6fd 100%)",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                            gap: 12,
-                            boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                        }}
-                    >
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            <div
-                                style={{
-                                    fontSize: 11,
-                                    fontWeight: 900,
-                                    letterSpacing: "0.08em",
-                                    textTransform: "uppercase",
-                                    color: "#2563eb",
-                                }}
-                            >
-                                Platform Mode
-                            </div>
-
-                            <div
-                                style={{
-                                    fontSize: 14,
-                                    fontWeight: 700,
-                                    color: "#0f172a",
-                                }}
-                            >
-                                You are operating as{" "}
-                                <span style={{ color: "#1d4ed8" }}>
-                                    {companyName || "—"}
-                                </span>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={() => {
-                                localStorage.removeItem("platformMode");
-                                localStorage.removeItem("activeCompanyId");
-                                window.dispatchEvent(new CustomEvent("active-company-refresh"));
-                                setPlatformMode(false);
-                                router.push("/platform/companies");
-                            }}
-                            style={{
-                                padding: "8px 12px",
-                                borderRadius: 10,
-                                border: "1px solid #c7d7ee",
-                                background: "#ffffff",
-                                cursor: "pointer",
-                                fontSize: 12,
-                                fontWeight: 800,
-                                color: "#1d4ed8",
-                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                            }}
-                        >
-                            ← Back to Companies
-                        </button>
-                    </div>
-                )}
+                    )
+                }
                 {children}
-            </main>
-        </div>
+            </main >
+        </div >
     );
 }

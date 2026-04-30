@@ -140,6 +140,21 @@ function WorkOrdersPageInner() {
     const [adminActiveSection, setAdminActiveSection] = useState<
         "needs_attention" | "active_work" | "ready_to_invoice" | "history"
     >("needs_attention");
+    useEffect(() => {
+        if (woFilter === "unassigned") {
+            setAdminActiveSection("needs_attention");
+            return;
+        }
+
+        if (woFilter === "delayed") {
+            setAdminActiveSection("active_work");
+            return;
+        }
+
+        if (woFilter === "ready_to_invoice") {
+            setAdminActiveSection("ready_to_invoice");
+        }
+    }, [woFilter]);
 
     const [newJobType, setNewJobType] = useState("");
     const [newDesc, setNewDesc] = useState("");
@@ -543,6 +558,10 @@ function WorkOrdersPageInner() {
     const nowMs = Date.now();
 
     const adminNeedsAttentionRows = useMemo(() => {
+        if (woFilter === "unassigned") {
+            return rows.filter((w) => !w.assigned_to);
+        }
+
         return rows.filter((w) => {
             const delayed = isWorkOrderDelayed({
                 status: w.status,
@@ -552,11 +571,21 @@ function WorkOrdersPageInner() {
 
             return w.status === "new" || !w.assigned_to || delayed;
         });
-    }, [rows, nowMs]);
+    }, [rows, nowMs, woFilter]);
 
     const adminActiveRows = useMemo(() => {
+        if (woFilter === "delayed") {
+            return rows.filter((w) =>
+                isWorkOrderDelayed({
+                    status: w.status,
+                    createdAt: w.created_at,
+                    nowMs,
+                })
+            );
+        }
+
         return rows.filter((w) => w.status === "in_progress");
-    }, [rows]);
+    }, [rows, nowMs, woFilter]);
 
     const adminReadyToInvoiceRows = useMemo(() => {
         return rows.filter((w) => isWorkOrderReadyToInvoice(w.status));

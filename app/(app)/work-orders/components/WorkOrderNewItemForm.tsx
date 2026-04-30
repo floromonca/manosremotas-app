@@ -64,7 +64,7 @@ export default function WorkOrderNewItemForm({
     }, []);
 
     React.useEffect(() => {
-        if (!companyId || !isAdmin) {
+        if (!companyId) {
             setCatalogItems([]);
             return;
         }
@@ -171,7 +171,7 @@ export default function WorkOrderNewItemForm({
                     }}
                 />
 
-                {showCatalogSuggestions && catalogSuggestions.length > 0 && isAdmin ? (
+                {showCatalogSuggestions && catalogSuggestions.length > 0 ? (
                     <div
                         style={{
                             position: "absolute",
