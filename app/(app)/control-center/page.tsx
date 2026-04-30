@@ -393,14 +393,8 @@ export default function ControlCenterPage() {
                     loading={teamStatusLoading}
                     onCloseShift={handleCloseTeamShift}
                 />
-                <section
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "minmax(0, 1.5fr) minmax(320px, 1fr)",
-                        gap: 24,
-                        alignItems: "start",
-                    }}
-                >
+                <section className="controlCenterBottomGrid">
+
                     <AttentionTodayCard
                         lists={lists}
                         onOpenWorkOrders={() => go("/work-orders")}
@@ -425,6 +419,20 @@ export default function ControlCenterPage() {
                     ManosRemotas gives you a live view of work orders, team activity,
                     and invoicing in one place.
                 </div>
+                <style jsx>{`
+    .controlCenterBottomGrid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+        gap: 24px;
+        align-items: start;
+    }
+
+    @media (max-width: 1100px) {
+        .controlCenterBottomGrid {
+            grid-template-columns: 1fr;
+        }
+    }
+`}</style>
             </div>
         </div>
     );

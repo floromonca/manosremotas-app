@@ -33,28 +33,17 @@ export default function ListBlock({
             }}
         >
             <div
-                onClick={() => setExpanded((v) => !v)}
                 style={{
                     width: "100%",
                     padding: 16,
                     background: "transparent",
-                    cursor: "pointer",
-                    textAlign: "left",
                 }}
             >
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 12,
-                        flexWrap: "wrap",
-                    }}
-                >
-                    <div style={{ minWidth: 220 }}>
+                <div className="listBlockHeader">
+                    <div style={{ minWidth: 0, width: "100%" }}>
                         <div
                             style={{
-                                fontWeight: 700,
+                                fontWeight: 900,
                                 fontSize: 20,
                                 color: MR_THEME.colors.textPrimary,
                                 lineHeight: 1.2,
@@ -77,55 +66,38 @@ export default function ListBlock({
                         ) : null}
                     </div>
 
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            marginLeft: "auto",
-                        }}
-                    >
+                    <div className="listBlockActions">
                         {onOpen ? (
                             <button
                                 type="button"
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onOpen();
-                                }}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: MR_THEME.radius.control,
-                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                    background: MR_THEME.colors.cardBg,
-                                    color: MR_THEME.colors.textPrimary,
-                                    cursor: "pointer",
-                                    fontWeight: 700,
-                                    whiteSpace: "nowrap",
-                                }}
+                                onClick={onOpen}
+                                style={secondaryButtonStyle}
                             >
-                                View →
+                                View all
                             </button>
                         ) : null}
 
-                        <div
+                        <button
+                            type="button"
+                            onClick={() => setExpanded((v) => !v)}
                             style={{
-                                fontSize: 18,
-                                color: MR_THEME.colors.textSecondary,
-                                fontWeight: 700,
-                                lineHeight: 1,
-                                padding: "6px 4px",
-                                minWidth: 18,
-                                textAlign: "center",
+                                ...secondaryButtonStyle,
+                                background: expanded
+                                    ? MR_THEME.colors.primarySoft
+                                    : MR_THEME.colors.cardBg,
+                                color: expanded
+                                    ? MR_THEME.colors.primaryHover
+                                    : MR_THEME.colors.textPrimary,
                             }}
                         >
-                            {expanded ? "−" : "+"}
-                        </div>
+                            {expanded ? "Hide details" : "Show details"}
+                        </button>
                     </div>
                 </div>
             </div>
 
             {expanded ? (
-                <div style={{ padding: "0 16px 16px 16px" }}>
+                <div style={{ padding: "0 16px 16px" }}>
                     {items.length === 0 ? (
                         <div
                             style={{
@@ -142,34 +114,24 @@ export default function ListBlock({
                     ) : (
                         <div style={{ display: "grid", gap: 10 }}>
                             {items.map((it, idx) => (
-                                <div
+                                <button
                                     key={idx}
-                                    onClick={onOpen ? () => onOpen() : undefined}
+                                    type="button"
+                                    onClick={onOpen}
+                                    disabled={!onOpen}
                                     style={{
+                                        width: "100%",
+                                        textAlign: "left",
                                         padding: "14px 16px",
                                         background: MR_THEME.colors.cardBg,
                                         border: `1px solid ${MR_THEME.colors.border}`,
                                         borderRadius: MR_THEME.radius.control,
                                         cursor: onOpen ? "pointer" : "default",
-                                        transition:
-                                            "background 0.15s ease, border-color 0.15s ease, transform 0.15s ease",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        if (!onOpen) return;
-                                        e.currentTarget.style.background = MR_THEME.colors.appBg;
-                                        e.currentTarget.style.borderColor = MR_THEME.colors.borderStrong;
-                                        e.currentTarget.style.transform = "translateY(-1px)";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (!onOpen) return;
-                                        e.currentTarget.style.background = MR_THEME.colors.cardBg;
-                                        e.currentTarget.style.borderColor = MR_THEME.colors.border;
-                                        e.currentTarget.style.transform = "translateY(0)";
                                     }}
                                 >
                                     <div
                                         style={{
-                                            fontWeight: 600,
+                                            fontWeight: 800,
                                             fontSize: 15,
                                             color: MR_THEME.colors.textPrimary,
                                             lineHeight: 1.4,
@@ -190,18 +152,63 @@ export default function ListBlock({
                                                 color: MR_THEME.colors.textSecondary,
                                                 fontFamily: "monospace",
                                                 fontSize: 12,
-                                                fontWeight: 600,
+                                                fontWeight: 700,
                                             }}
                                         >
                                             WO {it.meta}
                                         </div>
                                     ) : null}
-                                </div>
+                                </button>
                             ))}
                         </div>
                     )}
                 </div>
             ) : null}
+
+            <style jsx>{`
+   .listBlockHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+   .listBlockActions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+    @media (max-width: 720px) {
+        .listBlockHeader {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .listBlockActions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .listBlockActions button {
+            width: 100%;
+        }
+    }
+`}</style>
         </div>
     );
 }
+
+const secondaryButtonStyle: React.CSSProperties = {
+    padding: "12px 16px",
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.border}`,
+    background: MR_THEME.colors.cardBgSoft,
+    color: MR_THEME.colors.textPrimary,
+    cursor: "pointer",
+    fontWeight: 800,
+    whiteSpace: "nowrap",
+};
