@@ -18,6 +18,7 @@ export type TeamStatusTodayRow = {
   full_name: string | null;
   role: string;
   is_on_shift: boolean;
+  shift_id: string | null;
   check_in_at: string | null;
   check_out_at: string | null;
 };
@@ -194,7 +195,7 @@ export async function fetchTeamStatusToday(
 
   const { data: openShiftsData, error: shiftsError } = await supabase
     .from("shifts")
-    .select("user_id, check_in_at, check_out_at")
+    .select("shift_id, user_id, check_in_at, check_out_at")
     .eq("company_id", companyId)
     .in("user_id", userIds)
     .is("check_out_at", null)
@@ -204,11 +205,12 @@ export async function fetchTeamStatusToday(
 
   const openShiftByUser = new Map<
     string,
-    { check_in_at: string | null; check_out_at: string | null }
+    { shift_id: string | null; check_in_at: string | null; check_out_at: string | null }
   >();
 
   (
     (openShiftsData as {
+      shift_id: string | null;
       user_id: string;
       check_in_at: string | null;
       check_out_at: string | null;
@@ -216,6 +218,7 @@ export async function fetchTeamStatusToday(
   ).forEach((shift) => {
     if (!openShiftByUser.has(shift.user_id)) {
       openShiftByUser.set(shift.user_id, {
+        shift_id: shift.shift_id,
         check_in_at: shift.check_in_at,
         check_out_at: shift.check_out_at,
       });
@@ -230,6 +233,7 @@ export async function fetchTeamStatusToday(
       full_name: member.full_name,
       role: member.role,
       is_on_shift: !!openShift,
+      shift_id: openShift?.shift_id ?? null,
       check_in_at: openShift?.check_in_at ?? null,
       check_out_at: openShift?.check_out_at ?? null,
     };

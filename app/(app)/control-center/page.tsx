@@ -146,6 +146,62 @@ export default function ControlCenterPage() {
             setShiftLoading(false);
         }
     }, []);
+    const handleCloseTeamShift = useCallback(
+        async (shiftId: string, technicianName: string, elapsedLabel: string) => {
+            if (!companyId) return;
+
+            const confirmed = window.confirm(
+                `This shift for ${technicianName} has been open for ${elapsedLabel}. Close it now?`
+            );
+
+            if (!confirmed) return;
+
+            setTeamStatusLoading(true);
+
+            try {
+                const { data, error } = await supabase
+                    .from("shifts")
+                    .update({ check_out_at: new Date().toISOString() })
+                    .eq("company_id", companyId)
+                    .eq("shift_id", shiftId)
+                    .is("check_out_at", null)
+                    .select("shift_id, user_id, check_in_at, check_out_at")
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (!data) {
+                    console.warn("No shift was closed. Possible RLS or no matching open shift.", {
+                        shiftId,
+                        companyId,
+                    });
+                    alert("No shift was closed. This may be blocked by permissions or the shift is no longer open.");
+                    return;
+                }
+
+                console.log("Closed shift:", data);
+                await refreshAll(companyId);
+
+                setTeamStatus((prev) =>
+                    prev.map((t) =>
+                        t.shift_id === shiftId
+                            ? {
+                                ...t,
+                                is_on_shift: false,
+                                check_out_at: new Date().toISOString(),
+                            }
+                            : t
+                    )
+                );
+            } catch (e: any) {
+                console.error("Close team shift error:", e);
+                alert(e?.message || "Could not close shift.");
+            } finally {
+                setTeamStatusLoading(false);
+            }
+        },
+        [companyId, refreshAll]
+    );
     const createCompanyBootstrap = async () => {
         setErrorMsg("");
 
@@ -335,6 +391,7 @@ export default function ControlCenterPage() {
                 <TeamStatusTodayCard
                     rows={teamStatus}
                     loading={teamStatusLoading}
+                    onCloseShift={handleCloseTeamShift}
                 />
                 <section
                     style={{
