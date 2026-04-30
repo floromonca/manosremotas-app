@@ -1,25 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabaseClient";
 import Link from "next/link";
-import { useActiveCompany } from "../../../hooks/useActiveCompany";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabaseClient";
+import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
-
-const MR_THEME = {
-    appBg: "#f8fafc",
-    cardBg: "#ffffff",
-    cardBgSoft: "#f9fafb",
-    border: "#e2e8f0",
-    borderStrong: "#cbd5e1",
-    textPrimary: "#0f172a",
-    textSecondary: "#475569",
-    textMuted: "#94a3b8",
-    primary: "#2563eb",
-    primaryHover: "#1d4ed8",
-    shadowCard: "0 1px 2px rgba(16, 24, 40, 0.04)",
-};
+import { MR_THEME } from "../../../lib/theme";
 
 type Customer = {
     customer_id: string;
@@ -27,6 +14,8 @@ type Customer = {
     email: string | null;
     phone: string | null;
 };
+
+const ADMIN_CUSTOMER_ROLES = ["owner", "admin", "office_staff"];
 
 export default function CustomersPage() {
     const router = useRouter();
@@ -36,17 +25,20 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
 
+    const canAccessCustomers = useMemo(() => {
+        return !!myRole && ADMIN_CUSTOMER_ROLES.includes(myRole);
+    }, [myRole]);
+
     const loadCustomers = useCallback(async () => {
+        if (!companyId) return;
+
         setLoading(true);
 
-        const query = supabase
+        const { data, error } = await supabase
             .from("customers")
             .select("customer_id, name, email, phone")
+            .eq("company_id", companyId)
             .order("name", { ascending: true });
-
-        const { data, error } = companyId
-            ? await query.eq("company_id", companyId)
-            : await query;
 
         if (error) {
             console.error("Error loading customers:", error);
@@ -69,11 +61,20 @@ export default function CustomersPage() {
 
         if (isLoadingCompany) return;
 
-        if (myRole !== "owner" && myRole !== "admin") {
+        if (!canAccessCustomers) {
             router.replace("/work-orders");
             return;
         }
-    }, [authLoading, user, isLoadingCompany, myRole, router]);
+    }, [authLoading, user, isLoadingCompany, canAccessCustomers, router]);
+
+    useEffect(() => {
+        if (!companyId) return;
+        if (!canAccessCustomers) return;
+
+        queueMicrotask(() => {
+            void loadCustomers();
+        });
+    }, [companyId, canAccessCustomers, loadCustomers]);
 
     async function handleNewCustomer() {
         if (!companyId) {
@@ -104,241 +105,322 @@ export default function CustomersPage() {
         await loadCustomers();
     }
 
-    useEffect(() => {
-        if (!companyId) return;
-        if (myRole !== "owner" && myRole !== "admin") return;
-
-        queueMicrotask(() => {
-            void loadCustomers();
-        });
-    }, [companyId, myRole, loadCustomers]);
-
-    return (
-        <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-            <div
+    if (authLoading || isLoadingCompany) {
+        return (
+            <main
                 style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    marginBottom: 18,
+                    minHeight: "100vh",
+                    background: MR_THEME.colors.appBg,
+                    padding: "24px",
                 }}
             >
                 <div
                     style={{
-                        flex: 1,
-                        minWidth: 280,
-                        padding: "18px 20px",
-                        borderRadius: 16,
-                        border: `1px solid ${MR_THEME.border}`,
-                        background: MR_THEME.cardBg,
-                        boxShadow: MR_THEME.shadowCard,
-                    }}
-                >
-                    <div
-                        style={{
-                            fontSize: 12,
-                            textTransform: "uppercase",
-                            letterSpacing: 1,
-                            color: MR_THEME.textSecondary,
-                            fontWeight: 800,
-                            marginBottom: 6,
-                        }}
-                    >
-                        Customers
-                    </div>
-
-                    <h1
-                        style={{
-                            margin: 0,
-                            fontSize: 30,
-                            lineHeight: 1.1,
-                            fontWeight: 900,
-                            letterSpacing: "-0.03em",
-                            color: MR_THEME.textPrimary,
-                        }}
-                    >
-                        {companyName || "Your Business"} — Customers
-                    </h1>
-
-                    <div
-                        style={{
-                            marginTop: 10,
-                            display: "flex",
-                            gap: 10,
-                            flexWrap: "wrap",
-                            alignItems: "center",
-                        }}
-                    >
-                        <span
-                            style={{
-                                padding: "6px 10px",
-                                borderRadius: 999,
-                                background: MR_THEME.cardBgSoft,
-                                border: `1px solid ${MR_THEME.border}`,
-                                fontSize: 13,
-                                color: MR_THEME.textSecondary,
-                            }}
-                        >
-                            Total customers: <b>{customers.length}</b>
-                        </span>
-                    </div>
-                </div>
-
-                <button
-                    onClick={handleNewCustomer}
-                    style={{
-                        padding: "12px 16px",
-                        borderRadius: 12,
-                        border: `1px solid ${MR_THEME.primary}`,
-                        background: MR_THEME.primary,
-                        color: "white",
-                        cursor: "pointer",
-                        fontWeight: 800,
-                        boxShadow: MR_THEME.shadowCard,
-                    }}
-                >
-                    + New Customer
-                </button>
-            </div>
-
-            {loading ? (
-                <div
-                    style={{
-                        padding: 18,
-                        borderRadius: 14,
-                        border: `1px solid ${MR_THEME.border}`,
-                        background: MR_THEME.cardBg,
-                        color: MR_THEME.textSecondary,
+                        maxWidth: 980,
+                        margin: "0 auto",
+                        color: MR_THEME.colors.textSecondary,
                     }}
                 >
                     Loading customers...
                 </div>
-            ) : null}
+            </main>
+        );
+    }
 
-            {!loading && customers.length === 0 ? (
-                <div
+    return (
+        <main
+            style={{
+                minHeight: "100vh",
+                background: MR_THEME.colors.appBg,
+                padding: "24px",
+            }}
+        >
+            <div
+                style={{
+                    maxWidth: 980,
+                    margin: "0 auto",
+                    display: "grid",
+                    gap: 18,
+                }}
+            >
+                <section
                     style={{
-                        border: `1px dashed ${MR_THEME.borderStrong}`,
-                        padding: 20,
-                        borderRadius: 16,
-                        background: MR_THEME.cardBgSoft,
-                        color: MR_THEME.textSecondary,
+                        border: `1px solid ${MR_THEME.colors.border}`,
+                        borderRadius: MR_THEME.radius.card,
+                        background: MR_THEME.colors.cardBg,
+                        boxShadow: MR_THEME.shadows.card,
+                        padding: MR_THEME.layout.cardPadding,
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0, 1fr) auto",
+                        gap: 16,
+                        alignItems: "center",
                     }}
                 >
-                    No customers yet.
-                </div>
-            ) : null}
-
-            {!loading && customers.length > 0 ? (
-                <div style={{ display: "grid", gap: 14, marginTop: 12 }}>
-                    {customers.map((c) => (
+                    <div>
                         <div
-                            key={c.customer_id}
                             style={{
-                                border: `1px solid ${MR_THEME.border}`,
-                                padding: 18,
-                                borderRadius: 16,
-                                background: MR_THEME.cardBg,
-                                boxShadow: MR_THEME.shadowCard,
+                                fontSize: 12,
+                                textTransform: "uppercase",
+                                letterSpacing: 1,
+                                color: MR_THEME.colors.primary,
+                                fontWeight: 800,
+                                marginBottom: 8,
+                            }}
+                        >
+                            Customers
+                        </div>
+
+                        <h1
+                            style={{
+                                ...MR_THEME.typography.pageTitle,
+                                margin: 0,
+                                color: MR_THEME.colors.textPrimary,
+                            }}
+                        >
+                            Customer Directory
+                        </h1>
+
+                        <p
+                            style={{
+                                margin: "8px 0 0",
+                                color: MR_THEME.colors.textSecondary,
+                                fontSize: 14,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            Manage customer contact information and open each profile to review work
+                            orders, billing history, and service activity.
+                        </p>
+
+                        <div
+                            style={{
+                                marginTop: 14,
                                 display: "flex",
-                                justifyContent: "space-between",
-                                gap: 16,
-                                alignItems: "center",
+                                gap: 10,
                                 flexWrap: "wrap",
                             }}
                         >
-                            <div style={{ flex: 1, minWidth: 240 }}>
-                                <div
-                                    style={{
-                                        fontWeight: 900,
-                                        fontSize: 24,
-                                        lineHeight: 1.15,
-                                        letterSpacing: "-0.02em",
-                                        color: MR_THEME.textPrimary,
-                                        marginBottom: 10,
-                                    }}
-                                >
-                                    {c.name}
-                                </div>
+                            <span
+                                style={{
+                                    padding: "6px 10px",
+                                    borderRadius: 999,
+                                    background: MR_THEME.colors.primarySoft,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    fontSize: 13,
+                                    color: MR_THEME.colors.textSecondary,
+                                    fontWeight: 700,
+                                }}
+                            >
+                                {companyName || "Active company"}
+                            </span>
 
-                                <div
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                                        gap: 10,
-                                    }}
-                                >
+                            <span
+                                style={{
+                                    padding: "6px 10px",
+                                    borderRadius: 999,
+                                    background: MR_THEME.colors.cardBgSoft,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    fontSize: 13,
+                                    color: MR_THEME.colors.textSecondary,
+                                    fontWeight: 700,
+                                }}
+                            >
+                                {customers.length} customer{customers.length === 1 ? "" : "s"}
+                            </span>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleNewCustomer}
+                        style={{
+                            padding: "12px 16px",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${MR_THEME.colors.primary}`,
+                            background: MR_THEME.colors.primary,
+                            color: "#ffffff",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                            boxShadow: MR_THEME.shadows.cardSoft,
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        + New Customer
+                    </button>
+                </section>
+
+                {loading ? (
+                    <section
+                        style={{
+                            padding: 18,
+                            borderRadius: MR_THEME.radius.card,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            background: MR_THEME.colors.cardBg,
+                            color: MR_THEME.colors.textSecondary,
+                            boxShadow: MR_THEME.shadows.card,
+                        }}
+                    >
+                        Loading customers...
+                    </section>
+                ) : null}
+
+                {!loading && customers.length === 0 ? (
+                    <section
+                        style={{
+                            border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                            padding: 24,
+                            borderRadius: MR_THEME.radius.card,
+                            background: MR_THEME.colors.cardBg,
+                            color: MR_THEME.colors.textSecondary,
+                            boxShadow: MR_THEME.shadows.card,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontWeight: 900,
+                                color: MR_THEME.colors.textPrimary,
+                                marginBottom: 6,
+                                fontSize: 18,
+                            }}
+                        >
+                            No customers yet
+                        </div>
+                        <div style={{ fontSize: 14, lineHeight: 1.5 }}>
+                            Create your first customer to start organizing work orders and invoices.
+                        </div>
+                    </section>
+                ) : null}
+
+                {!loading && customers.length > 0 ? (
+                    <section
+                        style={{
+                            display: "grid",
+                            gap: 12,
+                        }}
+                    >
+                        {customers.map((customer) => (
+                            <article
+                                key={customer.customer_id}
+                                style={{
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    borderRadius: MR_THEME.radius.card,
+                                    background: MR_THEME.colors.cardBg,
+                                    boxShadow: MR_THEME.shadows.card,
+                                    padding: 14,
+                                    display: "grid",
+                                    gridTemplateColumns: "minmax(0, 1fr) auto",
+                                    gap: 16,
+                                    alignItems: "center",
+                                }}
+                            >
+                                <div style={{ minWidth: 0 }}>
                                     <div
                                         style={{
-                                            padding: 12,
-                                            borderRadius: 12,
-                                            border: `1px solid ${MR_THEME.border}`,
-                                            background: MR_THEME.cardBgSoft,
+                                            fontWeight: 900,
+                                            fontSize: 18,
+                                            lineHeight: 1.2,
+                                            color: MR_THEME.colors.textPrimary,
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
                                         }}
                                     >
-                                        <div
-                                            style={{
-                                                fontSize: 12,
-                                                color: MR_THEME.textSecondary,
-                                                fontWeight: 700,
-                                                marginBottom: 5,
-                                            }}
-                                        >
-                                            Email
-                                        </div>
-                                        <div style={{ fontWeight: 700, color: MR_THEME.textPrimary }}>
-                                            {c.email || "—"}
-                                        </div>
+                                        {customer.name}
                                     </div>
 
                                     <div
                                         style={{
-                                            padding: 12,
-                                            borderRadius: 12,
-                                            border: `1px solid ${MR_THEME.border}`,
-                                            background: MR_THEME.cardBgSoft,
+                                            marginTop: 10,
+                                            display: "grid",
+                                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                                            gap: 10,
                                         }}
                                     >
-                                        <div
-                                            style={{
-                                                fontSize: 12,
-                                                color: MR_THEME.textSecondary,
-                                                fontWeight: 700,
-                                                marginBottom: 5,
-                                            }}
-                                        >
-                                            Phone
-                                        </div>
-                                        <div style={{ fontWeight: 700, color: MR_THEME.textPrimary }}>
-                                            {c.phone || "—"}
-                                        </div>
+                                        <InfoBlock label="Email" value={customer.email || "—"} />
+                                        <InfoBlock label="Phone" value={customer.phone || "—"} />
                                     </div>
                                 </div>
-                            </div>
 
-                            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                                 <Link
-                                    href={`/customers/${c.customer_id}`}
+                                    href={`/customers/${customer.customer_id}`}
                                     style={{
-                                        display: "inline-block",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
                                         padding: "10px 14px",
-                                        borderRadius: 12,
-                                        border: `1px solid ${MR_THEME.borderStrong}`,
-                                        background: MR_THEME.cardBg,
-                                        color: MR_THEME.textPrimary,
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.textPrimary,
                                         textDecoration: "none",
                                         fontWeight: 800,
+                                        whiteSpace: "nowrap",
                                     }}
                                 >
-                                    Open customer
+                                    Open
                                 </Link>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : null}
+                            </article>
+                        ))}
+                    </section>
+                ) : null}
+            </div>
+
+            <style jsx>{`
+                @media (max-width: 720px) {
+                    main {
+                        padding: 16px !important;
+                    }
+
+                    section,
+                    article {
+                        grid-template-columns: 1fr !important;
+                    }
+
+                    button,
+                    a {
+                        width: 100%;
+                    }
+                }
+            `}</style>
+        </main>
+    );
+}
+
+function InfoBlock({ label, value }: { label: string; value: string }) {
+    return (
+        <div
+            style={{
+                padding: "8px 10px",
+                borderRadius: MR_THEME.radius.control,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                background: MR_THEME.colors.cardBgSoft,
+                minWidth: 0,
+            }}
+        >
+            <div
+                style={{
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.7,
+                    color: MR_THEME.colors.textMuted,
+                    fontWeight: 800,
+                    marginBottom: 4,
+                }}
+            >
+                {label}
+            </div>
+
+            <div
+                style={{
+                    fontSize: 13,
+                    color: MR_THEME.colors.textPrimary,
+                    fontWeight: 700,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {value}
+            </div>
         </div>
     );
 }

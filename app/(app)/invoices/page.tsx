@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
+import { MR_THEME } from "../../../lib/theme";
 
 type Invoice = {
     invoice_id: string;
@@ -19,6 +20,9 @@ type Invoice = {
 };
 
 type QuickFilter = "all" | "drafts" | "unpaid" | "paid";
+
+const INVOICE_ACCESS_ROLES = ["owner", "admin", "office_staff"];
+const PAGE_SIZE = 25;
 
 export default function InvoicesPage() {
     const router = useRouter();
@@ -35,6 +39,10 @@ export default function InvoicesPage() {
     const [customerFilter, setCustomerFilter] = useState("all");
     const [quickFilter, setQuickFilter] = useState<QuickFilter>("unpaid");
 
+    const canAccessInvoices = useMemo(() => {
+        return !!myRole && INVOICE_ACCESS_ROLES.includes(myRole);
+    }, [myRole]);
+
     useEffect(() => {
         if (authLoading) return;
 
@@ -45,11 +53,11 @@ export default function InvoicesPage() {
 
         if (isLoadingCompany) return;
 
-        if (myRole !== "owner" && myRole !== "admin") {
+        if (!canAccessInvoices) {
             router.replace("/work-orders");
             return;
         }
-    }, [authLoading, user?.id, isLoadingCompany, myRole, router]);
+    }, [authLoading, user, isLoadingCompany, canAccessInvoices, router]);
 
     const loadInvoices = useCallback(async () => {
         if (!companyId) {
@@ -90,12 +98,12 @@ export default function InvoicesPage() {
     }, [companyId]);
 
     useEffect(() => {
-        if (myRole !== "owner" && myRole !== "admin") return;
+        if (!canAccessInvoices) return;
 
         queueMicrotask(() => {
             void loadInvoices();
         });
-    }, [loadInvoices, myRole]);
+    }, [loadInvoices, canAccessInvoices]);
 
     useEffect(() => {
         queueMicrotask(() => {
@@ -112,9 +120,6 @@ export default function InvoicesPage() {
             )
         ).sort((a, b) => a.localeCompare(b));
     }, [invoices]);
-
-    const PAGE_SIZE = 25;
-
 
     const filteredInvoices = useMemo(() => {
         return invoices
@@ -141,17 +146,9 @@ export default function InvoicesPage() {
                     return false;
                 }
 
-                if (quickFilter === "drafts") {
-                    return isDraftStatus(inv.status);
-                }
-
-                if (quickFilter === "paid") {
-                    return isPaidStatus(inv.status);
-                }
-
-                if (quickFilter === "unpaid") {
-                    return isUnpaidStatus(inv.status);
-                }
+                if (quickFilter === "drafts") return isDraftStatus(inv.status);
+                if (quickFilter === "paid") return isPaidStatus(inv.status);
+                if (quickFilter === "unpaid") return isUnpaidStatus(inv.status);
 
                 return true;
             })
@@ -171,7 +168,6 @@ export default function InvoicesPage() {
     const unpaidCount = invoices.filter((inv) => isUnpaidStatus(inv.status)).length;
     const paidCount = invoices.filter((inv) => isPaidStatus(inv.status)).length;
     const overdueCount = invoices.filter((inv) => isOverdueStatus(inv.status)).length;
-
     const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
 
     const outstandingBalance = invoices.reduce((acc, inv) => {
@@ -181,411 +177,537 @@ export default function InvoicesPage() {
     const activeCurrency =
         filteredInvoices[0]?.currency_code || invoices[0]?.currency_code || "CAD";
 
+    return (
+        <main
+            style={{
+                minHeight: "100%",
+                background: MR_THEME.colors.appBg,
+                padding: "24px",
+            }}
+        >
+            <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gap: 16 }}>
+                <section style={heroCardStyle}>
+                    <div className="invoiceHero">
+                        <div style={{ minWidth: 0 }}>
+                            <div style={eyebrowStyle}>Invoices</div>
 
+                            <h1
+                                style={{
+                                    ...MR_THEME.typography.pageTitle,
+                                    margin: 0,
+                                    color: MR_THEME.colors.textPrimary,
+                                }}
+                            >
+                                Invoice Control Center
+                            </h1>
+
+                            <p
+                                style={{
+                                    color: MR_THEME.colors.textSecondary,
+                                    fontSize: 14,
+                                    lineHeight: 1.6,
+                                    maxWidth: 760,
+                                    margin: "8px 0 0",
+                                }}
+                            >
+                                Review invoice status, outstanding balances, payment progress,
+                                and quick actions for your active company.
+                            </p>
+                        </div>
+
+                        <button type="button" onClick={loadInvoices} style={secondaryButtonStyle}>
+                            Refresh
+                        </button>
+                    </div>
+                </section>
+
+                {errorMsg ? <ErrorCard message={errorMsg} /> : null}
+
+                <section className="kpiGrid">
+                    <KpiCard label="Overdue" value={String(overdueCount)} tone="danger" />
+                    <KpiCard label="Unpaid" value={String(unpaidCount)} tone="info" />
+                    <KpiCard label="Draft" value={String(draftCount)} tone="neutral" />
+                    <KpiCard label="Paid" value={String(paidCount)} tone="success" />
+                    <KpiCard
+                        label="Outstanding"
+                        value={formatMoney(outstandingBalance, activeCurrency)}
+                        tone="accent"
+                    />
+                </section>
+
+                <section style={shellCardStyle}>
+                    <div style={{ display: "grid", gap: 16 }}>
+                        <div className="quickTabs">
+                            <QuickTab
+                                active={quickFilter === "unpaid"}
+                                label="Pending Payment"
+                                onClick={() => setQuickFilter("unpaid")}
+                            />
+                            <QuickTab
+                                active={quickFilter === "drafts"}
+                                label="Drafts"
+                                onClick={() => setQuickFilter("drafts")}
+                            />
+                            <QuickTab
+                                active={quickFilter === "paid"}
+                                label="Paid"
+                                onClick={() => setQuickFilter("paid")}
+                            />
+                            <QuickTab
+                                active={quickFilter === "all"}
+                                label="All"
+                                onClick={() => setQuickFilter("all")}
+                            />
+                        </div>
+
+                        <div className="filterGrid">
+                            <div style={{ display: "grid", gap: 6 }}>
+                                <label style={filterLabelStyle}>Search</label>
+                                <input
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    placeholder="Invoice number, customer, status"
+                                    style={inputStyle}
+                                />
+                            </div>
+
+                            <div style={{ display: "grid", gap: 6 }}>
+                                <label style={filterLabelStyle}>Customer</label>
+                                <select
+                                    value={customerFilter}
+                                    onChange={(e) => setCustomerFilter(e.target.value)}
+                                    style={inputStyle}
+                                >
+                                    <option value="all">All customers</option>
+                                    {customerOptions.map((name) => (
+                                        <option key={name} value={name}>
+                                            {name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section style={shellCardStyle}>
+                    {loading ? (
+                        <StateCard message="Loading invoices..." />
+                    ) : !companyId ? (
+                        <StateCard message="No active company selected." />
+                    ) : filteredInvoices.length === 0 ? (
+                        <StateCard message="No invoices found for the current filters." />
+                    ) : (
+                        <>
+                            <div className="desktopTable">
+                                <div style={{ overflowX: "auto" }}>
+                                    <table
+                                        style={{
+                                            width: "100%",
+                                            minWidth: 980,
+                                            borderCollapse: "separate",
+                                            borderSpacing: 0,
+                                        }}
+                                    >
+                                        <thead>
+                                            <tr>
+                                                <TableHeaderCell style={{ borderTopLeftRadius: 14 }}>
+                                                    Invoice
+                                                </TableHeaderCell>
+                                                <TableHeaderCell>Customer</TableHeaderCell>
+                                                <TableHeaderCell>Date</TableHeaderCell>
+                                                <TableHeaderCell>Due</TableHeaderCell>
+                                                <TableHeaderCell align="right">Total</TableHeaderCell>
+                                                <TableHeaderCell align="right">Balance</TableHeaderCell>
+                                                <TableHeaderCell>Status</TableHeaderCell>
+                                                <TableHeaderCell
+                                                    align="right"
+                                                    style={{ borderTopRightRadius: 14 }}
+                                                >
+                                                    Actions
+                                                </TableHeaderCell>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+                                            {paginatedInvoices.map((inv, index) => {
+                                                const isLast = index === paginatedInvoices.length - 1;
+
+                                                return (
+                                                    <tr
+                                                        key={inv.invoice_id}
+                                                        onClick={() => router.push(`/invoices/${inv.invoice_id}`)}
+                                                        onMouseEnter={() => setHoveredInvoiceId(inv.invoice_id)}
+                                                        onMouseLeave={() => setHoveredInvoiceId(null)}
+                                                        style={{ cursor: "pointer" }}
+                                                    >
+                                                        <TableBodyCell
+                                                            isLast={isLast}
+                                                            isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                        >
+                                                            <div style={tableStrongStyle}>
+                                                                {inv.invoice_number || "—"}
+                                                            </div>
+                                                        </TableBodyCell>
+
+                                                        <TableBodyCell
+                                                            isLast={isLast}
+                                                            isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                        >
+                                                            <div style={tableTextStyle}>
+                                                                {inv.customer_name || "—"}
+                                                            </div>
+                                                        </TableBodyCell>
+
+                                                        <TableBodyCell isLast={isLast}>
+                                                            <div style={tableDateStyle}>
+                                                                {formatDate(inv.issue_date)}
+                                                            </div>
+                                                        </TableBodyCell>
+
+                                                        <TableBodyCell isLast={isLast}>
+                                                            <div style={tableDateStyle}>
+                                                                {formatDate(inv.due_date)}
+                                                            </div>
+                                                        </TableBodyCell>
+
+                                                        <TableBodyCell
+                                                            isLast={isLast}
+                                                            align="right"
+                                                            isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                        >
+                                                            <div style={tableMoneyStyle}>
+                                                                {formatMoney(inv.total, inv.currency_code)}
+                                                            </div>
+                                                        </TableBodyCell>
+
+                                                        <TableBodyCell
+                                                            isLast={isLast}
+                                                            align="right"
+                                                            isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                        >
+                                                            <div style={tableMoneyStyle}>
+                                                                {formatMoney(inv.balance_due, inv.currency_code)}
+                                                            </div>
+                                                        </TableBodyCell>
+
+                                                        <TableBodyCell isLast={isLast}>
+                                                            <StatusBadge status={inv.status} />
+                                                        </TableBodyCell>
+
+                                                        <TableBodyCell
+                                                            isLast={isLast}
+                                                            align="right"
+                                                            isHovered={hoveredInvoiceId === inv.invoice_id}
+                                                        >
+                                                            <div
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                style={{
+                                                                    display: "flex",
+                                                                    justifyContent: "flex-end",
+                                                                    gap: 8,
+                                                                }}
+                                                            >
+                                                                <ActionIconButton
+                                                                    title="View invoice"
+                                                                    onClick={() =>
+                                                                        router.push(`/invoices/${inv.invoice_id}`)
+                                                                    }
+                                                                >
+                                                                    View
+                                                                </ActionIconButton>
+
+                                                                <ActionIconButton
+                                                                    title="Open PDF"
+                                                                    onClick={() =>
+                                                                        window.open(
+                                                                            `/api/invoices/${inv.invoice_id}/pdf`,
+                                                                            "_blank",
+                                                                            "noopener,noreferrer"
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    PDF
+                                                                </ActionIconButton>
+                                                            </div>
+                                                        </TableBodyCell>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div className="mobileList">
+                                {paginatedInvoices.map((inv) => (
+                                    <InvoiceMobileCard
+                                        key={inv.invoice_id}
+                                        invoice={inv}
+                                        onOpen={() => router.push(`/invoices/${inv.invoice_id}`)}
+                                        onPdf={() =>
+                                            window.open(
+                                                `/api/invoices/${inv.invoice_id}/pdf`,
+                                                "_blank",
+                                                "noopener,noreferrer"
+                                            )
+                                        }
+                                    />
+                                ))}
+                            </div>
+
+                            <PaginationFooter
+                                page={page}
+                                totalPages={totalPages}
+                                filteredCount={filteredInvoices.length}
+                                onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+                                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+                            />
+                        </>
+                    )}
+                </section>
+            </div>
+
+            <style jsx>{`
+                .invoiceHero {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 18px;
+                    flex-wrap: wrap;
+                }
+
+                .kpiGrid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+                    gap: 12px;
+                }
+
+                .quickTabs {
+                    display: flex;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                    align-items: center;
+                }
+
+                .filterGrid {
+                    display: grid;
+                    grid-template-columns: minmax(260px, 1.3fr) minmax(220px, 0.9fr);
+                    gap: 12px;
+                }
+
+                .mobileList {
+                    display: none;
+                }
+
+                @media (max-width: 860px) {
+                    main {
+                        padding: 16px !important;
+                    }
+
+                    .invoiceHero {
+                        display: grid;
+                        grid-template-columns: 1fr;
+                    }
+
+                    .filterGrid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .quickTabs button {
+                        flex: 1 1 calc(50% - 8px);
+                    }
+
+                    .desktopTable {
+                        display: none;
+                    }
+
+                    .mobileList {
+                        display: grid;
+                        gap: 12px;
+                    }
+
+                    button {
+                        width: 100%;
+                    }
+                }
+            `}</style>
+        </main>
+    );
+}
+
+function InvoiceMobileCard({
+    invoice,
+    onOpen,
+    onPdf,
+}: {
+    invoice: Invoice;
+    onOpen: () => void;
+    onPdf: () => void;
+}) {
+    return (
+        <article
+            style={{
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                padding: 14,
+                display: "grid",
+                gap: 12,
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "flex-start",
+                }}
+            >
+                <div style={{ minWidth: 0 }}>
+                    <div style={tableStrongStyle}>{invoice.invoice_number || "—"}</div>
+                    <div
+                        style={{
+                            marginTop: 4,
+                            color: MR_THEME.colors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: 700,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {invoice.customer_name || "—"}
+                    </div>
+                </div>
+
+                <StatusBadge status={invoice.status} />
+            </div>
+
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10,
+                }}
+            >
+                <MiniInfo label="Issue" value={formatDate(invoice.issue_date)} />
+                <MiniInfo label="Due" value={formatDate(invoice.due_date)} />
+                <MiniInfo label="Total" value={formatMoney(invoice.total, invoice.currency_code)} />
+                <MiniInfo
+                    label="Balance"
+                    value={formatMoney(invoice.balance_due, invoice.currency_code)}
+                />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <ActionIconButton title="View invoice" onClick={onOpen}>
+                    View
+                </ActionIconButton>
+                <ActionIconButton title="Open PDF" onClick={onPdf}>
+                    PDF
+                </ActionIconButton>
+            </div>
+        </article>
+    );
+}
+
+function MiniInfo({ label, value }: { label: string; value: string }) {
     return (
         <div
             style={{
-                minHeight: "100%",
-                background: "#f8fafc",
-                padding: "28px 24px 44px",
+                padding: "8px 10px",
+                borderRadius: MR_THEME.radius.control,
+                background: MR_THEME.colors.cardBgSoft,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                minWidth: 0,
             }}
         >
-            <div style={{ maxWidth: 1180, margin: "0 auto" }}>
-                <div style={{ display: "grid", gap: 18 }}>
-                    <section style={heroCardStyle}>
-                        <div
-                            style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "flex-start",
-                                gap: 18,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            <div style={{ minWidth: 280 }}>
-                                <div style={eyebrowStyle}>Invoices</div>
+            <div style={filterLabelStyle}>{label}</div>
+            <div
+                style={{
+                    marginTop: 4,
+                    color: MR_THEME.colors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: 800,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {value}
+            </div>
+        </div>
+    );
+}
 
-                                <div
-                                    style={{
-                                        fontSize: 30,
-                                        lineHeight: 1.1,
-                                        fontWeight: 900,
-                                        color: "#111827",
-                                        marginBottom: 8,
-                                    }}
-                                >
-                                    Invoice Control Center
-                                </div>
+function PaginationFooter({
+    page,
+    totalPages,
+    filteredCount,
+    onPrevious,
+    onNext,
+}: {
+    page: number;
+    totalPages: number;
+    filteredCount: number;
+    onPrevious: () => void;
+    onNext: () => void;
+}) {
+    return (
+        <div
+            style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                gap: 12,
+                paddingTop: 18,
+                borderTop: `1px solid ${MR_THEME.colors.border}`,
+                marginTop: 14,
+                flexWrap: "wrap",
+            }}
+        >
+            <div
+                style={{
+                    fontSize: 13,
+                    color: MR_THEME.colors.textSecondary,
+                    fontWeight: 700,
+                }}
+            >
+                Showing {filteredCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–
+                {Math.min(page * PAGE_SIZE, filteredCount)} of {filteredCount} invoices
+            </div>
 
-                                <div
-                                    style={{
-                                        color: "#4b5563",
-                                        fontSize: 14,
-                                        lineHeight: 1.7,
-                                        maxWidth: 760,
-                                    }}
-                                >
-                                    Review invoice status, outstanding balances, payment progress,
-                                    and quick actions for your active company.
-                                </div>
-                            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <button
+                    type="button"
+                    onClick={onPrevious}
+                    disabled={page === 1}
+                    style={paginationButtonStyle(page === 1)}
+                >
+                    Previous
+                </button>
 
-                            <button type="button" onClick={loadInvoices} style={secondaryButtonStyle}>
-                                Refresh
-                            </button>
-                        </div>
-                    </section>
-
-                    {errorMsg ? (
-                        <div
-                            style={{
-                                padding: 14,
-                                borderRadius: 14,
-                                border: "1px solid #fecaca",
-                                background: "#fff7f7",
-                                color: "#b91c1c",
-                                fontWeight: 800,
-                                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                            }}
-                        >
-                            Error: {errorMsg}
-                        </div>
-                    ) : null}
-
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                            gap: 14,
-                        }}
-                    >
-                        <KpiCard label="Overdue" value={String(overdueCount)} tone="danger" />
-                        <KpiCard label="Unpaid" value={String(unpaidCount)} tone="info" />
-                        <KpiCard label="Draft" value={String(draftCount)} tone="neutral" />
-                        <KpiCard label="Paid" value={String(paidCount)} tone="success" />
-                        <KpiCard
-                            label="Outstanding Balance"
-                            value={formatMoney(outstandingBalance, activeCurrency)}
-                            tone="accent"
-                        />
-                    </div>
-
-                    <section style={shellCardStyle}>
-                        <div style={{ display: "grid", gap: 16 }}>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    gap: 10,
-                                    flexWrap: "wrap",
-                                    alignItems: "center",
-                                }}
-                            >
-                                <QuickTab
-                                    active={quickFilter === "unpaid"}
-                                    label="Pending Payment"
-                                    onClick={() => setQuickFilter("unpaid")}
-                                />
-                                <QuickTab
-                                    active={quickFilter === "drafts"}
-                                    label="Drafts"
-                                    onClick={() => setQuickFilter("drafts")}
-                                />
-                                <QuickTab
-                                    active={quickFilter === "paid"}
-                                    label="Paid"
-                                    onClick={() => setQuickFilter("paid")}
-                                />
-                                <QuickTab
-                                    active={quickFilter === "all"}
-                                    label="All"
-                                    onClick={() => setQuickFilter("all")}
-                                />
-                            </div>
-
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gridTemplateColumns:
-                                        "minmax(260px, 1.3fr) minmax(220px, 0.9fr)",
-                                    gap: 12,
-                                }}
-                            >
-                                <div style={{ display: "grid", gap: 6 }}>
-                                    <label style={filterLabelStyle}>Search</label>
-                                    <input
-                                        value={search}
-                                        onChange={(e) => setSearch(e.target.value)}
-                                        placeholder="Invoice number, customer, status"
-                                        style={inputStyle}
-                                    />
-                                </div>
-
-                                <div style={{ display: "grid", gap: 6 }}>
-                                    <label style={filterLabelStyle}>Customer</label>
-                                    <select
-                                        value={customerFilter}
-                                        onChange={(e) => setCustomerFilter(e.target.value)}
-                                        style={inputStyle}
-                                    >
-                                        <option value="all">All customers</option>
-                                        {customerOptions.map((name) => (
-                                            <option key={name} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    <section style={shellCardStyle}>
-                        {loading ? (
-                            <StateCard message="Loading invoices..." />
-                        ) : !companyId ? (
-                            <StateCard message="No active company selected." />
-                        ) : filteredInvoices.length === 0 ? (
-                            <StateCard message="No invoices found for the current filters." />
-                        ) : (
-                            <div style={{ overflowX: "auto" }}>
-                                <table
-                                    style={{
-                                        width: "100%",
-                                        minWidth: 980,
-                                        borderCollapse: "separate",
-                                        borderSpacing: 0,
-                                    }}
-                                >
-                                    <thead>
-                                        <tr>
-                                            <TableHeaderCell style={{ borderTopLeftRadius: 14 }}>
-                                                Invoice
-                                            </TableHeaderCell>
-                                            <TableHeaderCell>Customer</TableHeaderCell>
-                                            <TableHeaderCell>Date</TableHeaderCell>
-                                            <TableHeaderCell>Due</TableHeaderCell>
-                                            <TableHeaderCell align="right">Total</TableHeaderCell>
-                                            <TableHeaderCell align="right">Balance</TableHeaderCell>
-                                            <TableHeaderCell>Status</TableHeaderCell>
-                                            <TableHeaderCell
-                                                align="right"
-                                                style={{ borderTopRightRadius: 14 }}
-                                            >
-                                                Actions
-                                            </TableHeaderCell>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        {paginatedInvoices.map((inv, index) => {
-                                            const isLast = index === paginatedInvoices.length - 1;
-
-                                            return (
-                                                <tr
-                                                    key={inv.invoice_id}
-                                                    onClick={() => router.push(`/invoices/${inv.invoice_id}`)}
-                                                    onMouseEnter={() => setHoveredInvoiceId(inv.invoice_id)}
-                                                    onMouseLeave={() => setHoveredInvoiceId(null)}
-                                                    style={{
-                                                        cursor: "pointer",
-                                                    }}
-                                                >
-                                                    <TableBodyCell
-                                                        isLast={isLast}
-                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                fontSize: 15,
-                                                                fontWeight: 900,
-                                                                color: "#111827",
-                                                                letterSpacing: 0.1,
-                                                                whiteSpace: "nowrap",
-                                                            }}
-                                                        >
-                                                            {inv.invoice_number || "—"}
-                                                        </div>
-                                                    </TableBodyCell>
-
-                                                    <TableBodyCell
-                                                        isLast={isLast}
-                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
-                                                    >
-                                                        <div
-                                                            style={{
-                                                                fontSize: 14,
-                                                                fontWeight: 700,
-                                                                color: "#111827",
-                                                            }}
-                                                        >
-                                                            {inv.customer_name || "—"}
-                                                        </div>
-                                                    </TableBodyCell>
-
-                                                    <TableBodyCell isLast={isLast}>
-                                                        <div style={tableDateStyle}>
-                                                            {formatDate(inv.issue_date)}
-                                                        </div>
-                                                    </TableBodyCell>
-
-                                                    <TableBodyCell isLast={isLast}>
-                                                        <div style={tableDateStyle}>
-                                                            {formatDate(inv.due_date)}
-                                                        </div>
-                                                    </TableBodyCell>
-
-                                                    <TableBodyCell
-                                                        isLast={isLast}
-                                                        align="right"
-                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
-                                                    >
-                                                        <div style={tableMoneyStyle}>
-                                                            {formatMoney(inv.total, inv.currency_code)}
-                                                        </div>
-                                                    </TableBodyCell>
-
-                                                    <TableBodyCell
-                                                        isLast={isLast}
-                                                        align="right"
-                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
-                                                    >
-                                                        <div style={tableMoneyStyle}>
-                                                            {formatMoney(inv.balance_due, inv.currency_code)}
-                                                        </div>
-                                                    </TableBodyCell>
-
-                                                    <TableBodyCell isLast={isLast}>
-                                                        <StatusBadge status={inv.status} />
-                                                    </TableBodyCell>
-
-                                                    <TableBodyCell
-                                                        isLast={isLast}
-                                                        align="right"
-                                                        isHovered={hoveredInvoiceId === inv.invoice_id}
-                                                    >
-                                                        <div
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            style={{
-                                                                display: "flex",
-                                                                justifyContent: "flex-end",
-                                                                gap: 8,
-                                                                flexWrap: "nowrap",
-                                                            }}
-                                                        >
-                                                            <ActionIconButton
-                                                                title="View invoice"
-                                                                onClick={() => router.push(`/invoices/${inv.invoice_id}`)}
-                                                            >
-                                                                View
-                                                            </ActionIconButton>
-
-                                                            <ActionIconButton
-                                                                title="Open PDF"
-                                                                onClick={() =>
-                                                                    window.open(
-                                                                        `/api/invoices/${inv.invoice_id}/pdf`,
-                                                                        "_blank",
-                                                                        "noopener,noreferrer"
-                                                                    )
-                                                                }
-                                                            >
-                                                                PDF
-                                                            </ActionIconButton>
-                                                        </div>
-                                                    </TableBodyCell>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        gap: 12,
-                                        paddingTop: 18,
-                                        borderTop: "1px solid #f1f5f9",
-                                        marginTop: 14,
-                                        flexWrap: "wrap",
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 13,
-                                            color: "#6b7280",
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        Showing{" "}
-                                        {filteredInvoices.length === 0
-                                            ? 0
-                                            : (page - 1) * PAGE_SIZE + 1}
-                                        {"–"}
-                                        {Math.min(page * PAGE_SIZE, filteredInvoices.length)} of{" "}
-                                        {filteredInvoices.length} invoices
-                                    </div>
-
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 8,
-                                        }}
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                            disabled={page === 1}
-                                            style={{
-                                                height: 38,
-                                                padding: "0 14px",
-                                                borderRadius: 10,
-                                                border: "1px solid #d1d5db",
-                                                background: page === 1 ? "#f9fafb" : "#ffffff",
-                                                color: page === 1 ? "#9ca3af" : "#111827",
-                                                cursor: page === 1 ? "not-allowed" : "pointer",
-                                                fontWeight: 700,
-                                            }}
-                                        >
-                                            Previous
-                                        </button>
-
-                                        <div
-                                            style={{
-                                                minWidth: 88,
-                                                textAlign: "center",
-                                                fontSize: 13,
-                                                fontWeight: 700,
-                                                color: "#374151",
-                                            }}
-                                        >
-                                            Page {page} of {totalPages}
-                                        </div>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                                            disabled={page === totalPages}
-                                            style={{
-                                                height: 38,
-                                                padding: "0 14px",
-                                                borderRadius: 10,
-                                                border: "1px solid #d1d5db",
-                                                background: page === totalPages ? "#f9fafb" : "#ffffff",
-                                                color: page === totalPages ? "#9ca3af" : "#111827",
-                                                cursor: page === totalPages ? "not-allowed" : "pointer",
-                                                fontWeight: 700,
-                                            }}
-                                        >
-                                            Next
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </section>
+                <div
+                    style={{
+                        minWidth: 88,
+                        textAlign: "center",
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: MR_THEME.colors.textSecondary,
+                    }}
+                >
+                    Page {page} of {totalPages}
                 </div>
+
+                <button
+                    type="button"
+                    onClick={onNext}
+                    disabled={page === totalPages}
+                    style={paginationButtonStyle(page === totalPages)}
+                >
+                    Next
+                </button>
             </div>
         </div>
     );
@@ -603,14 +725,14 @@ function TableHeaderCell({
     return (
         <th
             style={{
-                background: "#f8fafc",
-                borderBottom: "1px solid #e5e7eb",
+                background: MR_THEME.colors.cardBgSoft,
+                borderBottom: `1px solid ${MR_THEME.colors.border}`,
                 padding: "14px 16px",
                 textAlign: align,
                 fontSize: 12,
                 textTransform: "uppercase",
                 letterSpacing: 0.8,
-                color: "#6b7280",
+                color: MR_THEME.colors.textMuted,
                 fontWeight: 800,
                 whiteSpace: "nowrap",
                 ...style,
@@ -635,11 +757,11 @@ function TableBodyCell({
     return (
         <td
             style={{
-                padding: "12px 12px",
-                borderBottom: isLast ? "none" : "1px solid #eef2f7",
+                padding: "12px",
+                borderBottom: isLast ? "none" : `1px solid ${MR_THEME.colors.border}`,
                 textAlign: align,
                 verticalAlign: "middle",
-                background: isHovered ? "#f9fafb" : "#ffffff",
+                background: isHovered ? MR_THEME.colors.cardBgSoft : MR_THEME.colors.cardBg,
                 transition: "background 0.15s ease",
             }}
         >
@@ -665,14 +787,14 @@ function QuickTab({
                 height: 38,
                 padding: "0 14px",
                 borderRadius: 999,
-                border: active ? "1px solid #111827" : "1px solid #d1d5db",
-                background: active ? "#111827" : "#ffffff",
-                color: active ? "#ffffff" : "#111827",
+                border: active
+                    ? `1px solid ${MR_THEME.colors.primary}`
+                    : `1px solid ${MR_THEME.colors.borderStrong}`,
+                background: active ? MR_THEME.colors.primary : MR_THEME.colors.cardBg,
+                color: active ? "#ffffff" : MR_THEME.colors.textPrimary,
                 cursor: "pointer",
                 fontWeight: 800,
-                boxShadow: active
-                    ? "0 1px 2px rgba(0,0,0,0.08)"
-                    : "0 1px 2px rgba(0,0,0,0.04)",
+                boxShadow: active ? MR_THEME.shadows.cardSoft : "none",
             }}
         >
             {label}
@@ -697,10 +819,10 @@ function ActionIconButton({
             style={{
                 height: 34,
                 padding: "0 10px",
-                borderRadius: 10,
-                border: "1px solid #d1d5db",
-                background: "#ffffff",
-                color: "#111827",
+                borderRadius: MR_THEME.radius.control,
+                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                background: MR_THEME.colors.cardBg,
+                color: MR_THEME.colors.textPrimary,
                 cursor: "pointer",
                 fontWeight: 800,
                 fontSize: 12,
@@ -711,8 +833,6 @@ function ActionIconButton({
         </button>
     );
 }
-
-
 
 function KpiCard({
     label,
@@ -728,11 +848,11 @@ function KpiCard({
     return (
         <div
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 18,
-                background: "#ffffff",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                padding: 16,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                boxShadow: MR_THEME.shadows.card,
+                padding: 14,
                 display: "grid",
                 gap: 8,
             }}
@@ -751,10 +871,10 @@ function KpiCard({
 
             <div
                 style={{
-                    fontSize: 28,
+                    fontSize: 24,
                     lineHeight: 1.1,
                     fontWeight: 900,
-                    color: "#111827",
+                    color: MR_THEME.colors.textPrimary,
                 }}
             >
                 {value}
@@ -768,11 +888,11 @@ function StateCard({ message }: { message: string }) {
         <div
             style={{
                 padding: 18,
-                borderRadius: 16,
-                border: "1px solid #e5e7eb",
-                background: "#ffffff",
-                color: "#6b7280",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                borderRadius: MR_THEME.radius.card,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                background: MR_THEME.colors.cardBg,
+                color: MR_THEME.colors.textSecondary,
+                boxShadow: MR_THEME.shadows.card,
             }}
         >
             {message}
@@ -780,26 +900,37 @@ function StateCard({ message }: { message: string }) {
     );
 }
 
+function ErrorCard({ message }: { message: string }) {
+    return (
+        <div
+            style={{
+                padding: 14,
+                borderRadius: MR_THEME.radius.card,
+                border: `1px solid ${MR_THEME.colors.danger}`,
+                background: "#fff7f7",
+                color: MR_THEME.colors.danger,
+                fontWeight: 800,
+                boxShadow: MR_THEME.shadows.card,
+            }}
+        >
+            Error: {message}
+        </div>
+    );
+}
+
 function StatusBadge({ status }: { status: string | null }) {
     const normalized = normalizeStatus(status);
 
-    let bg = "#f3f4f6";
-    let color = "#374151";
-    let border = "#e5e7eb";
+    let bg: string = MR_THEME.colors.cardBgSoft;
+    let color: string = MR_THEME.colors.textSecondary;
+    let border: string = MR_THEME.colors.border;
     let label = prettyStatus(status);
 
     if (normalized === "draft") {
-        bg = "#f3f4f6";
-        color = "#4b5563";
-        border = "#d1d5db";
         label = "Draft";
-    } else if (
-        normalized === "sent" ||
-        normalized === "open" ||
-        normalized === "final"
-    ) {
-        bg = "#dbeafe";
-        color = "#1d4ed8";
+    } else if (normalized === "sent" || normalized === "open" || normalized === "final") {
+        bg = MR_THEME.colors.primarySoft;
+        color = MR_THEME.colors.primary;
         border = "#bfdbfe";
         label = normalized === "final" ? "Final" : prettyStatus(status);
     } else if (normalized === "paid") {
@@ -897,44 +1028,60 @@ function formatMoney(amount: number | null, currencyCode: string | null) {
     }
 }
 
-function getKpiTone(tone: "danger" | "info" | "neutral" | "success" | "accent") {
-    if (tone === "danger") return { labelColor: "#b91c1c" };
-    if (tone === "info") return { labelColor: "#1d4ed8" };
-    if (tone === "success") return { labelColor: "#166534" };
-    if (tone === "accent") return { labelColor: "#7c3aed" };
-    return { labelColor: "#374151" };
+function getKpiTone(
+    tone: "danger" | "info" | "neutral" | "success" | "accent"
+): { labelColor: string } {
+    if (tone === "danger") return { labelColor: MR_THEME.colors.danger };
+    if (tone === "info") return { labelColor: MR_THEME.colors.info };
+    if (tone === "success") return { labelColor: MR_THEME.colors.success };
+    if (tone === "accent") return { labelColor: MR_THEME.colors.primary };
+
+    return { labelColor: MR_THEME.colors.textSecondary };
+}
+
+function paginationButtonStyle(disabled: boolean): React.CSSProperties {
+    return {
+        height: 38,
+        padding: "0 14px",
+        borderRadius: MR_THEME.radius.control,
+        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+        background: disabled ? MR_THEME.colors.cardBgSoft : MR_THEME.colors.cardBg,
+        color: disabled ? MR_THEME.colors.textMuted : MR_THEME.colors.textPrimary,
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontWeight: 800,
+    };
 }
 
 const heroCardStyle: React.CSSProperties = {
-    border: "1px solid #e5e7eb",
-    borderRadius: 20,
-    background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
-    boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-    padding: 20,
+    border: `1px solid ${MR_THEME.colors.border}`,
+    borderRadius: MR_THEME.radius.card,
+    background: MR_THEME.colors.cardBg,
+    boxShadow: MR_THEME.shadows.card,
+    padding: MR_THEME.layout.cardPadding,
 };
 
 const shellCardStyle: React.CSSProperties = {
-    border: "1px solid #e5e7eb",
-    borderRadius: 18,
-    background: "#ffffff",
-    boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-    padding: 18,
+    border: `1px solid ${MR_THEME.colors.border}`,
+    borderRadius: MR_THEME.radius.card,
+    background: MR_THEME.colors.cardBg,
+    boxShadow: MR_THEME.shadows.card,
+    padding: 16,
 };
 
 const eyebrowStyle: React.CSSProperties = {
     fontSize: 12,
     textTransform: "uppercase",
     letterSpacing: 1.2,
-    color: "#6b7280",
+    color: MR_THEME.colors.primary,
     fontWeight: 800,
     marginBottom: 8,
 };
 
 const filterLabelStyle: React.CSSProperties = {
-    fontSize: 12,
+    fontSize: 11,
     textTransform: "uppercase",
     letterSpacing: 0.8,
-    color: "#6b7280",
+    color: MR_THEME.colors.textMuted,
     fontWeight: 800,
 };
 
@@ -942,24 +1089,38 @@ const inputStyle: React.CSSProperties = {
     width: "100%",
     height: 44,
     padding: "0 14px",
-    border: "1px solid #d1d5db",
-    borderRadius: 12,
-    background: "#ffffff",
-    color: "#111827",
+    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+    borderRadius: MR_THEME.radius.control,
+    background: MR_THEME.colors.cardBg,
+    color: MR_THEME.colors.textPrimary,
     fontSize: 14,
     boxSizing: "border-box",
 };
 
+const tableStrongStyle: React.CSSProperties = {
+    fontSize: 15,
+    fontWeight: 900,
+    color: MR_THEME.colors.textPrimary,
+    letterSpacing: 0.1,
+    whiteSpace: "nowrap",
+};
+
+const tableTextStyle: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 700,
+    color: MR_THEME.colors.textPrimary,
+};
+
 const tableDateStyle: React.CSSProperties = {
     fontSize: 14,
-    color: "#374151",
-    fontWeight: 600,
+    color: MR_THEME.colors.textSecondary,
+    fontWeight: 700,
     whiteSpace: "nowrap",
 };
 
 const tableMoneyStyle: React.CSSProperties = {
     fontSize: 14,
-    color: "#111827",
+    color: MR_THEME.colors.textPrimary,
     fontWeight: 900,
     whiteSpace: "nowrap",
 };
@@ -967,11 +1128,11 @@ const tableMoneyStyle: React.CSSProperties = {
 const secondaryButtonStyle: React.CSSProperties = {
     height: 42,
     padding: "0 14px",
-    borderRadius: 12,
-    border: "1px solid #d1d5db",
-    background: "#ffffff",
-    color: "#111827",
+    borderRadius: MR_THEME.radius.control,
+    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+    background: MR_THEME.colors.cardBg,
+    color: MR_THEME.colors.textPrimary,
     cursor: "pointer",
     fontWeight: 800,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+    boxShadow: MR_THEME.shadows.cardSoft,
 };

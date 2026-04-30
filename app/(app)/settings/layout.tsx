@@ -1,20 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-const MR_THEME = {
-    appBg: "#f8fafc",
-    cardBg: "#ffffff",
-    border: "#e2e8f0",
-    borderStrong: "#cbd5e1",
-    textPrimary: "#0f172a",
-    textSecondary: "#475569",
-    primary: "#2563eb",
-    primaryHover: "#1d4ed8",
-    primarySoft: "#dbeafe",
-    shadowCard: "0 1px 2px rgba(16, 24, 40, 0.04)",
-};
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { MR_THEME } from "@/lib/theme";
+import { useActiveCompany } from "../../../hooks/useActiveCompany";
 
 function SettingsNavItem({
     href,
@@ -31,15 +21,17 @@ function SettingsNavItem({
             style={{
                 display: "block",
                 padding: "12px 14px",
-                borderRadius: 12,
+                borderRadius: MR_THEME.radius.control,
                 textDecoration: "none",
                 fontSize: 14,
                 fontWeight: isActive ? 700 : 600,
                 lineHeight: 1.3,
-                background: isActive ? MR_THEME.primarySoft : "transparent",
-                color: isActive ? MR_THEME.primaryHover : MR_THEME.textPrimary,
-                border: isActive ? `1px solid ${MR_THEME.primarySoft}` : "1px solid transparent",
-                boxShadow: isActive ? MR_THEME.shadowCard : "none",
+                background: isActive ? MR_THEME.colors.primarySoft : "transparent",
+                color: isActive ? MR_THEME.colors.primaryHover : MR_THEME.colors.textPrimary,
+                border: isActive
+                    ? `1px solid ${MR_THEME.colors.primarySoft}`
+                    : "1px solid transparent",
+                boxShadow: isActive ? MR_THEME.shadows.cardSoft : "none",
             }}
         >
             {label}
@@ -53,6 +45,26 @@ export default function SettingsLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const { myRole, isLoadingCompany } = useActiveCompany();
+
+    const isAdmin = myRole === "owner" || myRole === "admin";
+
+    useEffect(() => {
+        if (isLoadingCompany) return;
+
+        if (!isAdmin) {
+            router.replace("/work-orders");
+        }
+    }, [isLoadingCompany, isAdmin, router]);
+
+    if (isLoadingCompany) {
+        return null;
+    }
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <div
@@ -79,18 +91,18 @@ export default function SettingsLayout({
                 >
                     <div
                         style={{
-                            border: `1px solid ${MR_THEME.border}`,
-                            borderRadius: 16,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            borderRadius: MR_THEME.radius.card,
                             padding: 18,
-                            background: MR_THEME.cardBg,
-                            boxShadow: MR_THEME.shadowCard,
+                            background: MR_THEME.colors.cardBg,
+                            boxShadow: MR_THEME.shadows.cardSoft,
                         }}
                     >
                         <div
                             style={{
                                 fontSize: 20,
                                 fontWeight: 800,
-                                color: MR_THEME.textPrimary,
+                                color: MR_THEME.colors.textPrimary,
                                 marginBottom: 4,
                             }}
                         >
@@ -100,7 +112,7 @@ export default function SettingsLayout({
                         <div
                             style={{
                                 fontSize: 13,
-                                color: MR_THEME.textSecondary,
+                                color: MR_THEME.colors.textSecondary,
                                 lineHeight: 1.5,
                                 marginBottom: 16,
                             }}
@@ -112,27 +124,46 @@ export default function SettingsLayout({
                             <SettingsNavItem
                                 href="/settings/company"
                                 label="Company"
-                                isActive={pathname === "/settings/company" || pathname.startsWith("/settings/company/")}
+                                isActive={
+                                    pathname === "/settings/company" ||
+                                    pathname.startsWith("/settings/company/")
+                                }
                             />
+
                             <SettingsNavItem
                                 href="/settings/billing"
                                 label="Billing"
-                                isActive={pathname === "/settings/billing" || pathname.startsWith("/settings/billing/")}
+                                isActive={
+                                    pathname === "/settings/billing" ||
+                                    pathname.startsWith("/settings/billing/")
+                                }
                             />
+
                             <SettingsNavItem
                                 href="/settings/taxes"
                                 label="Taxes"
-                                isActive={pathname === "/settings/taxes" || pathname.startsWith("/settings/taxes/")}
+                                isActive={
+                                    pathname === "/settings/taxes" ||
+                                    pathname.startsWith("/settings/taxes/")
+                                }
                             />
+
                             <SettingsNavItem
                                 href="/settings/preferences"
                                 label="Preferences"
-                                isActive={pathname === "/settings/preferences" || pathname.startsWith("/settings/preferences/")}
+                                isActive={
+                                    pathname === "/settings/preferences" ||
+                                    pathname.startsWith("/settings/preferences/")
+                                }
                             />
+
                             <SettingsNavItem
                                 href="/settings/team"
                                 label="Team"
-                                isActive={pathname === "/settings/team" || pathname.startsWith("/settings/team/")}
+                                isActive={
+                                    pathname === "/settings/team" ||
+                                    pathname.startsWith("/settings/team/")
+                                }
                             />
                         </div>
                     </div>
