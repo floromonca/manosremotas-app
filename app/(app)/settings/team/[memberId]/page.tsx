@@ -16,6 +16,8 @@ import MemberBasicInfoCard from "./components/MemberBasicInfoCard";
 import MemberWorkSummaryCard from "./components/MemberWorkSummaryCard";
 import MemberAttendanceCard from "./components/MemberAttendanceCard";
 import MemberHoursPayCard from "./components/MemberHoursPayCard";
+import MemberHoursStats from "./components/MemberHoursStats";
+
 import {
     getLastShiftForUser,
     getOpenShiftForUser,
@@ -596,53 +598,10 @@ export default function TeamMemberDetailPage() {
                 />
                 <MemberHoursPayCard loadingHoursPay={loadingHoursPay}>
                     <div style={{ display: "grid", gap: 16 }}>
-                        <div style={statsGridStyle}>
-                            <InfoCard
-                                label="Closed hours"
-                                value={formatHours(hoursSummary?.closed_hours)}
-                            />
-                            <InfoCard
-                                label="Running hours"
-                                value={formatHours(hoursSummary?.running_hours)}
-                            />
-                            <InfoCard
-                                label="Visible hours"
-                                value={formatHours(hoursSummary?.display_hours)}
-                            />
-                            <InfoCard
-                                label="Hourly rate"
-                                value={
-                                    hoursSummary?.hourly_rate != null
-                                        ? formatMoney(
-                                            hoursSummary.hourly_rate,
-                                            currencyCode
-                                        )
-                                        : "Rate not set"
-                                }
-                            />
-                            <InfoCard
-                                label="Estimated pay (closed)"
-                                value={
-                                    hoursSummary?.hourly_rate != null
-                                        ? formatMoney(
-                                            hoursSummary?.estimated_pay_closed,
-                                            currencyCode
-                                        )
-                                        : "Rate not set"
-                                }
-                            />
-                            <InfoCard
-                                label="Estimated pay (visible)"
-                                value={
-                                    hoursSummary?.hourly_rate != null
-                                        ? formatMoney(
-                                            hoursSummary?.estimated_pay_display,
-                                            currencyCode
-                                        )
-                                        : "Rate not set"
-                                }
-                            />
-                        </div>
+                        <MemberHoursStats
+                            hoursSummary={hoursSummary}
+                            currencyCode={currencyCode}
+                        />
 
                         <div
                             style={{
