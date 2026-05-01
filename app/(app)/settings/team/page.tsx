@@ -384,19 +384,6 @@ export default function TeamPage() {
             {ok ? <AlertBox tone="success">{ok}</AlertBox> : null}
 
             <div style={{ display: "grid", gap: 20 }}>
-                <div
-                    style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                        gap: 16,
-                    }}
-                >
-                    <StatCard label="Total members" value={teamOverview.totalMembers} />
-                    <StatCard label="On shift now" value={teamOverview.onShiftNow} />
-                    <StatCard label="Off shift" value={teamOverview.offShiftNow} />
-                    <StatCard label="Pending invites" value={teamOverview.pendingInviteCount} />
-                </div>
-
                 <SectionCard
                     title="Members"
                     description="Active members linked to this company and their current role."
@@ -410,6 +397,7 @@ export default function TeamPage() {
                             placeholder="Search by name"
                         />
                     </div>
+
                     <DataTable
                         columns={["Name", "Role", "Shift", "Worked today", "Worked week", "Action"]}
                         emptyMessage={loading ? "Loading members..." : "No members found."}
@@ -479,7 +467,18 @@ export default function TeamPage() {
                     )}
                 </SectionCard>
 
-
+                <div
+                    style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                        gap: 16,
+                    }}
+                >
+                    <StatCard label="Total members" value={teamOverview.totalMembers} />
+                    <StatCard label="On shift now" value={teamOverview.onShiftNow} />
+                    <StatCard label="Off shift" value={teamOverview.offShiftNow} />
+                    <StatCard label="Pending invites" value={teamOverview.pendingInviteCount} />
+                </div>
 
                 <SectionCard
                     title="Pending Invites"
