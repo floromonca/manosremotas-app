@@ -1,18 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { MR_THEME } from "../../lib/theme";
 
 export default function AuthPage() {
-  const router = useRouter();
-
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [msg, setMsg] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const hash = window.location.hash || "";
+    const search = window.location.search || "";
+
+    const isRecovery =
+      hash.includes("type=recovery") || search.includes("type=recovery");
+
+    if (!isRecovery) return;
+
+    window.location.replace(`/auth/reset-password${hash}`);
+  }, []);
 
   const ensureClientSession = async (
     session:
@@ -47,6 +60,35 @@ export default function AuthPage() {
     if (!companyId) throw new Error("Could not bootstrap company.");
 
     return companyId as string;
+  };
+
+  const sendPasswordReset = async () => {
+    if (resetBusy) return;
+
+    const cleanEmail = email.trim();
+
+    setMsg("");
+
+    if (!cleanEmail) {
+      setMsg("Enter your email first, then click Forgot password.");
+      return;
+    }
+
+    setResetBusy(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (error) throw error;
+
+      setMsg("Password reset email sent. Please check your inbox.");
+    } catch (e: any) {
+      setMsg(e?.message ?? String(e));
+    } finally {
+      setResetBusy(false);
+    }
   };
 
   const submit = async () => {
@@ -100,7 +142,6 @@ export default function AuthPage() {
 
         if (cidFromInvite) {
           localStorage.setItem("activeCompanyId", cidFromInvite);
-
           await new Promise((resolve) => setTimeout(resolve, 400));
           window.location.assign("/work-orders");
           return;
@@ -256,13 +297,16 @@ export default function AuthPage() {
         >
           <button
             type="button"
-            onClick={() => setMode("signin")}
+            onClick={() => {
+              setMode("signin");
+              setMsg("");
+            }}
             style={{
               padding: "12px 14px",
               borderRadius: MR_THEME.radius.control,
               border: `1px solid ${mode === "signin"
-                  ? MR_THEME.colors.primary
-                  : MR_THEME.colors.borderStrong
+                ? MR_THEME.colors.primary
+                : MR_THEME.colors.borderStrong
                 }`,
               background:
                 mode === "signin" ? MR_THEME.colors.primary : MR_THEME.colors.cardBg,
@@ -277,13 +321,16 @@ export default function AuthPage() {
 
           <button
             type="button"
-            onClick={() => setMode("signup")}
+            onClick={() => {
+              setMode("signup");
+              setMsg("");
+            }}
             style={{
               padding: "12px 14px",
               borderRadius: MR_THEME.radius.control,
               border: `1px solid ${mode === "signup"
-                  ? MR_THEME.colors.primary
-                  : MR_THEME.colors.borderStrong
+                ? MR_THEME.colors.primary
+                : MR_THEME.colors.borderStrong
                 }`,
               background:
                 mode === "signup" ? MR_THEME.colors.primary : MR_THEME.colors.cardBg,
@@ -304,18 +351,7 @@ export default function AuthPage() {
             autoComplete="email"
             inputMode="email"
             onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "14px 14px",
-              borderRadius: MR_THEME.radius.control,
-              border: `1px solid ${MR_THEME.colors.borderStrong}`,
-              background: "#ffffff",
-              color: MR_THEME.colors.textPrimary,
-              fontSize: 16,
-              fontWeight: 700,
-              outlineColor: MR_THEME.colors.primary,
-              opacity: 1,
-            }}
+            style={inputStyle}
           />
 
           <input
@@ -324,19 +360,36 @@ export default function AuthPage() {
             value={password}
             autoComplete={mode === "signin" ? "current-password" : "new-password"}
             onChange={(e) => setPassword(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "14px 14px",
-              borderRadius: MR_THEME.radius.control,
-              border: `1px solid ${MR_THEME.colors.borderStrong}`,
-              background: "#ffffff",
-              color: MR_THEME.colors.textPrimary,
-              fontSize: 16,
-              fontWeight: 700,
-              outlineColor: MR_THEME.colors.primary,
-              opacity: 1,
-            }}
+            style={inputStyle}
           />
+
+          {mode === "signin" ? (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                marginTop: -4,
+              }}
+            >
+              <button
+                type="button"
+                onClick={sendPasswordReset}
+                disabled={resetBusy}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  color: MR_THEME.colors.primary,
+                  cursor: resetBusy ? "default" : "pointer",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  opacity: resetBusy ? 0.7 : 1,
+                }}
+              >
+                {resetBusy ? "Sending reset email..." : "Forgot password?"}
+              </button>
+            </div>
+          ) : null}
 
           <button
             type="button"
@@ -398,3 +451,16 @@ export default function AuthPage() {
     </main>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px 14px",
+  borderRadius: MR_THEME.radius.control,
+  border: `1px solid ${MR_THEME.colors.borderStrong}`,
+  background: "#ffffff",
+  color: MR_THEME.colors.textPrimary,
+  fontSize: 16,
+  fontWeight: 700,
+  outlineColor: MR_THEME.colors.primary,
+  opacity: 1,
+};
