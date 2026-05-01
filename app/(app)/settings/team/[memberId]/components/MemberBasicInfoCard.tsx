@@ -32,6 +32,8 @@ type MemberBasicInfoCardProps = {
     onRoleChange: (value: MemberRole) => void;
     onSaveBasicInfo: () => void;
     onCancelEdit: () => void;
+    onSendResetPassword: () => void;
+    sendingReset: boolean;
 };
 
 export default function MemberBasicInfoCard({
@@ -50,6 +52,8 @@ export default function MemberBasicInfoCard({
     onRoleChange,
     onSaveBasicInfo,
     onCancelEdit,
+    onSendResetPassword,
+    sendingReset,
 }: MemberBasicInfoCardProps) {
     return (
         <section style={cardStyle}>
@@ -65,6 +69,22 @@ export default function MemberBasicInfoCard({
                                 Deactivate member
                             </button>
                         ) : null}
+
+                        <button
+                            type="button"
+                            onClick={onSendResetPassword}
+                            disabled={sendingReset}
+                            style={{
+                                ...secondaryButtonStyle,
+                                border: "1px solid #2563eb",
+                                background: "#eff6ff",
+                                color: "#1d4ed8",
+                                cursor: sendingReset ? "default" : "pointer",
+                                opacity: sendingReset ? 0.7 : 1,
+                            }}
+                        >
+                            {sendingReset ? "Sending..." : "Reset password"}
+                        </button>
 
                         <button
                             type="button"

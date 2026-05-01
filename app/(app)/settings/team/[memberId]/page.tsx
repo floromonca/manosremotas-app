@@ -607,26 +607,10 @@ export default function TeamMemberDetailPage() {
                         setRoleInput((memberProfile?.role ?? "tech") as "owner" | "admin" | "tech" | "viewer");
                         setSuccessMsg("");
                     }}
+                    onSendResetPassword={sendResetPassword}
+                    sendingReset={sendingReset}
                 />
-                <div style={{ marginTop: 10 }}>
-                    <button
-                        type="button"
-                        onClick={sendResetPassword}
-                        disabled={sendingReset}
-                        style={{
-                            padding: "8px 12px",
-                            borderRadius: 8,
-                            border: "1px solid #2563eb",
-                            background: "#eff6ff",
-                            color: "#1d4ed8",
-                            cursor: sendingReset ? "default" : "pointer",
-                            fontWeight: 600,
-                            opacity: sendingReset ? 0.7 : 1,
-                        }}
-                    >
-                        {sendingReset ? "Sending..." : "Send password reset"}
-                    </button>
-                </div>
+
                 <MemberWorkSummaryCard
                     loading={loading}
                     hasOpenShift={Boolean(openShift)}
