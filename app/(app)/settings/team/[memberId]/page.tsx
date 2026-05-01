@@ -11,6 +11,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../../../lib/supabaseClient";
 import { useAuthState } from "../../../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../../../hooks/useActiveCompany";
+import MemberHeader from "./components/MemberHeader";
 import {
     getLastShiftForUser,
     getOpenShiftForUser,
@@ -505,42 +506,10 @@ export default function TeamMemberDetailPage() {
 
     return (
         <div style={{ padding: 24, maxWidth: 980 }}>
-            <button
-                onClick={() => router.push("/settings/team")}
-                style={{
-                    marginBottom: 18,
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #d1d5db",
-                    background: "#fff",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                }}
-            >
-                ← Back to Team
-            </button>
-
-            <div style={{ marginBottom: 22 }}>
-                <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 6 }}>
-                    Settings / Team
-                </div>
-
-                <h1
-                    style={{
-                        fontSize: 32,
-                        fontWeight: 700,
-                        margin: "0 0 8px 0",
-                        letterSpacing: "-0.02em",
-                    }}
-                >
-                    {displayName}
-                </h1>
-
-                <div style={{ color: "#6b7280", fontSize: 15 }}>
-                    Administrative view of this team member in{" "}
-                    {companyName || "your company"}.
-                </div>
-            </div>
+            <MemberHeader
+                displayName={displayName}
+                companyName={companyName}
+            />
 
             {errorMsg ? (
                 <div
