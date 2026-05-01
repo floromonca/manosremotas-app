@@ -123,6 +123,7 @@ export default function TeamMemberDetailPage() {
     const [lastShift, setLastShift] = useState<ShiftRow | null>(null);
     const [todaySummary, setTodaySummary] = useState<ShiftSummary | null>(null);
     const [weekSummary, setWeekSummary] = useState<ShiftSummary | null>(null);
+    const [sendingReset, setSendingReset] = useState(false);
 
     const [hoursSummary, setHoursSummary] =
         useState<MemberHoursSummaryRow | null>(null);
@@ -314,6 +315,34 @@ export default function TeamMemberDetailPage() {
             setSavingBasicInfo(false);
         }
     }, [companyId, memberId, fullNameInput, roleInput, refreshData]);
+
+    const sendResetPassword = useCallback(async () => {
+        if (!memberEmail || memberEmail === "—") {
+            alert("No email available for this member.");
+            return;
+        }
+
+        try {
+            setSendingReset(true);
+
+            const { error } = await supabase.auth.resetPasswordForEmail(
+                memberEmail,
+                {
+                    redirectTo:
+                        process.env.NEXT_PUBLIC_SITE_URL ||
+                        "http://localhost:3000",
+                }
+            );
+
+            if (error) throw error;
+
+            setSuccessMsg("Password reset email sent.");
+        } catch (err: any) {
+            alert(err.message || "Failed to send reset email.");
+        } finally {
+            setSendingReset(false);
+        }
+    }, [memberEmail]);
 
     const deactivateMember = useCallback(async () => {
         if (!companyId || !memberId) return;
@@ -579,7 +608,25 @@ export default function TeamMemberDetailPage() {
                         setSuccessMsg("");
                     }}
                 />
-
+                <div style={{ marginTop: 10 }}>
+                    <button
+                        type="button"
+                        onClick={sendResetPassword}
+                        disabled={sendingReset}
+                        style={{
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            border: "1px solid #2563eb",
+                            background: "#eff6ff",
+                            color: "#1d4ed8",
+                            cursor: sendingReset ? "default" : "pointer",
+                            fontWeight: 600,
+                            opacity: sendingReset ? 0.7 : 1,
+                        }}
+                    >
+                        {sendingReset ? "Sending..." : "Send password reset"}
+                    </button>
+                </div>
                 <MemberWorkSummaryCard
                     loading={loading}
                     hasOpenShift={Boolean(openShift)}
