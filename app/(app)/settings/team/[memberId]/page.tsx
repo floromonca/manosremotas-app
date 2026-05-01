@@ -20,6 +20,29 @@ import {
     type ShiftRow,
     type ShiftSummary,
 } from "../../../../../lib/supabase/shifts";
+import {
+    formatDateTime,
+    formatShortDate,
+    formatDateInput,
+    formatTime,
+    formatHours,
+    formatMoney,
+    humanRole,
+    isOvernightShift,
+} from "./memberDetailUtils";
+import {
+    cardStyle,
+    sectionTitleStyle,
+    sectionTitleStyleNoMargin,
+    mutedTextStyle,
+    statsGridStyle,
+    historyGridStyle,
+    runningBadgeStyle,
+    overnightBadgeStyle,
+    compactRunningBadgeStyle,
+    compactClosedBadgeStyle,
+    inputStyle,
+} from "./memberDetailStyles";
 
 type MemberProfileRow = {
     full_name: string | null;
@@ -61,74 +84,7 @@ type MemberPayRateRow = {
     created_at: string | null;
 };
 
-function formatDateTime(value: string | null) {
-    if (!value) return "—";
-    return new Date(value).toLocaleString();
-}
 
-function formatShortDate(value: string | null) {
-    if (!value) return "—";
-    return new Date(value).toLocaleDateString("en-CA", {
-        month: "short",
-        day: "2-digit",
-        year: "numeric",
-    });
-}
-
-function formatDateInput(value: string | null | undefined) {
-    if (!value) return "—";
-    return String(value).slice(0, 10);
-}
-
-function formatTime(value: string | null) {
-    if (!value) return "—";
-    return new Date(value).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-}
-
-function formatHours(value: number | null | undefined) {
-    const amount = Number(value ?? 0);
-    return `${amount.toFixed(2)} h`;
-}
-
-function formatMoney(
-    value: number | null | undefined,
-    currencyCode: string | null | undefined
-) {
-    const amount = Number(value ?? 0);
-    const currency = currencyCode?.trim() || "CAD";
-
-    try {
-        return new Intl.NumberFormat("en-CA", {
-            style: "currency",
-            currency,
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        }).format(amount);
-    } catch {
-        return `${currency} ${amount.toFixed(2)}`;
-    }
-}
-
-function humanRole(role: string | null | undefined) {
-    if (!role) return "—";
-    if (role === "owner") return "Owner";
-    if (role === "admin") return "Admin";
-    if (role === "tech") return "Technician";
-    if (role === "viewer") return "Viewer";
-    return role;
-}
-
-function isOvernightShift(checkInAt: string | null, checkOutAt: string | null) {
-    if (!checkInAt || !checkOutAt) return false;
-
-    const checkIn = new Date(checkInAt);
-    const checkOut = new Date(checkOutAt);
-
-    return checkIn.toDateString() !== checkOut.toDateString();
-}
 
 export default function TeamMemberDetailPage() {
     const params = useParams();
@@ -230,7 +186,7 @@ export default function TeamMemberDetailPage() {
         setTodaySummary(todayShiftSummary);
         setWeekSummary(weekShiftSummary);
 
-                const resolvedEmail =
+        const resolvedEmail =
             profileRow?.email ||
             fallbackEmail ||
             "—";
@@ -1437,102 +1393,3 @@ function InfoCardSmall({ label, value }: { label: string; value: string }) {
     );
 }
 
-function inputStyle(disabled: boolean): CSSProperties {
-    return {
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: "1px solid #d1d5db",
-        outline: "none",
-        fontSize: 14,
-        background: disabled ? "#f9fafb" : "#fff",
-        color: "#111827",
-    };
-}
-
-const cardStyle: CSSProperties = {
-    border: "1px solid #e5e7eb",
-    borderRadius: 16,
-    background: "#fff",
-    padding: 18,
-};
-
-const sectionTitleStyle: CSSProperties = {
-    fontSize: 18,
-    fontWeight: 700,
-    marginBottom: 14,
-    color: "#111827",
-};
-
-const sectionTitleStyleNoMargin: CSSProperties = {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#111827",
-};
-
-const mutedTextStyle: CSSProperties = {
-    fontSize: 14,
-    color: "#6b7280",
-};
-
-const statsGridStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 14,
-};
-
-const historyGridStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-    gap: 10,
-};
-
-const runningBadgeStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "4px 8px",
-    borderRadius: 999,
-    background: "#ecfdf3",
-    border: "1px solid #bbf7d0",
-    color: "#166534",
-    fontSize: 12,
-    fontWeight: 700,
-};
-
-const overnightBadgeStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    padding: "4px 8px",
-    borderRadius: 999,
-    background: "#eff6ff",
-    border: "1px solid #bfdbfe",
-    color: "#1d4ed8",
-    fontSize: 12,
-    fontWeight: 700,
-};
-const compactRunningBadgeStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "4px 8px",
-    borderRadius: 999,
-    background: "#ecfdf3",
-    border: "1px solid #bbf7d0",
-    color: "#166534",
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: 1,
-};
-
-const compactClosedBadgeStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "4px 8px",
-    borderRadius: 999,
-    background: "#f3f4f6",
-    border: "1px solid #e5e7eb",
-    color: "#374151",
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: 1,
-};
