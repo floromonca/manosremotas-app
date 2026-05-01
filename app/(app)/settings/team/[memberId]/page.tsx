@@ -15,6 +15,7 @@ import MemberHeader from "./components/MemberHeader";
 import MemberBasicInfoCard from "./components/MemberBasicInfoCard";
 import MemberWorkSummaryCard from "./components/MemberWorkSummaryCard";
 import MemberAttendanceCard from "./components/MemberAttendanceCard";
+import MemberHoursPayCard from "./components/MemberHoursPayCard";
 import {
     getLastShiftForUser,
     getOpenShiftForUser,
@@ -593,287 +594,281 @@ export default function TeamMemberDetailPage() {
                     shiftsTodayCount={todaySummary?.shiftCount ?? 0}
                     shiftsWeekCount={weekSummary?.shiftCount ?? 0}
                 />
-                <section style={cardStyle}>
-                    <div style={sectionTitleStyle}>Hours & Pay</div>
+                <MemberHoursPayCard loadingHoursPay={loadingHoursPay}>
+                    <div style={{ display: "grid", gap: 16 }}>
+                        <div style={statsGridStyle}>
+                            <InfoCard
+                                label="Closed hours"
+                                value={formatHours(hoursSummary?.closed_hours)}
+                            />
+                            <InfoCard
+                                label="Running hours"
+                                value={formatHours(hoursSummary?.running_hours)}
+                            />
+                            <InfoCard
+                                label="Visible hours"
+                                value={formatHours(hoursSummary?.display_hours)}
+                            />
+                            <InfoCard
+                                label="Hourly rate"
+                                value={
+                                    hoursSummary?.hourly_rate != null
+                                        ? formatMoney(
+                                            hoursSummary.hourly_rate,
+                                            currencyCode
+                                        )
+                                        : "Rate not set"
+                                }
+                            />
+                            <InfoCard
+                                label="Estimated pay (closed)"
+                                value={
+                                    hoursSummary?.hourly_rate != null
+                                        ? formatMoney(
+                                            hoursSummary?.estimated_pay_closed,
+                                            currencyCode
+                                        )
+                                        : "Rate not set"
+                                }
+                            />
+                            <InfoCard
+                                label="Estimated pay (visible)"
+                                value={
+                                    hoursSummary?.hourly_rate != null
+                                        ? formatMoney(
+                                            hoursSummary?.estimated_pay_display,
+                                            currencyCode
+                                        )
+                                        : "Rate not set"
+                                }
+                            />
+                        </div>
 
-                    {loadingHoursPay ? (
-                        <div style={mutedTextStyle}>Loading hours and pay...</div>
-                    ) : (
-                        <div style={{ display: "grid", gap: 16 }}>
-                            <div style={statsGridStyle}>
-                                <InfoCard
-                                    label="Closed hours"
-                                    value={formatHours(hoursSummary?.closed_hours)}
-                                />
-                                <InfoCard
-                                    label="Running hours"
-                                    value={formatHours(hoursSummary?.running_hours)}
-                                />
-                                <InfoCard
-                                    label="Visible hours"
-                                    value={formatHours(hoursSummary?.display_hours)}
-                                />
-                                <InfoCard
-                                    label="Hourly rate"
-                                    value={
-                                        hoursSummary?.hourly_rate != null
-                                            ? formatMoney(
-                                                hoursSummary.hourly_rate,
-                                                currencyCode
-                                            )
-                                            : "Rate not set"
-                                    }
-                                />
-                                <InfoCard
-                                    label="Estimated pay (closed)"
-                                    value={
-                                        hoursSummary?.hourly_rate != null
-                                            ? formatMoney(
-                                                hoursSummary?.estimated_pay_closed,
-                                                currencyCode
-                                            )
-                                            : "Rate not set"
-                                    }
-                                />
-                                <InfoCard
-                                    label="Estimated pay (visible)"
-                                    value={
-                                        hoursSummary?.hourly_rate != null
-                                            ? formatMoney(
-                                                hoursSummary?.estimated_pay_display,
-                                                currencyCode
-                                            )
-                                            : "Rate not set"
-                                    }
-                                />
+                        <div
+                            style={{
+                                border: "1px solid #e5e7eb",
+                                borderRadius: 14,
+                                padding: 16,
+                                background: "#fcfcfd",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                    marginBottom: 14,
+                                }}
+                            >
+                                <div>
+                                    <div
+                                        style={{
+                                            fontSize: 15,
+                                            fontWeight: 700,
+                                            color: "#111827",
+                                            marginBottom: 4,
+                                        }}
+                                    >
+                                        Pay rate
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            color: "#6b7280",
+                                        }}
+                                    >
+                                        Configure the hourly rate used for
+                                        payroll calculations.
+                                    </div>
+                                </div>
+
+                                {loadingPayRate ? (
+                                    <div style={mutedTextStyle}>
+                                        Loading pay rate...
+                                    </div>
+                                ) : activePayRate ? (
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            color: "#374151",
+                                            background: "#fff",
+                                            border: "1px solid #e5e7eb",
+                                            borderRadius: 999,
+                                            padding: "6px 10px",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        Active:{" "}
+                                        {formatMoney(
+                                            activePayRate.hourly_rate,
+                                            activePayRate.currency_code
+                                        )}{" "}
+                                        since{" "}
+                                        {formatDateInput(
+                                            activePayRate.effective_from
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            color: "#92400e",
+                                            background: "#fffbeb",
+                                            border: "1px solid #fde68a",
+                                            borderRadius: 999,
+                                            padding: "6px 10px",
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        No active pay rate
+                                    </div>
+                                )}
                             </div>
 
                             <div
                                 style={{
-                                    border: "1px solid #e5e7eb",
-                                    borderRadius: 14,
-                                    padding: 16,
-                                    background: "#fcfcfd",
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                        "repeat(3, minmax(0, 1fr))",
+                                    gap: 12,
+                                }}
+                            >
+                                <label
+                                    style={{
+                                        display: "grid",
+                                        gap: 6,
+                                        fontSize: 13,
+                                        color: "#374151",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    Hourly rate
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={payRateInput}
+                                        onChange={(e) =>
+                                            setPayRateInput(e.target.value)
+                                        }
+                                        disabled={
+                                            !canEditPayRate || savingPayRate
+                                        }
+                                        placeholder="28.00"
+                                        style={inputStyle(
+                                            !canEditPayRate || savingPayRate
+                                        )}
+                                    />
+                                </label>
+
+                                <label
+                                    style={{
+                                        display: "grid",
+                                        gap: 6,
+                                        fontSize: 13,
+                                        color: "#374151",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    Currency
+                                    <input
+                                        value={currencyInput}
+                                        onChange={(e) =>
+                                            setCurrencyInput(
+                                                e.target.value.toUpperCase()
+                                            )
+                                        }
+                                        disabled={
+                                            !canEditPayRate || savingPayRate
+                                        }
+                                        maxLength={3}
+                                        placeholder="CAD"
+                                        style={inputStyle(
+                                            !canEditPayRate || savingPayRate
+                                        )}
+                                    />
+                                </label>
+
+                                <label
+                                    style={{
+                                        display: "grid",
+                                        gap: 6,
+                                        fontSize: 13,
+                                        color: "#374151",
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    Effective from
+                                    <input
+                                        type="date"
+                                        value={effectiveFromInput}
+                                        onChange={(e) =>
+                                            setEffectiveFromInput(
+                                                e.target.value
+                                            )
+                                        }
+                                        disabled={
+                                            !canEditPayRate || savingPayRate
+                                        }
+                                        style={inputStyle(
+                                            !canEditPayRate || savingPayRate
+                                        )}
+                                    />
+                                </label>
+                            </div>
+
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                    marginTop: 14,
                                 }}
                             >
                                 <div
                                     style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        gap: 12,
-                                        flexWrap: "wrap",
-                                        marginBottom: 14,
+                                        fontSize: 12,
+                                        color: "#6b7280",
                                     }}
                                 >
-                                    <div>
-                                        <div
-                                            style={{
-                                                fontSize: 15,
-                                                fontWeight: 700,
-                                                color: "#111827",
-                                                marginBottom: 4,
-                                            }}
-                                        >
-                                            Pay rate
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: 13,
-                                                color: "#6b7280",
-                                            }}
-                                        >
-                                            Configure the hourly rate used for
-                                            payroll calculations.
-                                        </div>
-                                    </div>
-
-                                    {loadingPayRate ? (
-                                        <div style={mutedTextStyle}>
-                                            Loading pay rate...
-                                        </div>
-                                    ) : activePayRate ? (
-                                        <div
-                                            style={{
-                                                fontSize: 12,
-                                                color: "#374151",
-                                                background: "#fff",
-                                                border: "1px solid #e5e7eb",
-                                                borderRadius: 999,
-                                                padding: "6px 10px",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            Active:{" "}
-                                            {formatMoney(
-                                                activePayRate.hourly_rate,
-                                                activePayRate.currency_code
-                                            )}{" "}
-                                            since{" "}
-                                            {formatDateInput(
-                                                activePayRate.effective_from
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div
-                                            style={{
-                                                fontSize: 12,
-                                                color: "#92400e",
-                                                background: "#fffbeb",
-                                                border: "1px solid #fde68a",
-                                                borderRadius: 999,
-                                                padding: "6px 10px",
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            No active pay rate
-                                        </div>
-                                    )}
+                                    {canEditPayRate
+                                        ? "Saving a new rate preserves payroll history by creating a new effective record."
+                                        : "Only owners and admins can edit pay rates."}
                                 </div>
 
-                                <div
-                                    style={{
-                                        display: "grid",
-                                        gridTemplateColumns:
-                                            "repeat(3, minmax(0, 1fr))",
-                                        gap: 12,
-                                    }}
-                                >
-                                    <label
+                                {canEditPayRate ? (
+                                    <button
+                                        type="button"
+                                        onClick={savePayRate}
+                                        disabled={savingPayRate}
                                         style={{
-                                            display: "grid",
-                                            gap: 6,
-                                            fontSize: 13,
-                                            color: "#374151",
-                                            fontWeight: 600,
+                                            padding: "10px 14px",
+                                            borderRadius: 10,
+                                            border: "1px solid #111827",
+                                            background: "#111827",
+                                            color: "#fff",
+                                            cursor: savingPayRate
+                                                ? "default"
+                                                : "pointer",
+                                            fontWeight: 700,
+                                            opacity: savingPayRate
+                                                ? 0.7
+                                                : 1,
                                         }}
                                     >
-                                        Hourly rate
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            value={payRateInput}
-                                            onChange={(e) =>
-                                                setPayRateInput(e.target.value)
-                                            }
-                                            disabled={
-                                                !canEditPayRate || savingPayRate
-                                            }
-                                            placeholder="28.00"
-                                            style={inputStyle(
-                                                !canEditPayRate || savingPayRate
-                                            )}
-                                        />
-                                    </label>
-
-                                    <label
-                                        style={{
-                                            display: "grid",
-                                            gap: 6,
-                                            fontSize: 13,
-                                            color: "#374151",
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        Currency
-                                        <input
-                                            value={currencyInput}
-                                            onChange={(e) =>
-                                                setCurrencyInput(
-                                                    e.target.value.toUpperCase()
-                                                )
-                                            }
-                                            disabled={
-                                                !canEditPayRate || savingPayRate
-                                            }
-                                            maxLength={3}
-                                            placeholder="CAD"
-                                            style={inputStyle(
-                                                !canEditPayRate || savingPayRate
-                                            )}
-                                        />
-                                    </label>
-
-                                    <label
-                                        style={{
-                                            display: "grid",
-                                            gap: 6,
-                                            fontSize: 13,
-                                            color: "#374151",
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        Effective from
-                                        <input
-                                            type="date"
-                                            value={effectiveFromInput}
-                                            onChange={(e) =>
-                                                setEffectiveFromInput(
-                                                    e.target.value
-                                                )
-                                            }
-                                            disabled={
-                                                !canEditPayRate || savingPayRate
-                                            }
-                                            style={inputStyle(
-                                                !canEditPayRate || savingPayRate
-                                            )}
-                                        />
-                                    </label>
-                                </div>
-
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        gap: 12,
-                                        flexWrap: "wrap",
-                                        marginTop: 14,
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            color: "#6b7280",
-                                        }}
-                                    >
-                                        {canEditPayRate
-                                            ? "Saving a new rate preserves payroll history by creating a new effective record."
-                                            : "Only owners and admins can edit pay rates."}
-                                    </div>
-
-                                    {canEditPayRate ? (
-                                        <button
-                                            type="button"
-                                            onClick={savePayRate}
-                                            disabled={savingPayRate}
-                                            style={{
-                                                padding: "10px 14px",
-                                                borderRadius: 10,
-                                                border: "1px solid #111827",
-                                                background: "#111827",
-                                                color: "#fff",
-                                                cursor: savingPayRate
-                                                    ? "default"
-                                                    : "pointer",
-                                                fontWeight: 700,
-                                                opacity: savingPayRate
-                                                    ? 0.7
-                                                    : 1,
-                                            }}
-                                        >
-                                            {savingPayRate
-                                                ? "Saving..."
-                                                : "Save rate"}
-                                        </button>
-                                    ) : null}
-                                </div>
+                                        {savingPayRate
+                                            ? "Saving..."
+                                            : "Save rate"}
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
-                    )}
-                </section>
+                    </div>
+                </MemberHoursPayCard>
 
                 <section style={cardStyle}>
                     <div
