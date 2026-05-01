@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../../hooks/useAuthState";
+import { MR_THEME } from "@/lib/theme";
 import {
     getOpenShiftForUser,
     getTodayShiftSummaryForUser,
@@ -65,6 +66,7 @@ export default function TeamPage() {
     const [err, setErr] = useState<string | null>(null);
     const [ok, setOk] = useState<string | null>(null);
     const [memberSearch, setMemberSearch] = useState("");
+    const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
 
 
@@ -211,8 +213,11 @@ export default function TeamPage() {
 
             setInviteEmail("");
             setInviteRole("tech");
-            setOk("Invite created successfully. The technician must register with the same email.");
+            setInviteModalOpen(false);
+
             await refresh();
+
+            setOk("Invite created successfully. The member must register with the same email.");
         } catch (e: any) {
             setErr(e?.message ?? "Could not create invite.");
         }
@@ -248,8 +253,10 @@ export default function TeamPage() {
                 <div
                     style={{
                         fontSize: 12,
-                        fontWeight: 600,
-                        color: "#6b7280",
+                        fontWeight: 800,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        color: MR_THEME.colors.textSecondary,
                         marginBottom: 10,
                     }}
                 >
@@ -263,16 +270,18 @@ export default function TeamPage() {
                         alignItems: "flex-start",
                         gap: 16,
                         flexWrap: "wrap",
+                        paddingBottom: 16,
+                        borderBottom: `1px solid ${MR_THEME.colors.border}`,
                     }}
                 >
                     <div>
                         <h1
                             style={{
                                 fontSize: 40,
-                                lineHeight: 1.08,
-                                fontWeight: 750,
+                                lineHeight: 1.05,
+                                fontWeight: 800,
                                 letterSpacing: "-0.03em",
-                                color: "#111827",
+                                color: MR_THEME.colors.textPrimary,
                                 margin: 0,
                             }}
                         >
@@ -283,12 +292,12 @@ export default function TeamPage() {
                             style={{
                                 marginTop: 10,
                                 fontSize: 16,
-                                color: "#6b7280",
+                                color: MR_THEME.colors.textSecondary,
                                 lineHeight: 1.6,
                                 maxWidth: 760,
                             }}
                         >
-                            Manage members and pending invites for{" "}
+                            Manage members, roles, attendance visibility, and pending invites for{" "}
                             {companyName?.trim() ? companyName : "your company"}.
                         </div>
                     </div>
@@ -303,18 +312,36 @@ export default function TeamPage() {
                     >
                         <button
                             type="button"
+                            onClick={() => setInviteModalOpen(true)}
+                            style={{
+                                height: 42,
+                                padding: "0 16px",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.primary}`,
+                                background: MR_THEME.colors.primary,
+                                color: "#ffffff",
+                                cursor: "pointer",
+                                fontWeight: 800,
+                                fontSize: 14,
+                                boxShadow: MR_THEME.shadows.cardSoft,
+                            }}
+                        >
+                            + Invite member
+                        </button>
+
+                        <button
+                            type="button"
                             onClick={() => router.push("/settings/team/payroll")}
                             style={{
                                 height: 42,
                                 padding: "0 16px",
-                                borderRadius: 10,
-                                border: "1px solid #1d4ed8",
-                                background: "#1d4ed8",
-                                color: "#ffffff",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                background: MR_THEME.colors.cardBg,
+                                color: MR_THEME.colors.textPrimary,
                                 cursor: "pointer",
                                 fontWeight: 700,
                                 fontSize: 14,
-                                transition: "all 0.15s ease",
                             }}
                         >
                             Payroll summary
@@ -326,10 +353,10 @@ export default function TeamPage() {
                             style={{
                                 height: 42,
                                 padding: "0 16px",
-                                borderRadius: 10,
-                                border: "1px solid #d1d5db",
-                                background: "#ffffff",
-                                color: "#111827",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                background: MR_THEME.colors.cardBg,
+                                color: MR_THEME.colors.textPrimary,
                                 cursor: "pointer",
                                 fontWeight: 700,
                                 fontSize: 14,
@@ -369,70 +396,6 @@ export default function TeamPage() {
                     <StatCard label="Off shift" value={teamOverview.offShiftNow} />
                     <StatCard label="Pending invites" value={teamOverview.pendingInviteCount} />
                 </div>
-
-                <SectionCard
-                    title="Invite New Member"
-                    description="Create a pending invite for a new technician or admin."
-                >
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: "minmax(0, 1fr) 160px 140px",
-                            gap: 12,
-                            alignItems: "end",
-                        }}
-                    >
-                        <Field
-                            label="Email"
-                            value={inviteEmail}
-                            onChange={setInviteEmail}
-                            placeholder="email@domain.com"
-                        />
-
-                        <SelectField
-                            label="Role"
-                            value={inviteRole}
-                            onChange={setInviteRole}
-                            options={[
-                                { value: "tech", label: "tech" },
-                                { value: "admin", label: "admin" },
-                            ]}
-                        />
-
-
-                        <div style={{ display: "grid", gap: 8 }}>
-                            <div style={{ height: 18 }} />
-                            <button
-                                type="button"
-                                onClick={createInvite}
-                                style={{
-                                    height: 44,
-                                    borderRadius: 10,
-                                    border: "1px solid #111827",
-                                    background: "#111827",
-                                    color: "#ffffff",
-                                    cursor: "pointer",
-                                    fontWeight: 700,
-                                    fontSize: 14,
-                                }}
-                            >
-                                Invite
-                            </button>
-                        </div>
-                    </div>
-
-                    <div
-                        style={{
-                            marginTop: 12,
-                            fontSize: 13,
-                            color: "#6b7280",
-                            lineHeight: 1.5,
-                        }}
-                    >
-                        The invited technician must register with the same email so the system can link
-                        the account correctly.
-                    </div>
-                </SectionCard>
 
                 <SectionCard
                     title="Members"
@@ -535,10 +498,195 @@ export default function TeamPage() {
                     />
                 </SectionCard>
             </div>
+            {inviteModalOpen ? (
+                <InviteMemberModal
+                    inviteEmail={inviteEmail}
+                    inviteRole={inviteRole}
+                    setInviteEmail={setInviteEmail}
+                    setInviteRole={setInviteRole}
+                    onClose={() => setInviteModalOpen(false)}
+                    onInvite={createInvite}
+                />
+            ) : null}
         </PageShell>
     );
 }
+function InviteMemberModal({
+    inviteEmail,
+    inviteRole,
+    setInviteEmail,
+    setInviteRole,
+    onClose,
+    onInvite,
+}: {
+    inviteEmail: string;
+    inviteRole: string;
+    setInviteEmail: (value: string) => void;
+    setInviteRole: (value: string) => void;
+    onClose: () => void;
+    onInvite: () => void;
+}) {
+    return (
+        <div
+            style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 80,
+                background: "rgba(15, 23, 42, 0.42)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 18,
+            }}
+        >
+            <div
+                style={{
+                    width: "100%",
+                    maxWidth: 520,
+                    borderRadius: MR_THEME.radius.card,
+                    background: MR_THEME.colors.cardBg,
+                    border: `1px solid ${MR_THEME.colors.border}`,
+                    boxShadow: MR_THEME.shadows.card,
+                    padding: 22,
+                }}
+            >
+                <div
+                    style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 14,
+                        marginBottom: 18,
+                    }}
+                >
+                    <div>
+                        <div
+                            style={{
+                                fontSize: 22,
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textPrimary,
+                                letterSpacing: "-0.02em",
+                                marginBottom: 6,
+                            }}
+                        >
+                            Invite member
+                        </div>
 
+                        <div
+                            style={{
+                                fontSize: 14,
+                                color: MR_THEME.colors.textSecondary,
+                                lineHeight: 1.55,
+                            }}
+                        >
+                            Create a pending invite for a technician or admin.
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        style={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 999,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            background: MR_THEME.colors.cardBgSoft,
+                            color: MR_THEME.colors.textSecondary,
+                            cursor: "pointer",
+                            fontWeight: 800,
+                            fontSize: 16,
+                        }}
+                        aria-label="Close invite modal"
+                    >
+                        ×
+                    </button>
+                </div>
+
+                <div style={{ display: "grid", gap: 14 }}>
+                    <Field
+                        label="Email"
+                        value={inviteEmail}
+                        onChange={setInviteEmail}
+                        placeholder="email@domain.com"
+                    />
+
+                    <SelectField
+                        label="Role"
+                        value={inviteRole}
+                        onChange={setInviteRole}
+                        options={[
+                            { value: "tech", label: "tech" },
+                            { value: "admin", label: "admin" },
+                        ]}
+                    />
+
+                    <div
+                        style={{
+                            fontSize: 13,
+                            color: MR_THEME.colors.textSecondary,
+                            lineHeight: 1.5,
+                            background: MR_THEME.colors.cardBgSoft,
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            borderRadius: MR_THEME.radius.control,
+                            padding: 12,
+                        }}
+                    >
+                        The invited member must register with the same email so the system can link
+                        the account correctly.
+                    </div>
+
+                    <div
+                        style={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 10,
+                            flexWrap: "wrap",
+                            marginTop: 4,
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            style={{
+                                height: 42,
+                                padding: "0 16px",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                background: MR_THEME.colors.cardBg,
+                                color: MR_THEME.colors.textPrimary,
+                                cursor: "pointer",
+                                fontWeight: 700,
+                                fontSize: 14,
+                            }}
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={onInvite}
+                            style={{
+                                height: 42,
+                                padding: "0 16px",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.primary}`,
+                                background: MR_THEME.colors.primary,
+                                color: "#ffffff",
+                                cursor: "pointer",
+                                fontWeight: 800,
+                                fontSize: 14,
+                                boxShadow: MR_THEME.shadows.cardSoft,
+                            }}
+                        >
+                            Create invite
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
 function StatCard({
     label,
     value,
