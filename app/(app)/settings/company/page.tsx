@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { MR_THEME } from "@/lib/theme";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useAuthState } from "../../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
@@ -60,6 +61,7 @@ export default function ControlCenterCompanyPage() {
         }
 
         if (isLoadingCompany) return;
+
         if (myRole !== "owner" && myRole !== "admin") {
             router.replace("/work-orders");
             return;
@@ -100,27 +102,29 @@ export default function ControlCenterCompanyPage() {
                     .from("companies")
                     .select(
                         `
-            company_name,
-            company_email,
-            company_phone,
-            company_website,
-            address_line_1,
-            address_line_2,
-            city,
-            state_province,
-            postal_code,
-            country_code,
-            currency_code,
-            timezone,
-            payment_terms_days
-          `,
+                        company_name,
+                        company_email,
+                        company_phone,
+                        company_website,
+                        address_line_1,
+                        address_line_2,
+                        city,
+                        state_province,
+                        postal_code,
+                        country_code,
+                        currency_code,
+                        timezone,
+                        payment_terms_days
+                    `,
                     )
                     .eq("company_id", companyId)
                     .maybeSingle();
 
                 if (error) throw error;
 
-                const row = (data as Partial<CompanyForm> & { payment_terms_days?: number | null } | null) ?? {};
+                const row =
+                    (data as Partial<CompanyForm> & { payment_terms_days?: number | null } | null) ??
+                    {};
 
                 if (!cancelled) {
                     setForm({
@@ -220,6 +224,7 @@ export default function ControlCenterCompanyPage() {
                 .eq("company_id", companyId);
 
             if (error) throw error;
+
             refreshCompany();
             router.refresh();
             setOkMsg("Changes saved successfully.");
@@ -235,326 +240,375 @@ export default function ControlCenterCompanyPage() {
     };
 
     return (
-        <div
-            style={{
-                width: "100%",
-                maxWidth: 1180,
-                margin: "0 auto",
-                padding: "8px 0 32px 0",
-            }}
-        >
-            <div
-                style={{
-                    marginBottom: 22,
-                    paddingBottom: 16,
-                    borderBottom: "1px solid #e5e7eb",
-                }}
-            >
-                <div
-                    style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "#6b7280",
-                        marginBottom: 10,
-                    }}
-                >
-                    Settings / Company
-                </div>
+        <>
+            <style jsx global>{`
+                .mr-company-page {
+                    width: 100%;
+                    max-width: 1180px;
+                    margin: 0 auto;
+                    padding: 8px 0 32px;
+                }
 
-                <h1
-                    style={{
-                        fontSize: 40,
-                        lineHeight: 1.05,
-                        fontWeight: 800,
-                        letterSpacing: "-0.03em",
-                        color: "#111827",
-                        margin: 0,
-                    }}
-                >
-                    {companyName && companyName.trim() ? companyName : "Company"}
-                </h1>
+                .mr-company-header {
+                    margin-bottom: 22px;
+                    padding-bottom: 16px;
+                    border-bottom: 1px solid ${MR_THEME.colors.border};
+                }
 
-                <div
-                    style={{
-                        marginTop: 10,
-                        fontSize: 16,
-                        color: "#6b7280",
-                        lineHeight: 1.6,
-                        maxWidth: 760,
-                    }}
-                >
-                    Manage your business identity, address, currency, timezone, and default payment terms.
-                </div>
-            </div>
+                .mr-company-title {
+                    font-size: 40px;
+                    line-height: 1.05;
+                    font-weight: 800;
+                    letter-spacing: -0.03em;
+                    color: ${MR_THEME.colors.textPrimary};
+                    margin: 0;
+                }
 
-            {errorMsg ? (
-                <div
-                    style={{
-                        marginBottom: 18,
-                        padding: "12px 14px",
-                        border: "1px solid #fecaca",
-                        background: "#fff5f5",
-                        borderRadius: 12,
-                        color: "#991b1b",
-                        fontSize: 14,
-                    }}
-                >
-                    <strong>Error:</strong> {errorMsg}
-                </div>
-            ) : null}
+                .mr-company-description {
+                    margin-top: 10px;
+                    font-size: 16px;
+                    color: ${MR_THEME.colors.textSecondary};
+                    line-height: 1.6;
+                    max-width: 760px;
+                }
 
-            {okMsg ? (
-                <div
-                    style={{
-                        marginBottom: 18,
-                        padding: "12px 14px",
-                        border: "1px solid #bbf7d0",
-                        background: "#f0fdf4",
-                        borderRadius: 12,
-                        color: "#166534",
-                        fontSize: 14,
-                    }}
-                >
-                    {okMsg}
-                </div>
-            ) : null}
+                .mr-company-form-stack {
+                    display: grid;
+                    gap: 20px;
+                }
 
-            {loading ? (
-                <div
-                    style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 16,
-                        background: "#fff",
-                        padding: 20,
-                        color: "#6b7280",
-                    }}
-                >
-                    Loading company settings...
-                </div>
-            ) : role && !["owner", "admin"].includes(role) ? (
-                <div
-                    style={{
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 16,
-                        background: "#fff",
-                        padding: 20,
-                        color: "#6b7280",
-                    }}
-                >
-                    Access denied.
-                </div>
-            ) : (
-                <div style={{ display: "grid", gap: 20 }}>
-                    <SectionCard
-                        title="Company Information"
-                        description="Basic business identity and public contact details."
-                    >
-                        <TwoColumnGrid>
-                            <Field
-                                label="Company Name"
-                                value={form.company_name}
-                                onChange={(v) => setField("company_name", v)}
-                            />
-                            <Field
-                                label="Email"
-                                value={form.company_email}
-                                onChange={(v) => setField("company_email", v)}
-                            />
-                            <Field
-                                label="Phone"
-                                value={form.company_phone}
-                                onChange={(v) => setField("company_phone", v)}
-                            />
-                            <Field
-                                label="Website"
-                                value={form.company_website}
-                                onChange={(v) => setField("company_website", v)}
-                            />
-                        </TwoColumnGrid>
-                    </SectionCard>
+                .mr-company-field-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                    gap: 16px;
+                }
 
-                    <SectionCard
-                        title="Address"
-                        description="Company location used for documents, identity, and regional defaults."
-                    >
-                        <TwoColumnGrid>
-                            <Field
-                                label="Address Line 1"
-                                value={form.address_line_1}
-                                onChange={(v) => setField("address_line_1", v)}
-                            />
-                            <Field
-                                label="Address Line 2"
-                                value={form.address_line_2}
-                                onChange={(v) => setField("address_line_2", v)}
-                            />
-                            <Field
-                                label="City"
-                                value={form.city}
-                                onChange={(v) => setField("city", v)}
-                            />
-                            <Field
-                                label="State / Province"
-                                value={form.state_province}
-                                onChange={(v) => setField("state_province", v)}
-                            />
-                            <Field
-                                label="Postal Code"
-                                value={form.postal_code}
-                                onChange={(v) => setField("postal_code", v)}
-                            />
-                            <Field
-                                label="Country"
-                                value={form.country_code}
-                                onChange={(v) => setField("country_code", v)}
-                            />
-                        </TwoColumnGrid>
-                    </SectionCard>
+                .mr-company-save-card {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 18px;
+                    flex-wrap: wrap;
+                    border: 1px solid ${MR_THEME.colors.border};
+                    border-radius: ${MR_THEME.radius.card}px;
+                    background: linear-gradient(180deg, ${MR_THEME.colors.cardBg} 0%, #fcfcfd 100%);
+                    padding: 18px;
+                    box-shadow: ${MR_THEME.shadows.cardSoft};
+                }
 
-                    <SectionCard
-                        title="Regional Settings"
-                        description="Defaults used for invoices, work orders, and company-level behavior."
-                    >
-                        <TwoColumnGrid>
-                            <SelectField
-                                label="Currency"
-                                helper="Default currency used for invoices."
-                                value={form.currency_code}
-                                onChange={(v) => setField("currency_code", v)}
-                                options={[
-                                    { value: "CAD", label: "Canadian Dollar (CAD)" },
-                                    { value: "USD", label: "US Dollar (USD)" },
-                                    { value: "COP", label: "Colombian Peso (COP)" },
-                                ]}
-                            />
+                .mr-company-save-actions {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                }
 
-                            <SelectField
-                                label="Timezone"
-                                helper="Used for invoices, work orders, and reports."
-                                value={form.timezone}
-                                onChange={(v) => setField("timezone", v)}
-                                options={[
-                                    { value: "America/Toronto", label: "Toronto (Canada Eastern Time)" },
-                                    { value: "America/New_York", label: "New York (US Eastern Time)" },
-                                    { value: "America/Bogota", label: "Bogotá (Colombia Time)" },
-                                ]}
-                            />
+                @media (max-width: 640px) {
+                    .mr-company-page {
+                        padding: 0 0 28px;
+                    }
 
-                            <Field
-                                label="Payment Terms (days)"
-                                type="number"
-                                min={0}
-                                step={1}
-                                value={form.payment_terms_days}
-                                onChange={(v) => setField("payment_terms_days", v)}
-                                helper="Default number of days used to calculate invoice due date."
-                            />
-                        </TwoColumnGrid>
-                    </SectionCard>
+                    .mr-company-header {
+                        margin-bottom: 18px;
+                        padding-bottom: 14px;
+                    }
 
+                    .mr-company-title {
+                        font-size: 32px;
+                    }
+
+                    .mr-company-description {
+                        font-size: 15px;
+                    }
+
+                    .mr-company-field-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    .mr-company-save-card {
+                        padding: 16px;
+                    }
+
+                    .mr-company-save-actions {
+                        width: 100%;
+                    }
+
+                    .mr-company-save-actions button {
+                        width: 100%;
+                    }
+                }
+            `}</style>
+
+            <div className="mr-company-page">
+                <div className="mr-company-header">
                     <div
                         style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            gap: 18,
-                            flexWrap: "wrap",
-                            border: "1px solid #e5e7eb",
-                            borderRadius: 16,
-                            background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
-                            padding: 18,
-                            boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                            fontSize: 12,
+                            fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            color: MR_THEME.colors.textSecondary,
+                            marginBottom: 10,
                         }}
                     >
-                        <div style={{ minWidth: 260, flex: 1 }}>
-                            <div
-                                style={{
-                                    fontSize: 12,
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.08em",
-                                    color: "#64748b",
-                                    fontWeight: 800,
-                                    marginBottom: 8,
-                                }}
-                            >
-                                Save company settings
-                            </div>
+                        Settings / Company
+                    </div>
 
-                            <div
-                                style={{
-                                    fontSize: 20,
-                                    fontWeight: 800,
-                                    lineHeight: 1.15,
-                                    color: "#111827",
-                                    letterSpacing: "-0.02em",
-                                    marginBottom: 8,
-                                }}
-                            >
-                                Apply your company defaults
-                            </div>
+                    <h1 className="mr-company-title">
+                        {companyName && companyName.trim() ? companyName : "Company"}
+                    </h1>
 
-                            <div
-                                style={{
-                                    fontSize: 14,
-                                    color: "#6b7280",
-                                    lineHeight: 1.6,
-                                    maxWidth: 720,
-                                }}
-                            >
-                                Save your company information, regional defaults, and payment terms before moving to Billing, Taxes, or Preferences.
-                            </div>
-                        </div>
-
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 10,
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            <div
-                                style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    padding: "8px 12px",
-                                    borderRadius: 999,
-                                    border: "1px solid #dbe3ef",
-                                    background: "#f8fafc",
-                                    color: "#334155",
-                                    fontSize: 13,
-                                    fontWeight: 800,
-                                    whiteSpace: "nowrap",
-                                }}
-                            >
-                                Company defaults
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={handleSave}
-                                disabled={saving}
-                                style={{
-                                    height: 44,
-                                    padding: "0 18px",
-                                    borderRadius: 10,
-                                    border: "1px solid #d1d5db",
-                                    background: saving ? "#f3f4f6" : "#111827",
-                                    color: saving ? "#6b7280" : "#ffffff",
-                                    cursor: saving ? "not-allowed" : "pointer",
-                                    fontWeight: 700,
-                                    fontSize: 14,
-                                    boxShadow: saving ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
-                                }}
-                            >
-                                {saving ? "Saving..." : "Save Changes"}
-                            </button>
-                        </div>
+                    <div className="mr-company-description">
+                        Manage your business identity, address, currency, timezone, and default payment terms.
                     </div>
                 </div>
-            )}
+
+                {errorMsg ? (
+                    <AlertMessage tone="error">
+                        <strong>Error:</strong> {errorMsg}
+                    </AlertMessage>
+                ) : null}
+
+                {okMsg ? <AlertMessage tone="success">{okMsg}</AlertMessage> : null}
+
+                {loading ? (
+                    <LoadingCard>Loading company settings...</LoadingCard>
+                ) : role && !["owner", "admin"].includes(role) ? (
+                    <LoadingCard>Access denied.</LoadingCard>
+                ) : (
+                    <div className="mr-company-form-stack">
+                        <SectionCard
+                            title="Company Information"
+                            description="Basic business identity and public contact details."
+                        >
+                            <TwoColumnGrid>
+                                <Field
+                                    label="Company Name"
+                                    value={form.company_name}
+                                    onChange={(v) => setField("company_name", v)}
+                                />
+                                <Field
+                                    label="Email"
+                                    value={form.company_email}
+                                    onChange={(v) => setField("company_email", v)}
+                                />
+                                <Field
+                                    label="Phone"
+                                    value={form.company_phone}
+                                    onChange={(v) => setField("company_phone", v)}
+                                />
+                                <Field
+                                    label="Website"
+                                    value={form.company_website}
+                                    onChange={(v) => setField("company_website", v)}
+                                />
+                            </TwoColumnGrid>
+                        </SectionCard>
+
+                        <SectionCard
+                            title="Address"
+                            description="Company location used for documents, identity, and regional defaults."
+                        >
+                            <TwoColumnGrid>
+                                <Field
+                                    label="Address Line 1"
+                                    value={form.address_line_1}
+                                    onChange={(v) => setField("address_line_1", v)}
+                                />
+                                <Field
+                                    label="Address Line 2"
+                                    value={form.address_line_2}
+                                    onChange={(v) => setField("address_line_2", v)}
+                                />
+                                <Field
+                                    label="City"
+                                    value={form.city}
+                                    onChange={(v) => setField("city", v)}
+                                />
+                                <Field
+                                    label="State / Province"
+                                    value={form.state_province}
+                                    onChange={(v) => setField("state_province", v)}
+                                />
+                                <Field
+                                    label="Postal Code"
+                                    value={form.postal_code}
+                                    onChange={(v) => setField("postal_code", v)}
+                                />
+                                <Field
+                                    label="Country"
+                                    value={form.country_code}
+                                    onChange={(v) => setField("country_code", v)}
+                                />
+                            </TwoColumnGrid>
+                        </SectionCard>
+
+                        <SectionCard
+                            title="Regional Settings"
+                            description="Defaults used for invoices, work orders, and company-level behavior."
+                        >
+                            <TwoColumnGrid>
+                                <SelectField
+                                    label="Currency"
+                                    helper="Default currency used for invoices."
+                                    value={form.currency_code}
+                                    onChange={(v) => setField("currency_code", v)}
+                                    options={[
+                                        { value: "CAD", label: "Canadian Dollar (CAD)" },
+                                        { value: "USD", label: "US Dollar (USD)" },
+                                        { value: "COP", label: "Colombian Peso (COP)" },
+                                    ]}
+                                />
+
+                                <SelectField
+                                    label="Timezone"
+                                    helper="Used for invoices, work orders, and reports."
+                                    value={form.timezone}
+                                    onChange={(v) => setField("timezone", v)}
+                                    options={[
+                                        { value: "America/Toronto", label: "Toronto (Canada Eastern Time)" },
+                                        { value: "America/New_York", label: "New York (US Eastern Time)" },
+                                        { value: "America/Bogota", label: "Bogotá (Colombia Time)" },
+                                    ]}
+                                />
+
+                                <Field
+                                    label="Payment Terms (days)"
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={form.payment_terms_days}
+                                    onChange={(v) => setField("payment_terms_days", v)}
+                                    helper="Default number of days used to calculate invoice due date."
+                                />
+                            </TwoColumnGrid>
+                        </SectionCard>
+
+                        <div className="mr-company-save-card">
+                            <div style={{ minWidth: 240, flex: 1 }}>
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.08em",
+                                        color: MR_THEME.colors.textSecondary,
+                                        fontWeight: 800,
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    Save company settings
+                                </div>
+
+                                <div
+                                    style={{
+                                        fontSize: 20,
+                                        fontWeight: 800,
+                                        lineHeight: 1.15,
+                                        color: MR_THEME.colors.textPrimary,
+                                        letterSpacing: "-0.02em",
+                                        marginBottom: 8,
+                                    }}
+                                >
+                                    Apply your company defaults
+                                </div>
+
+                                <div
+                                    style={{
+                                        fontSize: 14,
+                                        color: MR_THEME.colors.textSecondary,
+                                        lineHeight: 1.6,
+                                        maxWidth: 720,
+                                    }}
+                                >
+                                    Save your company information, regional defaults, and payment terms before moving to Billing, Taxes, or Preferences.
+                                </div>
+                            </div>
+
+                            <div className="mr-company-save-actions">
+                                <div
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        padding: "8px 12px",
+                                        borderRadius: 999,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        background: MR_THEME.colors.cardBgSoft,
+                                        color: MR_THEME.colors.textSecondary,
+                                        fontSize: 13,
+                                        fontWeight: 800,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    Company defaults
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    style={{
+                                        height: 44,
+                                        padding: "0 18px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${saving ? MR_THEME.colors.border : MR_THEME.colors.primary}`,
+                                        background: saving ? MR_THEME.colors.cardBgSoft : MR_THEME.colors.primary,
+                                        color: saving ? MR_THEME.colors.textSecondary : "#ffffff",
+                                        cursor: saving ? "not-allowed" : "pointer",
+                                        fontWeight: 800,
+                                        fontSize: 14,
+                                        boxShadow: saving ? "none" : MR_THEME.shadows.cardSoft,
+                                    }}
+                                >
+                                    {saving ? "Saving..." : "Save Changes"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </>
+    );
+}
+
+function AlertMessage({
+    tone,
+    children,
+}: {
+    tone: "error" | "success";
+    children: React.ReactNode;
+}) {
+    const isError = tone === "error";
+
+    return (
+        <div
+            style={{
+                marginBottom: 18,
+                padding: "12px 14px",
+                border: `1px solid ${isError ? "#fecaca" : "#bbf7d0"}`,
+                background: isError ? "#fff5f5" : "#f0fdf4",
+                borderRadius: MR_THEME.radius.control,
+                color: isError ? "#991b1b" : "#166534",
+                fontSize: 14,
+            }}
+        >
+            {children}
+        </div>
+    );
+}
+
+function LoadingCard({ children }: { children: React.ReactNode }) {
+    return (
+        <div
+            style={{
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                padding: 20,
+                color: MR_THEME.colors.textSecondary,
+                boxShadow: MR_THEME.shadows.cardSoft,
+            }}
+        >
+            {children}
         </div>
     );
 }
@@ -571,19 +625,19 @@ function SectionCard({
     return (
         <section
             style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 16,
-                background: "#ffffff",
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
                 padding: 22,
-                boxShadow: "0 1px 2px rgba(16, 24, 40, 0.04)",
+                boxShadow: MR_THEME.shadows.cardSoft,
             }}
         >
             <div style={{ marginBottom: 18 }}>
                 <div
                     style={{
                         fontSize: 22,
-                        fontWeight: 700,
-                        color: "#111827",
+                        fontWeight: 800,
+                        color: MR_THEME.colors.textPrimary,
                         marginBottom: description ? 6 : 0,
                         letterSpacing: "-0.02em",
                     }}
@@ -595,7 +649,7 @@ function SectionCard({
                     <div
                         style={{
                             fontSize: 14,
-                            color: "#6b7280",
+                            color: MR_THEME.colors.textSecondary,
                             lineHeight: 1.55,
                         }}
                     >
@@ -610,17 +664,7 @@ function SectionCard({
 }
 
 function TwoColumnGrid({ children }: { children: React.ReactNode }) {
-    return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                gap: 16,
-            }}
-        >
-            {children}
-        </div>
-    );
+    return <div className="mr-company-field-grid">{children}</div>;
 }
 
 function Field({
@@ -641,12 +685,12 @@ function Field({
     step?: number;
 }) {
     return (
-        <label style={{ display: "grid", gap: 8 }}>
+        <label style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span
                 style={{
                     fontSize: 13,
-                    fontWeight: 700,
-                    color: "#374151",
+                    fontWeight: 800,
+                    color: MR_THEME.colors.textSecondary,
                 }}
             >
                 {label}
@@ -659,14 +703,17 @@ function Field({
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 style={{
+                    width: "100%",
+                    minWidth: 0,
                     height: 44,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
+                    borderRadius: MR_THEME.radius.control,
+                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
                     padding: "0 14px",
                     outline: "none",
-                    background: "#ffffff",
+                    background: MR_THEME.colors.cardBg,
                     fontSize: 14,
-                    color: "#111827",
+                    color: MR_THEME.colors.textPrimary,
+                    boxSizing: "border-box",
                 }}
             />
 
@@ -674,7 +721,7 @@ function Field({
                 <span
                     style={{
                         fontSize: 12,
-                        color: "#6b7280",
+                        color: MR_THEME.colors.textSecondary,
                         lineHeight: 1.45,
                     }}
                 >
@@ -699,12 +746,12 @@ function SelectField({
     options: { value: string; label: string }[];
 }) {
     return (
-        <label style={{ display: "grid", gap: 8 }}>
+        <label style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span
                 style={{
                     fontSize: 13,
-                    fontWeight: 700,
-                    color: "#374151",
+                    fontWeight: 800,
+                    color: MR_THEME.colors.textSecondary,
                 }}
             >
                 {label}
@@ -714,14 +761,17 @@ function SelectField({
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 style={{
+                    width: "100%",
+                    minWidth: 0,
                     height: 44,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
+                    borderRadius: MR_THEME.radius.control,
+                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
                     padding: "0 14px",
                     outline: "none",
-                    background: "#ffffff",
+                    background: MR_THEME.colors.cardBg,
                     fontSize: 14,
-                    color: "#111827",
+                    color: MR_THEME.colors.textPrimary,
+                    boxSizing: "border-box",
                 }}
             >
                 {options.map((option) => (
@@ -735,7 +785,7 @@ function SelectField({
                 <span
                     style={{
                         fontSize: 12,
-                        color: "#6b7280",
+                        color: MR_THEME.colors.textSecondary,
                         lineHeight: 1.45,
                     }}
                 >
