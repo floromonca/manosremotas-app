@@ -14,6 +14,7 @@ import { useActiveCompany } from "../../../../../hooks/useActiveCompany";
 import MemberHeader from "./components/MemberHeader";
 import MemberBasicInfoCard from "./components/MemberBasicInfoCard";
 import MemberWorkSummaryCard from "./components/MemberWorkSummaryCard";
+import MemberAttendanceCard from "./components/MemberAttendanceCard";
 import {
     getLastShiftForUser,
     getOpenShiftForUser,
@@ -581,37 +582,17 @@ export default function TeamMemberDetailPage() {
                     workedWeekLabel={workedWeekLabel}
                 />
 
-                <section style={cardStyle}>
-                    <div style={sectionTitleStyle}>Attendance</div>
-
-                    {loading ? (
-                        <div style={mutedTextStyle}>Loading attendance...</div>
-                    ) : (
-                        <div style={statsGridStyle}>
-                            <InfoCard
-                                label="Last check-in"
-                                value={formatDateTime(
-                                    todaySummary?.lastCheckIn ??
-                                    lastShift?.check_in_at ??
-                                    null
-                                )}
-                            />
-                            <InfoCard
-                                label="Last check-out"
-                                value={lastCheckOutLabel}
-                            />
-                            <InfoCard
-                                label="Shifts today"
-                                value={String(todaySummary?.shiftCount ?? 0)}
-                            />
-                            <InfoCard
-                                label="Shifts this week"
-                                value={String(weekSummary?.shiftCount ?? 0)}
-                            />
-                        </div>
+                <MemberAttendanceCard
+                    loading={loading}
+                    lastCheckInLabel={formatDateTime(
+                        todaySummary?.lastCheckIn ??
+                        lastShift?.check_in_at ??
+                        null
                     )}
-                </section>
-
+                    lastCheckOutLabel={lastCheckOutLabel}
+                    shiftsTodayCount={todaySummary?.shiftCount ?? 0}
+                    shiftsWeekCount={weekSummary?.shiftCount ?? 0}
+                />
                 <section style={cardStyle}>
                     <div style={sectionTitleStyle}>Hours & Pay</div>
 
