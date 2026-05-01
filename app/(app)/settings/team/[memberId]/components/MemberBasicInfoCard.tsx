@@ -76,9 +76,6 @@ export default function MemberBasicInfoCard({
                             disabled={sendingReset}
                             style={{
                                 ...secondaryButtonStyle,
-                                border: "1px solid #2563eb",
-                                background: "#eff6ff",
-                                color: "#1d4ed8",
                                 cursor: sendingReset ? "default" : "pointer",
                                 opacity: sendingReset ? 0.7 : 1,
                             }}
