@@ -13,6 +13,7 @@ import { useAuthState } from "../../../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../../../hooks/useActiveCompany";
 import MemberHeader from "./components/MemberHeader";
 import MemberBasicInfoCard from "./components/MemberBasicInfoCard";
+import MemberWorkSummaryCard from "./components/MemberWorkSummaryCard";
 import {
     getLastShiftForUser,
     getOpenShiftForUser,
@@ -573,32 +574,12 @@ export default function TeamMemberDetailPage() {
                     }}
                 />
 
-                <section style={cardStyle}>
-                    <div style={sectionTitleStyle}>Work summary</div>
-
-                    {loading ? (
-                        <div style={mutedTextStyle}>Loading work summary...</div>
-                    ) : (
-                        <div style={statsGridStyle}>
-                            <InfoCard
-                                label="Active shift"
-                                value={openShift ? "Yes" : "No"}
-                            />
-                            <InfoCard
-                                label="Worked today"
-                                value={workedTodayLabel}
-                            />
-                            <InfoCard
-                                label="Worked this week"
-                                value={workedWeekLabel}
-                            />
-                            <InfoCard
-                                label="Current status"
-                                value={openShift ? "Checked in" : "Off shift"}
-                            />
-                        </div>
-                    )}
-                </section>
+                <MemberWorkSummaryCard
+                    loading={loading}
+                    hasOpenShift={Boolean(openShift)}
+                    workedTodayLabel={workedTodayLabel}
+                    workedWeekLabel={workedWeekLabel}
+                />
 
                 <section style={cardStyle}>
                     <div style={sectionTitleStyle}>Attendance</div>
