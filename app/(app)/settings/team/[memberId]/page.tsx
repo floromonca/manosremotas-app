@@ -12,6 +12,7 @@ import { supabase } from "../../../../../lib/supabaseClient";
 import { useAuthState } from "../../../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../../../hooks/useActiveCompany";
 import MemberHeader from "./components/MemberHeader";
+import MemberBasicInfoCard from "./components/MemberBasicInfoCard";
 import {
     getLastShiftForUser,
     getOpenShiftForUser,
@@ -544,218 +545,33 @@ export default function TeamMemberDetailPage() {
             ) : null}
 
             <div style={{ display: "grid", gap: 18 }}>
-                <section style={cardStyle}>
-                    <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 12,
-                            marginBottom: 12,
-                        }}
-                    >
-                        {!loading && !isEditingBasicInfo ? (
-                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                                {memberProfile?.role !== "owner" ? (
-                                    <button
-                                        type="button"
-                                        onClick={deactivateMember}
-                                        style={{
-                                            padding: "8px 12px",
-                                            borderRadius: 8,
-                                            border: "1px solid #fecaca",
-                                            background: "#fff5f5",
-                                            color: "#991b1b",
-                                            cursor: "pointer",
-                                            fontWeight: 700,
-                                        }}
-                                    >
-                                        Deactivate member
-                                    </button>
-                                ) : null}
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSuccessMsg("");
-                                        setIsEditingBasicInfo(true);
-                                        setFullNameInput(memberProfile?.full_name ?? "");
-                                        setRoleInput(
-                                            (memberProfile?.role ?? "tech") as
-                                            | "owner"
-                                            | "admin"
-                                            | "tech"
-                                            | "viewer"
-                                        );
-                                    }}
-                                    style={{
-                                        padding: "8px 12px",
-                                        borderRadius: 8,
-                                        border: "1px solid #d1d5db",
-                                        background: "#fff",
-                                        cursor: "pointer",
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    Edit
-                                </button>
-                            </div>
-                        ) : null}
-                    </div>
-
-                    {loading ? (
-                        <div style={mutedTextStyle}>Loading member profile...</div>
-                    ) : isEditingBasicInfo ? (
-                        <div style={{ display: "grid", gap: 16 }}>
-                            <div
-                                style={{
-                                    display: "grid",
-                                    gap: 12,
-                                    gridTemplateColumns:
-                                        "minmax(0, 1fr) 220px",
-                                }}
-                            >
-                                <label
-                                    style={{
-                                        display: "grid",
-                                        gap: 6,
-                                        fontSize: 13,
-                                        color: "#374151",
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    Full name
-                                    <input
-                                        value={fullNameInput}
-                                        onChange={(e) =>
-                                            setFullNameInput(e.target.value)
-                                        }
-                                        placeholder="Enter full name"
-                                        style={{
-                                            padding: "10px 12px",
-                                            borderRadius: 10,
-                                            border: "1px solid #d1d5db",
-                                            outline: "none",
-                                            fontSize: 14,
-                                            background: "#fff",
-                                        }}
-                                    />
-                                </label>
-
-                                <label
-                                    style={{
-                                        display: "grid",
-                                        gap: 6,
-                                        fontSize: 13,
-                                        color: "#374151",
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    Role
-                                    <select
-                                        value={roleInput}
-                                        onChange={(e) =>
-                                            setRoleInput(
-                                                e.target.value as
-                                                | "owner"
-                                                | "admin"
-                                                | "tech"
-                                                | "viewer"
-                                            )
-                                        }
-                                        style={{
-                                            padding: "10px 12px",
-                                            borderRadius: 10,
-                                            border: "1px solid #d1d5db",
-                                            outline: "none",
-                                            fontSize: 14,
-                                            background: "#fff",
-                                        }}
-                                    >
-                                        <option value="owner">owner</option>
-                                        <option value="admin">admin</option>
-                                        <option value="tech">tech</option>
-                                        <option value="viewer">viewer</option>
-                                    </select>
-                                </label>
-                            </div>
-
-                            <div style={statsGridStyle}>
-                                <InfoCard label="Email" value={memberEmail} />
-                                <InfoCard
-                                    label="Company"
-                                    value={companyName || "—"}
-                                />
-                            </div>
-
-                            <div style={{ display: "flex", gap: 10 }}>
-                                <button
-                                    type="button"
-                                    onClick={saveBasicInfo}
-                                    disabled={savingBasicInfo}
-                                    style={{
-                                        padding: "10px 14px",
-                                        borderRadius: 10,
-                                        border: "1px solid #111827",
-                                        background: "#111827",
-                                        color: "#fff",
-                                        cursor: savingBasicInfo
-                                            ? "default"
-                                            : "pointer",
-                                        fontWeight: 700,
-                                        opacity: savingBasicInfo ? 0.7 : 1,
-                                    }}
-                                >
-                                    {savingBasicInfo ? "Saving..." : "Save"}
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsEditingBasicInfo(false);
-                                        setFullNameInput(
-                                            memberProfile?.full_name ?? ""
-                                        );
-                                        setRoleInput(
-                                            (memberProfile?.role ?? "tech") as
-                                            | "owner"
-                                            | "admin"
-                                            | "tech"
-                                            | "viewer"
-                                        );
-                                        setSuccessMsg("");
-                                    }}
-                                    disabled={savingBasicInfo}
-                                    style={{
-                                        padding: "10px 14px",
-                                        borderRadius: 10,
-                                        border: "1px solid #d1d5db",
-                                        background: "#fff",
-                                        cursor: savingBasicInfo
-                                            ? "default"
-                                            : "pointer",
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div style={statsGridStyle}>
-                            <InfoCard label="Full name" value={displayName} />
-                            <InfoCard label="Email" value={memberEmail} />
-                            <InfoCard
-                                label="Role"
-                                value={humanRole(memberProfile?.role)}
-                            />
-                            <InfoCard
-                                label="Company"
-                                value={companyName || "—"}
-                            />
-                        </div>
-                    )}
-                </section>
+                <MemberBasicInfoCard
+                    loading={loading}
+                    isEditingBasicInfo={isEditingBasicInfo}
+                    memberProfile={memberProfile}
+                    displayName={displayName}
+                    memberEmail={memberEmail}
+                    companyName={companyName}
+                    fullNameInput={fullNameInput}
+                    roleInput={roleInput}
+                    savingBasicInfo={savingBasicInfo}
+                    onDeactivateMember={deactivateMember}
+                    onStartEdit={() => {
+                        setSuccessMsg("");
+                        setIsEditingBasicInfo(true);
+                        setFullNameInput(memberProfile?.full_name ?? "");
+                        setRoleInput((memberProfile?.role ?? "tech") as "owner" | "admin" | "tech" | "viewer");
+                    }}
+                    onFullNameChange={setFullNameInput}
+                    onRoleChange={setRoleInput}
+                    onSaveBasicInfo={saveBasicInfo}
+                    onCancelEdit={() => {
+                        setIsEditingBasicInfo(false);
+                        setFullNameInput(memberProfile?.full_name ?? "");
+                        setRoleInput((memberProfile?.role ?? "tech") as "owner" | "admin" | "tech" | "viewer");
+                        setSuccessMsg("");
+                    }}
+                />
 
                 <section style={cardStyle}>
                     <div style={sectionTitleStyle}>Work summary</div>
