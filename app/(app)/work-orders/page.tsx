@@ -1170,12 +1170,13 @@ function WorkOrdersPageInner() {
                         {!isTechView ? (
                             <div
                                 style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    gap: MR_THEME.spacing.md,
-                                    flexWrap: "wrap",
+                                    display: "grid",
+                                    gridTemplateColumns: "1fr",
+                                    gap: MR_THEME.spacing.sm,
+                                    width: "100%",
+                                    maxWidth: "100%",
                                     marginBottom: MR_THEME.spacing.md,
+                                    overflow: "hidden",
                                 }}
                             >
                                 <WorkOrdersAdminSectionTabs

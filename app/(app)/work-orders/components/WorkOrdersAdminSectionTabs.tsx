@@ -55,8 +55,12 @@ export default function WorkOrdersAdminSectionTabs({
                 display: "flex",
                 gap: 8,
                 overflowX: "auto",
-                paddingBottom: 4,
+                paddingTop: 2,
+                paddingBottom: 6,
+                marginBottom: 4,
                 WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "none",
+                msOverflowStyle: "none",
             }}
         >
             {tabs.map((tab) => {
@@ -80,9 +84,8 @@ export default function WorkOrdersAdminSectionTabs({
                                 ? MR_THEME.colors.cardBg
                                 : MR_THEME.colors.textPrimary,
                             cursor: "pointer",
-                            fontWeight: 800,
+                            fontWeight: 700,
                             fontSize: 13,
-                            boxShadow: active ? MR_THEME.shadows.cardSoft : "none",
                             whiteSpace: "nowrap",
                             flexShrink: 0,
                         }}
