@@ -1203,286 +1203,381 @@ function WorkOrdersPageInner() {
                         {isAdminOrOwner && showNewWO ? (
                             <div
                                 style={{
-                                    marginBottom: 14,
-                                    padding: 12,
-                                    border: "1px solid #eee",
-                                    borderRadius: 12,
-                                    background: "white",
+                                    marginBottom: 16,
+                                    padding: 16,
+                                    border: "1px solid #e2e8f0",
+                                    borderRadius: 16,
+                                    background: "#ffffff",
+                                    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+                                    boxSizing: "border-box",
+                                    width: "100%",
+                                    overflow: "hidden",
                                 }}
                             >
-                                <div style={{ fontWeight: 900, marginBottom: 10 }}>Create new work order</div>
+                                <div
+                                    style={{
+                                        fontWeight: 900,
+                                        marginBottom: 14,
+                                        fontSize: 16,
+                                        color: "#0f172a",
+                                    }}
+                                >
+                                    Create new work order
+                                </div>
 
-                                <div style={{ display: "grid", gap: 10 }}>
+                                <div style={{ display: "grid", gap: 14 }}>
                                     <label style={{ display: "grid", gap: 6 }}>
-                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Job type</span>
+                                        <span style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>
+                                            Job type
+                                        </span>
                                         <input
                                             value={newJobType}
                                             onChange={(e) => setNewJobType(e.target.value)}
                                             placeholder="Ej: Electrical troubleshooting"
-                                            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "11px 12px",
+                                                border: "1px solid #cbd5e1",
+                                                borderRadius: 10,
+                                                fontSize: 14,
+                                                color: "#0f172a",
+                                                background: "#ffffff",
+                                            }}
                                         />
                                     </label>
 
                                     <label style={{ display: "grid", gap: 6 }}>
-                                        <span style={{ fontSize: 12, opacity: 0.8 }}>Description</span>
+                                        <span style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>
+                                            Description
+                                        </span>
                                         <textarea
                                             value={newDesc}
                                             onChange={(e) => setNewDesc(e.target.value)}
                                             placeholder="Describe el trabajo…"
                                             rows={3}
-                                            style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "11px 12px",
+                                                border: "1px solid #cbd5e1",
+                                                borderRadius: 10,
+                                                fontSize: 14,
+                                                color: "#0f172a",
+                                                background: "#ffffff",
+                                                resize: "vertical",
+                                            }}
                                         />
                                     </label>
 
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                                        <label style={{ display: "grid", gap: 6 }}>
-                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Priority</span>
-                                            <select
-                                                value={newPriority}
-                                                onChange={(e) => setNewPriority(e.target.value)}
-                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
+                                    <label style={{ display: "grid", gap: 6 }}>
+                                        <span style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>
+                                            Priority
+                                        </span>
+                                        <select
+                                            value={newPriority}
+                                            onChange={(e) => setNewPriority(e.target.value)}
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "11px 12px",
+                                                border: "1px solid #cbd5e1",
+                                                borderRadius: 10,
+                                                fontSize: 14,
+                                                color: "#0f172a",
+                                                background: "#ffffff",
+                                            }}
+                                        >
+                                            <option value="low">low</option>
+                                            <option value="medium">medium</option>
+                                            <option value="high">high</option>
+                                        </select>
+                                    </label>
+
+                                    <label style={{ display: "grid", gap: 6 }}>
+                                        <span style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>
+                                            Scheduled for
+                                        </span>
+                                        <input
+                                            type="date"
+                                            value={newScheduledFor}
+                                            onChange={(e) => setNewScheduledFor(e.target.value)}
+                                            style={{
+                                                width: "100%",
+                                                maxWidth: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "11px 12px",
+                                                border: "1px solid #cbd5e1",
+                                                borderRadius: 10,
+                                                fontSize: 14,
+                                                color: "#0f172a",
+                                                background: "#ffffff",
+                                            }}
+                                        />
+                                    </label>
+
+                                    <label style={{ display: "grid", gap: 6 }}>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                alignItems: "center",
+                                                gap: 10,
+                                            }}
+                                        >
+                                            <span style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>
+                                                Customer
+                                            </span>
+
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowCreateCustomer((v) => !v)}
+                                                style={{
+                                                    fontSize: 12,
+                                                    color: "#2563eb",
+                                                    background: "transparent",
+                                                    border: "none",
+                                                    cursor: "pointer",
+                                                    padding: 0,
+                                                    fontWeight: 800,
+                                                    whiteSpace: "nowrap",
+                                                }}
                                             >
-                                                <option value="low">low</option>
-                                                <option value="medium">medium</option>
-                                                <option value="high">high</option>
-                                            </select>
-                                        </label>
+                                                + Create
+                                            </button>
+                                        </div>
 
-                                        <label style={{ display: "grid", gap: 6 }}>
-                                            <span style={{ fontSize: 12, opacity: 0.8 }}>Scheduled for (opcional)</span>
-                                            <input
-                                                type="date"
-                                                value={newScheduledFor}
-                                                onChange={(e) => setNewScheduledFor(e.target.value)}
-                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
-                                            />
-                                        </label>
-                                    </div>
+                                        <select
+                                            value={newCustomerId}
+                                            onChange={(e) => {
+                                                const nextCustomerId = e.target.value;
+                                                setNewCustomerId(nextCustomerId);
+                                                setNewLocationId("");
+                                            }}
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "11px 12px",
+                                                border: "1px solid #cbd5e1",
+                                                borderRadius: 10,
+                                                fontSize: 14,
+                                                color: "#0f172a",
+                                                background: "#ffffff",
+                                            }}
+                                        >
+                                            <option value="">
+                                                {customersLoading ? "Loading customers..." : "Select customer"}
+                                            </option>
+                                            {customers.map((c) => (
+                                                <option key={c.customer_id} value={c.customer_id}>
+                                                    {c.name}
+                                                </option>
+                                            ))}
+                                        </select>
 
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
-                                        <label style={{ display: "grid", gap: 6 }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                                                <span style={{ fontSize: 12, opacity: 0.8 }}>Customer</span>
+                                        {showCreateCustomer && (
+                                            <div
+                                                style={{
+                                                    marginTop: 8,
+                                                    padding: 10,
+                                                    border: "1px solid #e2e8f0",
+                                                    borderRadius: 12,
+                                                    background: "#f8fafc",
+                                                    display: "grid",
+                                                    gap: 8,
+                                                }}
+                                            >
+                                                <input
+                                                    placeholder="Customer name"
+                                                    value={newCustomerName}
+                                                    onChange={(e) => setNewCustomerName(e.target.value)}
+                                                    style={{
+                                                        width: "100%",
+                                                        boxSizing: "border-box",
+                                                        padding: "10px 12px",
+                                                        border: "1px solid #cbd5e1",
+                                                        borderRadius: 10,
+                                                        fontSize: 14,
+                                                    }}
+                                                />
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => setShowCreateCustomer((v) => !v)}
+                                                    onClick={async () => {
+                                                        if (!companyId) return;
+                                                        if (!newCustomerName.trim()) return;
+
+                                                        const { data, error } = await supabase
+                                                            .from("customers")
+                                                            .insert({
+                                                                company_id: companyId,
+                                                                name: newCustomerName.trim(),
+                                                            })
+                                                            .select()
+                                                            .single();
+
+                                                        if (error) {
+                                                            alert(error.message);
+                                                            return;
+                                                        }
+
+                                                        setCustomers((prev) => [...prev, data]);
+                                                        setNewCustomerId(data.customer_id);
+                                                        setNewCustomerName("");
+                                                        setShowCreateCustomer(false);
+                                                    }}
                                                     style={{
-                                                        fontSize: 11,
+                                                        width: "100%",
+                                                        padding: "10px 12px",
+                                                        borderRadius: 10,
+                                                        border: "1px solid #0f172a",
+                                                        background: "#0f172a",
+                                                        color: "white",
+                                                        fontSize: 13,
+                                                        cursor: "pointer",
+                                                        fontWeight: 800,
+                                                    }}
+                                                >
+                                                    Save customer
+                                                </button>
+                                            </div>
+                                        )}
+                                    </label>
+
+                                    <label style={{ display: "grid", gap: 6 }}>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                justifyContent: "space-between",
+                                                alignItems: "center",
+                                                gap: 10,
+                                            }}
+                                        >
+                                            <span style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>
+                                                Location
+                                            </span>
+
+                                            {newCustomerId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowCreateLocation((v) => !v)}
+                                                    style={{
+                                                        fontSize: 12,
                                                         color: "#2563eb",
-                                                        background: "none",
+                                                        background: "transparent",
                                                         border: "none",
                                                         cursor: "pointer",
                                                         padding: 0,
-                                                        fontWeight: 700,
+                                                        fontWeight: 800,
+                                                        whiteSpace: "nowrap",
                                                     }}
                                                 >
                                                     + Create
                                                 </button>
-                                            </div>
-                                            <select
-                                                value={newCustomerId}
-                                                onChange={(e) => {
-                                                    const nextCustomerId = e.target.value;
-                                                    setNewCustomerId(nextCustomerId);
-                                                    setNewLocationId("");
-                                                }}
-                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
-                                            >
-                                                <option value="">
-                                                    {customersLoading ? "Loading customers..." : "Select customer"}
-                                                </option>
-                                                {customers.map((c) => (
-                                                    <option key={c.customer_id} value={c.customer_id}>
-                                                        {c.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-
-                                            {showCreateCustomer && (
-                                                <div
-                                                    style={{
-                                                        marginTop: 8,
-                                                        padding: 10,
-                                                        border: "1px solid #e5e7eb",
-                                                        borderRadius: 8,
-                                                        background: "#ffffff",
-                                                        display: "flex",
-                                                        gap: 8,
-                                                        alignItems: "center",
-                                                    }}
-                                                >
-                                                    <input
-                                                        placeholder="Customer name"
-                                                        value={newCustomerName}
-                                                        onChange={(e) => setNewCustomerName(e.target.value)}
-                                                        style={{
-                                                            flex: 1,
-                                                            padding: 8,
-                                                            border: "1px solid #ddd",
-                                                            borderRadius: 6,
-                                                        }}
-                                                    />
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={async () => {
-                                                            if (!companyId) return;
-
-                                                            if (!newCustomerName.trim()) return;
-
-                                                            const { data, error } = await supabase
-                                                                .from("customers")
-                                                                .insert({
-                                                                    company_id: companyId,
-                                                                    name: newCustomerName.trim(),
-                                                                })
-                                                                .select()
-                                                                .single();
-
-                                                            if (error) {
-                                                                alert(error.message);
-                                                                return;
-                                                            }
-
-                                                            setCustomers((prev) => [...prev, data]);
-                                                            setNewCustomerId(data.customer_id);
-                                                            setNewCustomerName("");
-                                                            setShowCreateCustomer(false);
-                                                        }}
-                                                        style={{
-                                                            padding: "6px 10px",
-                                                            borderRadius: 6,
-                                                            border: "1px solid #111827",
-                                                            background: "#111827",
-                                                            color: "white",
-                                                            fontSize: 12,
-                                                            cursor: "pointer",
-                                                            fontWeight: 700,
-                                                            whiteSpace: "nowrap",
-                                                        }}
-                                                    >
-                                                        Save
-                                                    </button>
-                                                </div>
-                                            )}                                        </label>
-
-                                        <label style={{ display: "grid", gap: 6 }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                                                <span style={{ fontSize: 12, opacity: 0.8 }}>Location</span>
-
-                                                {newCustomerId && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowCreateLocation((v) => !v)}
-                                                        style={{
-                                                            fontSize: 11,
-                                                            color: "#2563eb",
-                                                            background: "none",
-                                                            border: "none",
-                                                            cursor: "pointer",
-                                                            padding: 0,
-                                                            fontWeight: 700,
-                                                        }}
-                                                    >
-                                                        + Create
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <select
-                                                value={newLocationId}
-                                                onChange={(e) => setNewLocationId(e.target.value)}
-                                                disabled={!newCustomerId}
-                                                style={{ padding: 10, border: "1px solid #ddd", borderRadius: 8 }}
-                                            >
-                                                <option value="">
-                                                    {!newCustomerId
-                                                        ? "Select customer first"
-                                                        : locationsLoading
-                                                            ? "Loading locations..."
-                                                            : "Select location"}
-                                                </option>
-                                                {filteredLocations.map((loc) => (
-                                                    <option key={loc.location_id} value={loc.location_id}>
-                                                        {loc.label?.trim()
-                                                            ? `${loc.label} — ${loc.address}`
-                                                            : loc.address}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            {showCreateLocation && newCustomerId && (
-                                                <div
-                                                    style={{
-                                                        marginTop: 8,
-                                                        padding: 10,
-                                                        border: "1px solid #e5e7eb",
-                                                        borderRadius: 8,
-                                                        background: "#ffffff",
-                                                        display: "flex",
-                                                        gap: 8,
-                                                        alignItems: "center",
-                                                    }}
-                                                >
-                                                    <input
-                                                        placeholder="Service address"
-                                                        value={newLocationName}
-                                                        onChange={(e) => setNewLocationName(e.target.value)}
-                                                        style={{
-                                                            flex: 1,
-                                                            padding: 8,
-                                                            border: "1px solid #ddd",
-                                                            borderRadius: 6,
-                                                        }}
-                                                    />
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={async () => {
-                                                            if (!newLocationName.trim()) return;
-
-                                                            const { data, error } = await supabase
-                                                                .from("locations")
-                                                                .insert({
-                                                                    company_id: companyId,
-                                                                    customer_id: newCustomerId,
-                                                                    address: newLocationName.trim(),
-                                                                    label: null,
-                                                                })
-                                                                .select()
-                                                                .single();
-                                                            if (error) {
-                                                                alert(error.message);
-                                                                return;
-                                                            }
-
-                                                            // agregar a lista
-                                                            setLocations((prev) => [...prev, data]);
-
-                                                            // auto seleccionar
-                                                            setNewLocationId(data.location_id);
-
-                                                            // limpiar
-                                                            setNewLocationName("");
-                                                            setShowCreateLocation(false);
-                                                        }}
-                                                        style={{
-                                                            padding: "6px 10px",
-                                                            borderRadius: 6,
-                                                            border: "1px solid #111827",
-                                                            background: "#111827",
-                                                            color: "white",
-                                                            fontSize: 12,
-                                                            cursor: "pointer",
-                                                            fontWeight: 700,
-                                                        }}
-                                                    >
-                                                        Save
-                                                    </button>
-                                                </div>
                                             )}
-                                        </label>
-                                    </div>
-                                    {/* ✅ por ahora solo prueba visual */}
+                                        </div>
+
+                                        <select
+                                            value={newLocationId}
+                                            onChange={(e) => setNewLocationId(e.target.value)}
+                                            disabled={!newCustomerId}
+                                            style={{
+                                                width: "100%",
+                                                boxSizing: "border-box",
+                                                padding: "11px 12px",
+                                                border: "1px solid #cbd5e1",
+                                                borderRadius: 10,
+                                                fontSize: 14,
+                                                color: newCustomerId ? "#0f172a" : "#94a3b8",
+                                                background: newCustomerId ? "#ffffff" : "#f8fafc",
+                                            }}
+                                        >
+                                            <option value="">
+                                                {!newCustomerId
+                                                    ? "Select customer first"
+                                                    : locationsLoading
+                                                        ? "Loading locations..."
+                                                        : "Select location"}
+                                            </option>
+                                            {filteredLocations.map((loc) => (
+                                                <option key={loc.location_id} value={loc.location_id}>
+                                                    {loc.label?.trim()
+                                                        ? `${loc.label} — ${loc.address}`
+                                                        : loc.address}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        {showCreateLocation && newCustomerId && (
+                                            <div
+                                                style={{
+                                                    marginTop: 8,
+                                                    padding: 10,
+                                                    border: "1px solid #e2e8f0",
+                                                    borderRadius: 12,
+                                                    background: "#f8fafc",
+                                                    display: "grid",
+                                                    gap: 8,
+                                                }}
+                                            >
+                                                <input
+                                                    placeholder="Service address"
+                                                    value={newLocationName}
+                                                    onChange={(e) => setNewLocationName(e.target.value)}
+                                                    style={{
+                                                        width: "100%",
+                                                        boxSizing: "border-box",
+                                                        padding: "10px 12px",
+                                                        border: "1px solid #cbd5e1",
+                                                        borderRadius: 10,
+                                                        fontSize: 14,
+                                                    }}
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        if (!newLocationName.trim()) return;
+
+                                                        const { data, error } = await supabase
+                                                            .from("locations")
+                                                            .insert({
+                                                                company_id: companyId,
+                                                                customer_id: newCustomerId,
+                                                                address: newLocationName.trim(),
+                                                                label: null,
+                                                            })
+                                                            .select()
+                                                            .single();
+
+                                                        if (error) {
+                                                            alert(error.message);
+                                                            return;
+                                                        }
+
+                                                        setLocations((prev) => [...prev, data]);
+                                                        setNewLocationId(data.location_id);
+                                                        setNewLocationName("");
+                                                        setShowCreateLocation(false);
+                                                    }}
+                                                    style={{
+                                                        width: "100%",
+                                                        padding: "10px 12px",
+                                                        borderRadius: 10,
+                                                        border: "1px solid #0f172a",
+                                                        background: "#0f172a",
+                                                        color: "white",
+                                                        fontSize: 13,
+                                                        cursor: "pointer",
+                                                        fontWeight: 800,
+                                                    }}
+                                                >
+                                                    Save location
+                                                </button>
+                                            </div>
+                                        )}
+                                    </label>
+
                                     <button
                                         type="button"
                                         onClick={async () => {
@@ -1495,6 +1590,7 @@ function WorkOrdersPageInner() {
                                                 alert("El Job type es obligatorio");
                                                 return;
                                             }
+
                                             if (!newCustomerId) {
                                                 alert("Debe seleccionar un customer");
                                                 return;
@@ -1504,6 +1600,7 @@ function WorkOrdersPageInner() {
                                                 alert("Debe seleccionar una location");
                                                 return;
                                             }
+
                                             try {
                                                 const customer = customers.find((c) => c.customer_id === newCustomerId);
                                                 const location = locations.find((l) => l.location_id === newLocationId);
@@ -1528,8 +1625,6 @@ function WorkOrdersPageInner() {
                                                     return;
                                                 }
 
-
-                                                // limpiar formulario
                                                 setNewJobType("");
                                                 setNewDesc("");
                                                 setNewPriority("medium");
@@ -1538,22 +1633,22 @@ function WorkOrdersPageInner() {
                                                 setNewLocationId("");
                                                 setShowNewWO(false);
 
-                                                // refrescar lista
                                                 await loadOrders(companyId);
-
                                             } catch (e: any) {
                                                 alert("Error inesperado: " + (e?.message ?? e));
                                             }
                                         }}
                                         style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 10,
-                                            border: "1px solid #111",
-                                            background: "#111",
+                                            width: "100%",
+                                            padding: "12px 14px",
+                                            borderRadius: 12,
+                                            border: "1px solid #2563eb",
+                                            background: "#2563eb",
                                             color: "white",
                                             cursor: "pointer",
-                                            fontWeight: 800,
-                                            width: "fit-content",
+                                            fontWeight: 900,
+                                            fontSize: 14,
+                                            marginTop: 2,
                                         }}
                                     >
                                         Create work order

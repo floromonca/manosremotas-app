@@ -75,14 +75,14 @@ export default function WorkOrdersAdminSectionTabs({
                             padding: "10px 14px",
                             borderRadius: MR_THEME.radius.pill,
                             border: active
-                                ? `1px solid ${MR_THEME.colors.textPrimary}`
+                                ? `1px solid ${MR_THEME.colors.primary}`
                                 : `1px solid ${MR_THEME.colors.borderStrong}`,
                             background: active
-                                ? MR_THEME.colors.textPrimary
+                                ? MR_THEME.colors.primary
                                 : MR_THEME.colors.cardBg,
                             color: active
-                                ? MR_THEME.colors.cardBg
-                                : MR_THEME.colors.textPrimary,
+                                ? "white"
+                                : MR_THEME.colors.textSecondary,
                             cursor: "pointer",
                             fontWeight: 700,
                             fontSize: 13,

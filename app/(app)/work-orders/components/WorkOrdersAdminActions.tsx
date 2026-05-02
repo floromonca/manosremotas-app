@@ -1,4 +1,7 @@
+"use client";
+
 import { useRouter } from "next/navigation";
+import { MR_THEME } from "../../../../lib/theme";
 
 type WorkOrdersAdminActionsProps = {
     showNewWO: boolean;
@@ -16,9 +19,8 @@ export default function WorkOrdersAdminActions({
     return (
         <div
             style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
+                display: "grid",
+                gap: MR_THEME.spacing.sm,
                 width: "100%",
             }}
         >
@@ -27,40 +29,46 @@ export default function WorkOrdersAdminActions({
                 onClick={onToggleNewWO}
                 style={{
                     width: "100%",
-                    padding: "11px 14px",
-                    borderRadius: 10,
-                    border: "1px solid #2563eb",
-                    background: "#2563eb",
-                    color: "white",
+                    minHeight: 42,
+                    padding: "10px 14px",
+                    borderRadius: MR_THEME.radius.control,
+                    border: `1px solid ${MR_THEME.colors.primary}`,
+                    background: MR_THEME.colors.primary,
+                    color: "#ffffff",
                     cursor: "pointer",
-                    fontWeight: 700,
+                    fontWeight: 800,
                     fontSize: 14,
+                    lineHeight: 1.2,
                     boxShadow: "none",
                 }}
             >
-                {showNewWO ? "Close" : "New Work Order"}
+                {showNewWO ? "Close form" : "New Work Order"}
             </button>
 
             <div
                 style={{
-                    display: "flex",
-                    gap: 10,
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: MR_THEME.spacing.sm,
                     width: "100%",
+                    minWidth: 0,
                 }}
             >
                 <button
                     type="button"
                     onClick={onRefresh}
                     style={{
-                        flex: 1,
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        background: "#f8fafc",
-                        color: "#475569",
+                        minWidth: 0,
+                        minHeight: 40,
+                        padding: "10px 12px",
+                        borderRadius: MR_THEME.radius.control,
+                        border: `1px solid ${MR_THEME.colors.border}`,
+                        background: MR_THEME.colors.cardBgSoft,
+                        color: MR_THEME.colors.textSecondary,
                         cursor: "pointer",
-                        fontWeight: 600,
+                        fontWeight: 700,
                         fontSize: 14,
+                        lineHeight: 1.2,
                     }}
                 >
                     Refresh
@@ -70,17 +78,20 @@ export default function WorkOrdersAdminActions({
                     type="button"
                     onClick={() => router.replace("/control-center")}
                     style={{
-                        flex: 1,
-                        padding: "10px 8px",
-                        border: "1px solid transparent",
-                        background: "transparent",
-                        color: "#2563eb",
+                        minWidth: 0,
+                        minHeight: 40,
+                        padding: "10px 12px",
+                        borderRadius: MR_THEME.radius.control,
+                        border: `1px solid ${MR_THEME.colors.border}`,
+                        background: MR_THEME.colors.cardBg,
+                        color: MR_THEME.colors.primary,
                         cursor: "pointer",
-                        fontWeight: 600,
+                        fontWeight: 700,
                         fontSize: 14,
+                        lineHeight: 1.2,
                     }}
                 >
-                    Control Center
+                    Control
                 </button>
             </div>
         </div>
