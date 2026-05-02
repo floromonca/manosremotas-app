@@ -1294,7 +1294,7 @@ function WorkOrdersPageInner() {
                                         </select>
                                     </label>
 
-                                    <label style={{ display: "grid", gap: 6 }}>
+                                    <label style={{ display: "grid", gap: 6, minWidth: 0, width: "100%" }}>
                                         <span style={{ fontSize: 13, color: "#334155", fontWeight: 700 }}>
                                             Scheduled for
                                         </span>
@@ -1398,9 +1398,10 @@ function WorkOrdersPageInner() {
                                                         border: "1px solid #cbd5e1",
                                                         borderRadius: 10,
                                                         fontSize: 14,
+                                                        color: "#0f172a",
+                                                        background: "#ffffff",
                                                     }}
                                                 />
-
                                                 <button
                                                     type="button"
                                                     onClick={async () => {
@@ -1526,11 +1527,16 @@ function WorkOrdersPageInner() {
                                                     onChange={(e) => setNewLocationName(e.target.value)}
                                                     style={{
                                                         width: "100%",
-                                                        boxSizing: "border-box",
-                                                        padding: "10px 12px",
-                                                        border: "1px solid #cbd5e1",
-                                                        borderRadius: 10,
-                                                        fontSize: 14,
+                                                        minHeight: 48,
+                                                        padding: "12px 16px",
+                                                        borderRadius: 12,
+                                                        border: "1px solid #0f172a",
+                                                        background: "#0f172a",
+                                                        color: "#ffffff",
+                                                        cursor: "pointer",
+                                                        fontWeight: 800,
+                                                        fontSize: 15,
+                                                        lineHeight: 1.2,
                                                     }}
                                                 />
 
@@ -1640,15 +1646,17 @@ function WorkOrdersPageInner() {
                                         }}
                                         style={{
                                             width: "100%",
-                                            padding: "12px 14px",
+                                            minHeight: 48,
+                                            padding: "12px 16px",
                                             borderRadius: 12,
-                                            border: "1px solid #2563eb",
-                                            background: "#2563eb",
-                                            color: "white",
+                                            border: `1px solid ${MR_THEME.colors.primary}`,
+                                            background: MR_THEME.colors.primary,
+                                            color: "#ffffff",
                                             cursor: "pointer",
-                                            fontWeight: 900,
-                                            fontSize: 14,
-                                            marginTop: 2,
+                                            fontWeight: 800,
+                                            fontSize: 15,
+                                            lineHeight: 1.2,
+                                            boxShadow: "none",
                                         }}
                                     >
                                         Create work order
