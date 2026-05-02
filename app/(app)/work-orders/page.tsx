@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation";
 import { setWorkOrderAssignee } from "../../../lib/supabase/workOrders";
 import { supabase } from "../../../lib/supabaseClient";
+import { MR_THEME } from "../../../lib/theme";
 
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
@@ -13,6 +14,9 @@ import { CompanyGuard } from "../../components/CompanyGuard";
 import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
 import OperationalShiftBanner from "./components/OperationalShiftBanner";
 import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
+import WorkOrdersPageHeader from "./components/WorkOrdersPageHeader";
+import WorkOrdersAdminSectionTabs from "./components/WorkOrdersAdminSectionTabs";
+import WorkOrdersAdminActions from "./components/WorkOrdersAdminActions";
 import { useSearchParams } from "next/navigation";
 
 import WorkOrdersList from "./components/WorkOrdersList";
@@ -586,7 +590,6 @@ function WorkOrdersPageInner() {
 
         return rows.filter((w) => w.status === "in_progress");
     }, [rows, nowMs, woFilter]);
-
     const adminReadyToInvoiceRows = useMemo(() => {
         return rows.filter((w) => isWorkOrderReadyToInvoice(w.status));
     }, [rows]);
@@ -1157,76 +1160,10 @@ function WorkOrdersPageInner() {
                                 boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                             }}
                         >
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "flex-start",
-                                    gap: 16,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            textTransform: "uppercase",
-                                            letterSpacing: 1.2,
-                                            color: "#64748b",
-                                            fontWeight: 900,
-                                            marginBottom: 8,
-                                        }}
-                                    >
-                                        {isTechView ? "My Day" : "Operations"}
-                                    </div>
-
-                                    <h1
-                                        style={{
-                                            margin: 0,
-                                            fontSize: 34,
-                                            lineHeight: 1.05,
-                                            fontWeight: 900,
-                                            letterSpacing: "-0.04em",
-                                            color: "#0f172a",
-                                        }}
-                                    >
-                                        {isTechView ? "My Work Orders" : "Work Orders"}
-                                    </h1>
-
-                                    <div
-                                        style={{
-                                            marginTop: 8,
-                                            fontSize: 14,
-                                            color: "#64748b",
-                                            lineHeight: 1.45,
-                                        }}
-                                    >
-                                        {isTechView
-                                            ? "Your assigned and active work for today."
-                                            : `${companyName} · Field service operations overview`}
-                                    </div>
-                                </div>
-
-                                {!isTechView ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowNewWO((s) => !s)}
-                                        style={{
-                                            padding: "12px 16px",
-                                            borderRadius: 12,
-                                            border: "1px solid #0f172a",
-                                            background: "#0f172a",
-                                            color: "white",
-                                            cursor: "pointer",
-                                            fontWeight: 900,
-                                            fontSize: 14,
-                                            boxShadow: "0 1px 2px rgba(15,23,42,0.12)",
-                                        }}
-                                    >
-                                        {showNewWO ? "Close New Work Order" : "New Work Order"}
-                                    </button>
-                                ) : null}
-                            </div>
+                            <WorkOrdersPageHeader
+                                isTechView={isTechView}
+                                companyName={companyName}
+                            />
 
                         </header>
 
@@ -1236,103 +1173,32 @@ function WorkOrdersPageInner() {
                                     display: "flex",
                                     justifyContent: "space-between",
                                     alignItems: "center",
-                                    gap: 14,
+                                    gap: MR_THEME.spacing.md,
                                     flexWrap: "wrap",
-                                    marginBottom: 12,
+                                    marginBottom: MR_THEME.spacing.md,
                                 }}
                             >
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        gap: 8,
-                                        flexWrap: "wrap",
-                                        alignItems: "center",
+                                <WorkOrdersAdminSectionTabs
+                                    adminActiveSection={adminActiveSection}
+                                    setAdminActiveSection={setAdminActiveSection}
+                                    counts={{
+                                        needsAttention: adminNeedsAttentionRows.length,
+                                        activeWork: adminActiveRows.length,
+                                        readyToInvoice: adminReadyToInvoiceRows.length,
+                                        history: adminHistoryRows.length,
                                     }}
-                                >
-                                    {[
-                                        ["needs_attention", "Needs Attention", adminNeedsAttentionRows.length],
-                                        ["active_work", "Active Work", adminActiveRows.length],
-                                        ["ready_to_invoice", "Ready to Invoice", adminReadyToInvoiceRows.length],
-                                        ["history", "History", adminHistoryRows.length],
-                                    ].map(([key, label, count]) => {
-                                        const active = adminActiveSection === key;
-                                        return (
-                                            <button
-                                                key={key}
-                                                type="button"
-                                                onClick={() =>
-                                                    setAdminActiveSection(
-                                                        key as
-                                                        | "needs_attention"
-                                                        | "active_work"
-                                                        | "ready_to_invoice"
-                                                        | "history"
-                                                    )
-                                                }
-                                                style={{
-                                                    padding: "11px 15px",
-                                                    borderRadius: 999,
-                                                    border: active ? "1px solid #0f172a" : "1px solid #d1d5db",
-                                                    background: active ? "#0f172a" : "white",
-                                                    color: active ? "white" : "#0f172a",
-                                                    cursor: "pointer",
-                                                    fontWeight: 800,
-                                                    fontSize: 13,
-                                                    boxShadow: active
-                                                        ? "0 1px 2px rgba(15,23,42,0.12)"
-                                                        : "none",
-                                                }}
-                                            >
-                                                {label} ({count})
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                />
 
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        gap: 8,
-                                        flexWrap: "wrap",
-                                        alignItems: "center",
+                                <WorkOrdersAdminActions
+                                    showNewWO={showNewWO}
+                                    onToggleNewWO={() => setShowNewWO((s) => !s)}
+                                    onRefresh={() => {
+                                        if (companyId) loadOrders(companyId);
                                     }}
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (companyId) loadOrders(companyId);
-                                        }}
-                                        style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 12,
-                                            border: "1px solid #d1d5db",
-                                            background: "white",
-                                            cursor: "pointer",
-                                            fontWeight: 800,
-                                            color: "#374151",
-                                        }}
-                                    >
-                                        Refresh
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => router.replace("/control-center")}
-                                        style={{
-                                            padding: "10px 14px",
-                                            borderRadius: 12,
-                                            border: "1px solid #d1d5db",
-                                            background: "white",
-                                            cursor: "pointer",
-                                            fontWeight: 800,
-                                            color: "#374151",
-                                        }}
-                                    >
-                                        Control Center
-                                    </button>
-                                </div>
+                                />
                             </div>
                         ) : null}
+
                         {isAdminOrOwner && showNewWO ? (
                             <div
                                 style={{
