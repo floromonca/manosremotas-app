@@ -97,6 +97,7 @@ function WorkOrdersPageInner() {
     const [authBusy, setAuthBusy] = useState(false);
     const auditChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
     const auditWoIdRef = useRef<string | null>(null);
+    const [creatingWO, setCreatingWO] = useState(false);
 
     const [companyNameDraft, setCompanyNameDraft] = useState("");
     const [companyNameSaving, setCompanyNameSaving] = useState(false);
@@ -410,9 +411,6 @@ function WorkOrdersPageInner() {
             setCompanyNameSaving(false);
         }
     }, [companyId, myRole, companyNameDraft]);
-
-
-
     useEffect(() => {
         const openFromCustomer = searchParams.get("newFromCustomer");
         const customerIdParam = searchParams.get("customerId");
@@ -1587,27 +1585,30 @@ function WorkOrdersPageInner() {
                                     <button
                                         type="button"
                                         onClick={async () => {
-                                            if (!companyId) {
-                                                alert("No hay empresa activa");
-                                                return;
-                                            }
-
-                                            if (!newJobType.trim()) {
-                                                alert("El Job type es obligatorio");
-                                                return;
-                                            }
-
-                                            if (!newCustomerId) {
-                                                alert("Debe seleccionar un customer");
-                                                return;
-                                            }
-
-                                            if (!newLocationId) {
-                                                alert("Debe seleccionar una location");
-                                                return;
-                                            }
+                                            if (creatingWO) return;
+                                            setCreatingWO(true);
 
                                             try {
+                                                if (!companyId) {
+                                                    alert("No hay empresa activa");
+                                                    return;
+                                                }
+
+                                                if (!newJobType.trim()) {
+                                                    alert("El Job type es obligatorio");
+                                                    return;
+                                                }
+
+                                                if (!newCustomerId) {
+                                                    alert("Debe seleccionar un customer");
+                                                    return;
+                                                }
+
+                                                if (!newLocationId) {
+                                                    alert("Debe seleccionar una location");
+                                                    return;
+                                                }
+
                                                 const customer = customers.find((c) => c.customer_id === newCustomerId);
                                                 const location = locations.find((l) => l.location_id === newLocationId);
 
@@ -1642,8 +1643,11 @@ function WorkOrdersPageInner() {
                                                 await loadOrders(companyId);
                                             } catch (e: any) {
                                                 alert("Error inesperado: " + (e?.message ?? e));
+                                            } finally {
+                                                setCreatingWO(false);
                                             }
                                         }}
+                                        disabled={creatingWO}
                                         style={{
                                             width: "100%",
                                             minHeight: 48,
@@ -1652,14 +1656,15 @@ function WorkOrdersPageInner() {
                                             border: `1px solid ${MR_THEME.colors.primary}`,
                                             background: MR_THEME.colors.primary,
                                             color: "#ffffff",
-                                            cursor: "pointer",
+                                            cursor: creatingWO ? "not-allowed" : "pointer",
+                                            opacity: creatingWO ? 0.6 : 1,
                                             fontWeight: 800,
                                             fontSize: 15,
                                             lineHeight: 1.2,
                                             boxShadow: "none",
                                         }}
                                     >
-                                        Create work order
+                                        {creatingWO ? "Creating..." : "Create work order"}
                                     </button>
                                 </div>
                             </div>

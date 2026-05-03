@@ -145,7 +145,14 @@ export function useWorkOrderPhotos({
                 setPhotoError(null);
 
                 const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-                const fileName = `${crypto.randomUUID()}.${ext}`;
+                const safeRandomId =
+                    typeof window !== "undefined" &&
+                        window.crypto &&
+                        typeof window.crypto.randomUUID === "function"
+                        ? window.crypto.randomUUID()
+                        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+                const fileName = `${safeRandomId}.${ext}`;
                 const filePath = `${activeCompanyId}/${workOrderId}/${fileName}`;
 
                 const { error: uploadError } = await supabase.storage
