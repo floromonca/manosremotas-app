@@ -209,6 +209,12 @@ export default function WorkOrderSummarySection({
         setCheckInMessage("Check-out successful.");
         setCheckingIn(false);
     };
+    const labelStyle = {
+        ...MR_THEME.typography.small,
+        color: MR_THEME.colors.textSecondary,
+        fontWeight: 600,
+        letterSpacing: 0.2,
+    };
     return (
         <div
             style={{
@@ -273,15 +279,13 @@ export default function WorkOrderSummarySection({
                     style={{
                         padding: MR_THEME.layout.compactCardPadding,
                         borderRadius: MR_THEME.radius.control,
-                        background: MR_THEME.colors.cardBgSoft,
+                        background: MR_THEME.colors.cardBg,
                         border: `1px solid ${MR_THEME.colors.border}`,
                     }}
                 >
                     <div
                         style={{
-                            ...MR_THEME.typography.small,
-                            color: MR_THEME.colors.textSecondary,
-                            fontWeight: 700,
+                            ...labelStyle,
                             marginBottom: MR_THEME.spacing.xs,
                         }}
                     >
@@ -303,19 +307,46 @@ export default function WorkOrderSummarySection({
                         borderRadius: MR_THEME.radius.control,
                         background: MR_THEME.colors.cardBg,
                         border: `1px solid ${MR_THEME.colors.border}`,
-                        boxShadow: MR_THEME.shadows.card,
                     }}
                 >
                     <div
                         style={{
-                            ...MR_THEME.typography.small,
-                            color: MR_THEME.colors.textSecondary,
-                            fontWeight: 700,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: MR_THEME.spacing.sm,
                             marginBottom: MR_THEME.spacing.xs,
                         }}
                     >
-                        Address
+                        <div style={labelStyle}>
+                            Address
+                        </div>
+
+                        {googleMapsUrl ? (
+                            <a
+                                href={googleMapsUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: MR_THEME.spacing.xs,
+                                    padding: "5px 10px",
+                                    borderRadius: MR_THEME.radius.pill,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    textDecoration: "none",
+                                    color: MR_THEME.colors.primary,
+                                    fontWeight: 700,
+                                    fontSize: MR_THEME.typography.small.fontSize,
+                                    background: MR_THEME.colors.primarySoft,
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                View Map
+                            </a>
+                        ) : null}
                     </div>
+
                     <div
                         style={{
                             ...MR_THEME.typography.body,
@@ -325,32 +356,7 @@ export default function WorkOrderSummarySection({
                     >
                         {wo.service_address || "—"}
                     </div>
-                    {googleMapsUrl ? (
-                        <div style={{ marginTop: MR_THEME.spacing.sm }}>
-                            <a
-                                href={googleMapsUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: MR_THEME.spacing.xs,
-                                    padding: "6px 10px",
-                                    borderRadius: MR_THEME.radius.pill,
-                                    border: `1px solid ${MR_THEME.colors.border}`,
-                                    textDecoration: "none",
-                                    color: MR_THEME.colors.textSecondary,
-                                    fontWeight: 700,
-                                    fontSize: MR_THEME.typography.small.fontSize,
-                                    background: MR_THEME.colors.cardBgSoft,
-                                }}
-                            >
-                                Ver en Google Maps
-                            </a>
-                        </div>
-                    ) : null}
                 </div>
-
                 <div
                     style={{
                         padding: MR_THEME.layout.compactCardPadding,
@@ -361,207 +367,279 @@ export default function WorkOrderSummarySection({
                 >
                     <div
                         style={{
-                            ...MR_THEME.typography.small,
-                            color: MR_THEME.colors.textSecondary,
-                            fontWeight: 700,
-                            marginBottom: MR_THEME.spacing.xs,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: MR_THEME.spacing.sm,
+                            marginBottom: MR_THEME.spacing.sm,
                         }}
                     >
-                        Status
+                        <div style={labelStyle}>
+                            Status
+                        </div>
+
+                        <div
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: "6px 10px",
+                                borderRadius: MR_THEME.radius.pill,
+                                background: MR_THEME.colors.primarySoft,
+                                color: MR_THEME.colors.primary,
+                                fontSize: 12,
+                                fontWeight: 900,
+                                textTransform: "capitalize",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            {niceLabel(wo.status)}
+                        </div>
                     </div>
-                    <select
-                        value={wo.status}
-                        disabled={!canChangeStatus}
-                        onChange={async (e) => {
-                            const next = e.target.value as WorkOrderStatus;
-                            await onChangeStatus(next);
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setShowAssign(false);
+                            setShowActions((current) => !current);
                         }}
                         style={{
                             width: "100%",
-                            height: MR_THEME.components.input.height,
+                            minHeight: 42,
                             padding: `0 ${MR_THEME.components.input.paddingX}px`,
                             borderRadius: MR_THEME.radius.control,
                             border: `1px solid ${MR_THEME.colors.border}`,
                             background: MR_THEME.colors.cardBg,
-                            fontSize: MR_THEME.components.input.fontSize,
+                            fontSize: 14,
                             fontWeight: 800,
                             color: MR_THEME.colors.textPrimary,
-                            cursor: canChangeStatus ? "pointer" : "not-allowed",
-                            opacity: canChangeStatus ? 1 : 0.65,
-                            textTransform: "capitalize",
+                            cursor: "pointer",
                             outline: "none",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
                         }}
                     >
-                        {allowedStatuses.map((status) => (
-                            <option key={status} value={status}>
-                                {niceLabel(status)}
-                            </option>
-                        ))}
-                    </select>
-                    {!canChangeStatus ? (
-                        <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280", lineHeight: 1.4 }}>
-                            {statusChangeReason === "no_shift"
-                                ? "Start your shift from My Day or Control Center to update status."
-                                : isAdmin
-                                    ? "You cannot change the status of this work order right now."
-                                    : "This work order is not currently available for status changes."}
+                        <span>Actions</span>
+                        <span style={{ color: MR_THEME.colors.textSecondary }}>
+                            {showActions ? "▲" : "▼"}
+                        </span>
+                    </button>
+
+                    {showActions ? (
+                        <div
+                            style={{
+                                marginTop: MR_THEME.spacing.sm,
+                                display: "grid",
+                                gap: MR_THEME.spacing.xs,
+                                padding: MR_THEME.spacing.sm,
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.border}`,
+                                background: MR_THEME.colors.cardBgSoft,
+                            }}
+                        >
+                            {canChangeStatus
+                                ? allowedStatuses.map((status) => (
+                                    <button
+                                        key={status}
+                                        type="button"
+                                        onClick={async () => {
+                                            setShowAssign(false);
+                                            setShowActions(false);
+                                            await onChangeStatus(status);
+                                        }}
+                                        style={{
+                                            width: "100%",
+                                            minHeight: 40,
+                                            padding: "8px 10px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.border}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            textAlign: "left",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        {niceLabel(status)}
+                                    </button>
+                                ))
+                                : null}
+
+                            {isAdmin && !invoiceIsLocked && wo.status !== "cancelled" ? (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowAssign((current) => !current);
+                                            setShowActions(false);
+                                        }}
+                                        style={{
+                                            width: "100%",
+                                            minHeight: 40,
+                                            padding: "8px 10px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.border}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            textAlign: "left",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Assign technician
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const confirmed = window.confirm(
+                                                "Cancel this work order? This will keep the record but remove it from active operation."
+                                            );
+
+                                            if (!confirmed) return;
+
+                                            setShowAssign(false);
+                                            setShowActions(false);
+                                            await onChangeStatus("cancelled");
+                                        }}
+                                        style={{
+                                            width: "100%",
+                                            minHeight: 40,
+                                            padding: "8px 10px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.border}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            color: MR_THEME.colors.danger,
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            textAlign: "left",
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Cancel work order
+                                    </button>
+                                </>
+                            ) : null}
                         </div>
                     ) : null}
 
-                    {isAdmin && !invoiceIsLocked ? (
-                        <>
-                            <select
-                                value=""
-                                onChange={async (e) => {
-                                    setShowAssign(false);
-                                    const action = e.target.value;
+                    {!canChangeStatus ? (
+                        <div
+                            style={{
+                                marginTop: MR_THEME.spacing.sm,
+                                fontSize: 12,
+                                color: MR_THEME.colors.textSecondary,
+                                lineHeight: 1.4,
+                                fontWeight: 600,
+                            }}
+                        >
+                            {statusChangeReason === "no_shift"
+                                ? "Start your shift from My Day to update status."
+                                : isAdmin
+                                    ? "Status changes are not available right now."
+                                    : "This work order is not available for status changes."}
+                        </div>
+                    ) : null}
 
-                                    if (action === "cancel") {
-                                        const confirmed = window.confirm(
-                                            "Cancel this work order? This will keep the record but remove it from active operation."
-                                        );
+                    {showAssign ? (
+                        <select
+                            defaultValue=""
+                            onChange={async (e) => {
+                                const techId = e.target.value;
 
-                                        if (!confirmed) {
-                                            e.target.value = "";
-                                            return;
-                                        }
+                                if (!techId) return;
 
-                                        await onChangeStatus("cancelled");
-                                        e.target.value = "";
-                                        return;
-                                    }
-
-                                    if (action === "assign") {
-                                        setShowAssign(true);
-                                        e.target.value = "";
-                                        return;
-                                    }
-                                }}
-                                style={{
-                                    marginTop: 12,
-                                    width: "100%",
-                                    height: MR_THEME.components.input.height,
-                                    padding: `0 ${MR_THEME.components.input.paddingX}px`,
-                                    borderRadius: MR_THEME.radius.control,
-                                    border: `1px solid ${MR_THEME.colors.border}`,
-                                    background: MR_THEME.colors.cardBg,
-                                    fontSize: MR_THEME.components.input.fontSize,
-                                    fontWeight: 800,
-                                    color: MR_THEME.colors.textPrimary,
-                                    cursor: "pointer",
-                                    outline: "none",
-                                }}
-                            >
-                                <option value="" disabled>
-                                    Select Action…
+                                await onAssignTech(techId);
+                                setShowAssign(false);
+                            }}
+                            style={{
+                                marginTop: MR_THEME.spacing.sm,
+                                width: "100%",
+                                height: 42,
+                                padding: `0 ${MR_THEME.components.input.paddingX}px`,
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.border}`,
+                                background: MR_THEME.colors.cardBg,
+                                fontSize: 14,
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textPrimary,
+                                cursor: "pointer",
+                                outline: "none",
+                            }}
+                        >
+                            <option value="">Choose technician</option>
+                            {techMembers.map((t) => (
+                                <option key={t.user_id} value={t.user_id}>
+                                    {t.full_name || t.user_id.slice(0, 8)}
                                 </option>
-                                {wo.status !== "cancelled" ? (
-                                    <>
-                                        <option value="assign">Assign Technician</option>
-                                        <option value="cancel">Cancel Work Order</option>
-                                    </>
-                                ) : null}
-                            </select>
-
-                            {showAssign ? (
-                                <select
-                                    onChange={async (e) => {
-                                        const techId = e.target.value;
-
-                                        if (!techId) return;
-
-                                        await onAssignTech(techId);
-                                        setShowAssign(false);
-                                    }}
-                                    style={{
-                                        marginTop: 10,
-                                        width: "100%",
-                                        height: MR_THEME.components.input.height,
-                                        padding: `0 ${MR_THEME.components.input.paddingX}px`,
-                                        borderRadius: MR_THEME.radius.control,
-                                        border: `1px solid ${MR_THEME.colors.border}`,
-                                        background: MR_THEME.colors.cardBg,
-                                        fontSize: MR_THEME.components.input.fontSize,
-                                        fontWeight: 700,
-                                    }}
-                                >
-                                    <option value="">Select technician</option>
-                                    {techMembers.map((t) => (
-                                        <option key={t.user_id} value={t.user_id}>
-                                            {t.full_name || t.user_id.slice(0, 8)}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : null}
-                        </>
+                            ))}
+                        </select>
                     ) : null}
                 </div>
                 <div
                     style={{
                         display: "grid",
                         gridTemplateColumns: "1fr 1fr",
-                        gap: MR_THEME.spacing.md,
+                        gap: MR_THEME.spacing.sm,
                     }}
                 >
                     <div
                         style={{
-                            padding: MR_THEME.layout.compactCardPadding,
+                            padding: "10px 12px",
                             borderRadius: MR_THEME.radius.control,
-                            background: MR_THEME.colors.cardBg,
+                            background: MR_THEME.colors.cardBgSoft,
                             border: `1px solid ${MR_THEME.colors.border}`,
                         }}
                     >
                         <div
                             style={{
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: MR_THEME.colors.textSecondary,
-                                fontWeight: 700,
-                                marginBottom: 4,
+                                fontWeight: 600,
+                                lineHeight: 1.35,
                             }}
                         >
-                            Priority
-                        </div>
-                        <div
-                            style={{
-                                fontSize: 14,
-                                fontWeight: 800,
-                                color: MR_THEME.colors.textPrimary,
-                                textTransform: "capitalize",
-                            }}
-                        >
-                            {niceLabel(wo.priority)}
+                            Priority:{" "}
+                            <span
+                                style={{
+                                    color: MR_THEME.colors.textPrimary,
+                                    fontWeight: 800,
+                                    textTransform: "capitalize",
+                                }}
+                            >
+                                {niceLabel(wo.priority)}
+                            </span>
                         </div>
                     </div>
 
                     <div
                         style={{
-                            padding: MR_THEME.layout.compactCardPadding,
+                            padding: "10px 12px",
                             borderRadius: MR_THEME.radius.control,
-                            background: MR_THEME.colors.cardBg,
+                            background: MR_THEME.colors.cardBgSoft,
                             border: `1px solid ${MR_THEME.colors.border}`,
                         }}
                     >
                         <div
                             style={{
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: MR_THEME.colors.textSecondary,
-                                fontWeight: 700,
-                                marginBottom: 4,
+                                fontWeight: 600,
+                                lineHeight: 1.35,
                             }}
                         >
-                            Assigned to
-                        </div>
-                        <div
-                            style={{
-                                fontSize: 14,
-                                fontWeight: 800,
-                                color: MR_THEME.colors.textPrimary,
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                            }}
-                        >
-                            {assignedTechName || "—"}
+                            Assigned:{" "}
+                            <span
+                                style={{
+                                    color: MR_THEME.colors.textPrimary,
+                                    fontWeight: 800,
+                                }}
+                            >
+                                {assignedTechName ?? "—"}
+                            </span>
                         </div>
                     </div>
                 </div>
