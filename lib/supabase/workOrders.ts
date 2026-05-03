@@ -1,10 +1,14 @@
 // lib/supabase/workOrders.ts
 import { supabase } from "../supabaseClient";
 
-export type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
+export type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed" | "cancelled";
 
 export const safeStatus = (s: string): WorkOrderStatus =>
-  s === "new" || s === "in_progress" || s === "resolved" || s === "closed"
+  s === "new" ||
+  s === "in_progress" ||
+  s === "resolved" ||
+  s === "closed" ||
+  s === "cancelled"
     ? s
     : "new";
 

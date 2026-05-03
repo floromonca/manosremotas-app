@@ -10,7 +10,7 @@ type AuditItem = {
     message: string | null;
 };
 
-type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
+type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed" | "cancelled";
 
 type WorkOrder = {
     work_order_id: string;

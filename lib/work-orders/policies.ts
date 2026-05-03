@@ -1,11 +1,11 @@
-export type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed";
+export type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed" | "cancelled";
 export type WorkOrderRole = "owner" | "admin" | "tech" | "viewer" | null;
 
 export function allowedStatusesForRole(
     role: WorkOrderRole,
     current: WorkOrderStatus
 ): WorkOrderStatus[] {
-    const all: WorkOrderStatus[] = ["new", "in_progress", "resolved", "closed"];
+    const all: WorkOrderStatus[] = ["new", "in_progress", "resolved", "closed", "cancelled"];
 
     if (role === "owner" || role === "admin") return all;
 
@@ -13,7 +13,7 @@ export function allowedStatusesForRole(
         if (current === "new") return ["new", "in_progress"];
         if (current === "in_progress") return ["in_progress", "resolved"];
         if (current === "resolved") return ["resolved", "closed"];
-        return ["closed"];
+        return [current];
     }
 
     return [current];

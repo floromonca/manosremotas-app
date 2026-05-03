@@ -46,7 +46,7 @@ type WorkOrder = {
     company_id?: string | null;
     job_type: string;
     description: string;
-    status: "new" | "in_progress" | "resolved" | "closed";
+    status: WorkOrderStatus;
     priority: string;
     scheduled_for: string | null;
     created_at: string;
@@ -565,6 +565,8 @@ function WorkOrdersPageInner() {
         }
 
         return rows.filter((w) => {
+            if (w.status === "cancelled") return false;
+
             const delayed = isWorkOrderDelayed({
                 status: w.status,
                 createdAt: w.created_at,
@@ -593,7 +595,7 @@ function WorkOrdersPageInner() {
     }, [rows]);
 
     const adminHistoryRows = useMemo(() => {
-        return rows.filter((w) => w.status === "closed");
+        return rows.filter((w) => w.status === "closed" || w.status === "cancelled");
     }, [rows]);
 
     const renderAdminSection = (

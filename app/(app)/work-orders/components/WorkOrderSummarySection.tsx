@@ -29,11 +29,14 @@ type Props = {
     isAdmin: boolean;
     myUserId: string | null;
     onChangeStatus: (next: WorkOrderStatus) => Promise<void>;
+    onAssignTech: (techId: string) => Promise<void>;
     onCheckInRecorded: () => Promise<void>;
     allowedStatuses: WorkOrderStatus[];
     canChangeStatus: boolean;
     statusChangeReason: "no_shift" | null;
     assignedTechName: string | null;
+    techMembers: { user_id: string; full_name: string | null }[];
+
 };
 
 
@@ -54,11 +57,13 @@ export default function WorkOrderSummarySection({
     isAdmin,
     myUserId,
     onChangeStatus,
+    onAssignTech,
     onCheckInRecorded,
     allowedStatuses,
     canChangeStatus,
     statusChangeReason,
     assignedTechName,
+    techMembers,
 }: Props) {
 
     const canCheckIn =
@@ -68,11 +73,13 @@ export default function WorkOrderSummarySection({
 
     const [checkingIn, setCheckingIn] = useState(false);
     const [checkInMessage, setCheckInMessage] = useState<string | null>(null);
+    const [showAssign, setShowAssign] = useState(false);
     const latestCheckIn =
         Array.isArray(checkIns) && checkIns.length > 0 ? checkIns[0] : null;
     const hasAnyCheckIn = latestCheckIn != null;
     const hasCheckedIn = latestCheckIn != null && !latestCheckIn.check_out_at;
     const hasCheckedOut = latestCheckIn?.check_out_at != null;
+    const [showActions, setShowActions] = useState(false);
 
     function formatCheckInLabel(value: string | null | undefined) {
         const raw = String(value ?? "").trim();
@@ -399,6 +406,94 @@ export default function WorkOrderSummarySection({
                                     ? "You cannot change the status of this work order right now."
                                     : "This work order is not currently available for status changes."}
                         </div>
+                    ) : null}
+
+                    {isAdmin && !invoiceIsLocked ? (
+                        <>
+                            <select
+                                value=""
+                                onChange={async (e) => {
+                                    setShowAssign(false);
+                                    const action = e.target.value;
+
+                                    if (action === "cancel") {
+                                        const confirmed = window.confirm(
+                                            "Cancel this work order? This will keep the record but remove it from active operation."
+                                        );
+
+                                        if (!confirmed) {
+                                            e.target.value = "";
+                                            return;
+                                        }
+
+                                        await onChangeStatus("cancelled");
+                                        e.target.value = "";
+                                        return;
+                                    }
+
+                                    if (action === "assign") {
+                                        setShowAssign(true);
+                                        e.target.value = "";
+                                        return;
+                                    }
+                                }}
+                                style={{
+                                    marginTop: 12,
+                                    width: "100%",
+                                    height: MR_THEME.components.input.height,
+                                    padding: `0 ${MR_THEME.components.input.paddingX}px`,
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    background: MR_THEME.colors.cardBg,
+                                    fontSize: MR_THEME.components.input.fontSize,
+                                    fontWeight: 800,
+                                    color: MR_THEME.colors.textPrimary,
+                                    cursor: "pointer",
+                                    outline: "none",
+                                }}
+                            >
+                                <option value="" disabled>
+                                    Select Action…
+                                </option>
+                                {wo.status !== "cancelled" ? (
+                                    <>
+                                        <option value="assign">Assign Technician</option>
+                                        <option value="cancel">Cancel Work Order</option>
+                                    </>
+                                ) : null}
+                            </select>
+
+                            {showAssign ? (
+                                <select
+                                    onChange={async (e) => {
+                                        const techId = e.target.value;
+
+                                        if (!techId) return;
+
+                                        await onAssignTech(techId);
+                                        setShowAssign(false);
+                                    }}
+                                    style={{
+                                        marginTop: 10,
+                                        width: "100%",
+                                        height: MR_THEME.components.input.height,
+                                        padding: `0 ${MR_THEME.components.input.paddingX}px`,
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        background: MR_THEME.colors.cardBg,
+                                        fontSize: MR_THEME.components.input.fontSize,
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    <option value="">Select technician</option>
+                                    {techMembers.map((t) => (
+                                        <option key={t.user_id} value={t.user_id}>
+                                            {t.full_name || t.user_id.slice(0, 8)}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : null}
+                        </>
                     ) : null}
                 </div>
                 <div

@@ -184,6 +184,9 @@ export default function WorkOrderDetailPage() {
 
     const woRef = useRef<WorkOrder | null>(null);
     const [assignedTechName, setAssignedTechName] = useState<string | null>(null);
+    const [techMembers, setTechMembers] = useState<
+        { user_id: string; full_name: string | null }[]
+    >([]);
 
     useEffect(() => {
         if (!selectedPhoto) return;
@@ -218,6 +221,7 @@ export default function WorkOrderDetailPage() {
     useEffect(() => {
         woRef.current = wo;
     }, [wo]);
+
     const [items, setItems] = useState<WorkOrderItem[]>([]);
     const [siteReportDraft, setSiteReportDraft] = useState("");
     const [savingSiteReport, setSavingSiteReport] = useState(false);
@@ -275,6 +279,26 @@ export default function WorkOrderDetailPage() {
             setRoleLoading(false);
         }
     }, [activeCompanyId, myUserId]);
+    const loadTechMembers = useCallback(async () => {
+        if (!activeCompanyId) return;
+
+        const { data, error } = await supabase
+            .from("company_members")
+            .select("user_id, full_name, role")
+            .eq("company_id", activeCompanyId)
+            .in("role", ["tech", "admin", "owner"]);
+
+        if (error) {
+            console.log("Error loading tech members:", error);
+            return;
+        }
+
+        setTechMembers(data ?? []);
+    }, [activeCompanyId]);
+
+    useEffect(() => {
+        loadTechMembers();
+    }, [loadTechMembers]);
     const loadOperateState = useCallback(async () => {
         if (!activeCompanyId || !myUserId) {
             setCanOperate(false);
@@ -729,7 +753,24 @@ export default function WorkOrderDetailPage() {
         },
         [wo, myUserId, isAdmin, myRole, loadWorkOrder]
     );
+    const handleAssignTech = useCallback(
+        async (techId: string) => {
+            if (!wo?.work_order_id) return;
 
+            const { error } = await supabase
+                .from("work_orders")
+                .update({ assigned_to: techId })
+                .eq("work_order_id", wo.work_order_id);
+
+            if (error) {
+                alert(`No se pudo asignar técnico: ${error.message}`);
+                return;
+            }
+
+            await loadWorkOrder();
+        },
+        [wo?.work_order_id, loadWorkOrder]
+    );
     const saveCustomerInfo = useCallback(async () => {
         if (!workOrderId) return;
 
@@ -944,7 +985,9 @@ export default function WorkOrderDetailPage() {
                                 myRole={myRole}
                                 isAdmin={isAdmin}
                                 myUserId={myUserId}
+                                techMembers={techMembers}
                                 onChangeStatus={handleChangeStatus}
+                                onAssignTech={handleAssignTech}
                                 onCheckInRecorded={async () => {
                                     const rows = await loadCheckIns();
                                     setCheckIns(rows);
