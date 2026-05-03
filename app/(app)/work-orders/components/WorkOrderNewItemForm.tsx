@@ -105,7 +105,7 @@ export default function WorkOrderNewItemForm({
             })
             .slice(0, 6);
     }, [catalogItems, newItem.description]);
-
+    console.log("WorkOrderNewItemForm isAdmin:", isAdmin, "myRole:", myRole);
     return (
         <div
             style={{
@@ -128,7 +128,70 @@ export default function WorkOrderNewItemForm({
             >
                 New item
             </div>
+            {isAdmin || myRole === "owner" || myRole === "admin" ? (
+                <div
+                    style={{
+                        padding: "10px 12px",
+                        borderRadius: MR_THEME.radius.control,
+                        border: `1px dashed ${MR_THEME.colors.border}`,
+                        background: "transparent",
+                        display: "grid",
+                        gap: 8,
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 3,
+                            minWidth: 220,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 13,
+                                color: MR_THEME.colors.textPrimary,
+                                fontWeight: 800,
+                                lineHeight: 1.35,
+                            }}
+                        >
+                            Creating many items?
+                        </div>
 
+                        <div
+                            style={{
+                                fontSize: 12,
+                                color: MR_THEME.colors.textSecondary,
+                                fontWeight: 600,
+                                lineHeight: 1.4,
+                            }}
+                        >
+                            Set them up once and reuse them.
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            window.location.href = "/settings/services";
+                        }}
+                        style={{
+                            justifySelf: "start",
+                            padding: "8px 11px",
+                            borderRadius: MR_THEME.radius.control,
+                            border: "none",
+                            background: MR_THEME.colors.primarySoft,
+                            color: MR_THEME.colors.primary,
+                            fontSize: 13,
+                            fontWeight: 900,
+                            cursor: "pointer",
+                            boxShadow: "none",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        Set up services
+                    </button>
+                </div>
+            ) : null}
             {invoiceIsLocked ? (
                 <div
                     style={{

@@ -76,7 +76,7 @@ export default function WorkOrderItemsTable({
                 color: "#6b7280",
             }}
             >
-                No hay items todavía.
+                No items yet.
             </div>
         );
     }
@@ -216,7 +216,131 @@ export default function WorkOrderItemsTable({
                                     )}
                                 </div>
                             </div>
+                            {/* Pricing */}
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    marginTop: 6,
+                                    paddingTop: 6,
+                                    borderTop: `1px solid ${MR_THEME.colors.border}`,
+                                    fontSize: 12,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        color: MR_THEME.colors.textMuted,
+                                        fontWeight: 600,
+                                        fontSize: 12,
+                                    }}
+                                >
+                                    Unit: ${Number(it.unit_price ?? 0).toFixed(2)}
+                                </div>
 
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "baseline",
+                                        gap: 5,
+                                        fontWeight: 900,
+                                        color: MR_THEME.colors.primary,
+                                        fontSize: 14,
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            fontSize: 11,
+                                            color: MR_THEME.colors.textMuted,
+                                            fontWeight: 800,
+                                        }}
+                                    >
+                                        Total
+                                    </span>
+                                    ${(
+                                        (qtyDone ?? qtyPlanned ?? 0) *
+                                        Number(it.unit_price ?? 0)
+                                    ).toFixed(2)}
+                                </div>
+                            </div>
+                            {isPendingPricing && isAdmin && (
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: 8,
+                                        alignItems: "center",
+                                        flexWrap: "wrap",
+                                        marginTop: 6,
+                                    }}
+                                >
+                                    <input
+                                        type="number"
+                                        disabled={invoiceIsLocked}
+                                        value={priceDraft[it.item_id] ?? ""}
+                                        placeholder="Set price"
+                                        style={{
+                                            width: 120,
+                                            padding: "10px 12px",
+                                            borderRadius: 10,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+
+                                            background: invoiceIsLocked
+                                                ? MR_THEME.colors.cardBgSoft
+                                                : "white",
+
+                                            cursor: invoiceIsLocked ? "not-allowed" : "text",
+                                            opacity: invoiceIsLocked ? 0.7 : 1,
+
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontWeight: 700,
+                                            fontSize: 14,
+                                            outline: "none",
+                                        }}
+                                        onChange={(e) =>
+                                            setPriceDraft((s) => ({
+                                                ...s,
+                                                [it.item_id]:
+                                                    e.target.value === "" ? 0 : Number(e.target.value),
+                                            }))
+                                        }
+                                    />
+
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            invoiceIsLocked ||
+                                            savingPrice[it.item_id] ||
+                                            Number(priceDraft[it.item_id] ?? 0) <= 0
+                                        }
+                                        onClick={() => {
+                                            if (invoiceIsLocked) {
+                                                alert("This work order is already invoiced.");
+                                                return;
+                                            }
+
+                                            const v = Number(priceDraft[it.item_id] ?? 0);
+                                            if (!Number.isFinite(v) || v <= 0) {
+                                                alert("Enter a valid price before setting it.");
+                                                return;
+                                            }
+
+                                            priceItem(it.item_id);
+                                        }}
+                                        style={{
+                                            padding: "8px 12px",
+                                            borderRadius: 10,
+                                            border: `1px solid ${MR_THEME.colors.primary}`,
+                                            background: MR_THEME.colors.primary,
+                                            color: "white",
+                                            fontWeight: 800,
+                                            cursor: savingPrice[it.item_id] ? "not-allowed" : "pointer",
+                                            opacity: savingPrice[it.item_id] ? 0.6 : 1,
+                                        }}
+                                    >
+                                        {savingPrice[it.item_id] ? "..." : "Set $"}
+                                    </button>
+                                </div>
+                            )}
                             {/* Tech note */}
                             {openNoteItemId === it.item_id ? (
                                 <textarea
