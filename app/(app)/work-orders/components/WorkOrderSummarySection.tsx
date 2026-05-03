@@ -80,6 +80,7 @@ export default function WorkOrderSummarySection({
     const hasCheckedIn = latestCheckIn != null && !latestCheckIn.check_out_at;
     const hasCheckedOut = latestCheckIn?.check_out_at != null;
     const [showActions, setShowActions] = useState(false);
+    const [showShiftRequiredModal, setShowShiftRequiredModal] = useState(false);
 
     function formatCheckInLabel(value: string | null | undefined) {
         const raw = String(value ?? "").trim();
@@ -400,6 +401,11 @@ export default function WorkOrderSummarySection({
                     <button
                         type="button"
                         onClick={() => {
+                            if (!canChangeStatus && statusChangeReason === "no_shift") {
+                                setShowShiftRequiredModal(true);
+                                return;
+                            }
+
                             setShowAssign(false);
                             setShowActions((current) => !current);
                         }}
@@ -525,7 +531,101 @@ export default function WorkOrderSummarySection({
                             ) : null}
                         </div>
                     ) : null}
+                    {showShiftRequiredModal ? (
+                        <div
+                            style={{
+                                position: "fixed",
+                                inset: 0,
+                                zIndex: 9999,
+                                background: "rgba(15, 23, 42, 0.45)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                padding: 18,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    width: "100%",
+                                    maxWidth: 420,
+                                    borderRadius: MR_THEME.radius.card,
+                                    background: MR_THEME.colors.cardBg,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    boxShadow: "0 24px 70px rgba(15, 23, 42, 0.28)",
+                                    padding: 20,
+                                    display: "grid",
+                                    gap: 14,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontSize: 18,
+                                        fontWeight: 900,
+                                        color: MR_THEME.colors.textPrimary,
+                                        lineHeight: 1.25,
+                                    }}
+                                >
+                                    Start your shift first
+                                </div>
 
+                                <div
+                                    style={{
+                                        fontSize: 14,
+                                        color: MR_THEME.colors.textSecondary,
+                                        lineHeight: 1.5,
+                                        fontWeight: 600,
+                                    }}
+                                >
+                                    Start your shift in My Day to update this work order status.
+                                </div>
+
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: 10,
+                                        justifyContent: "flex-end",
+                                        flexWrap: "wrap",
+                                        marginTop: 4,
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowShiftRequiredModal(false)}
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontWeight: 800,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Cancel
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const returnTo = `${window.location.pathname}${window.location.search}`;
+                                            window.location.href = `/my-day?returnTo=${encodeURIComponent(returnTo)}`;
+                                        }}
+                                        style={{
+                                            padding: "10px 14px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.primary}`,
+                                            background: MR_THEME.colors.primary,
+                                            color: "#ffffff",
+                                            fontWeight: 900,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        Start shift in My Day
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
                     {!canChangeStatus ? (
                         <div
                             style={{

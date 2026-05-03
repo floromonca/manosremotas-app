@@ -131,6 +131,9 @@ export default function ShiftStatusCard({
                             disabled={shiftBusy || loading}
                             style={{
                                 ...secondaryButtonStyle,
+                                border: `1.5px solid ${MR_THEME.colors.danger}`,
+                                background: "#ffffff",
+                                color: MR_THEME.colors.danger,
                                 opacity: shiftBusy || loading ? 0.7 : 1,
                                 cursor: shiftBusy || loading ? "not-allowed" : "pointer",
                             }}

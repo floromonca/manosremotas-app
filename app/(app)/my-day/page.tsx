@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 
@@ -33,6 +33,8 @@ type WorkOrder = {
 
 export default function MyDayPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const returnTo = searchParams.get("returnTo");
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, isLoadingCompany } = useActiveCompany();
 
@@ -188,12 +190,16 @@ export default function MyDayPage() {
             setOpenShift((data as ShiftRow) ?? null);
             setShiftMsg("Shift started successfully.");
             await refreshTodayShiftSummary(companyId);
+
+            if (returnTo) {
+                router.replace(returnTo);
+            }
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
         } finally {
             setShiftBusy(false);
         }
-    }, [companyId, refreshTodayShiftSummary]);
+    }, [companyId, refreshTodayShiftSummary, returnTo, router]);
 
     const handleCheckOut = useCallback(async () => {
         if (!companyId || !openShift?.shift_id) return;
