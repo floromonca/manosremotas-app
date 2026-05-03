@@ -544,7 +544,7 @@ export default function WorkOrderDetailPage() {
             const photoRows = await loadPhotos();
             setPhotos(photoRows);
         } catch (e: unknown) {
-            setErr(e instanceof Error ? e.message : "Error cargando Work Order");
+            setErr(e instanceof Error ? e.message : "Error loading work order");
             setWo(null);
             setItems([]);
             setCheckIns([]);
@@ -824,7 +824,7 @@ export default function WorkOrderDetailPage() {
         setErr("");
 
         if (roleLoading) {
-            setErr("Cargando rol… intenta de nuevo en 1 segundo.");
+            setErr("Loading role... please try again in 1 second.");
             return;
         }
 
@@ -944,7 +944,7 @@ export default function WorkOrderDetailPage() {
                     onToggleForm={() => setShowForm((s) => !s)}
                 />
 
-                {loading ? <div style={{ marginTop: 10 }}>Cargando…</div> : null}
+                {loading ? <div style={{ marginTop: 10 }}>Loading...</div> : null}
 
                 {err ? (
                     <div

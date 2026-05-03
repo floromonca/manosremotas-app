@@ -25,7 +25,7 @@ export default function WorkOrderAuditPanel({ loading, items }: Props) {
             }}
         >
             {loading ? (
-                <div style={{ opacity: 0.7 }}>Cargando historial…</div>
+                <div style={{ opacity: 0.7 }}>Loading history...</div>
             ) : items.length === 0 ? (
                 <div style={{ opacity: 0.7 }}>Sin eventos de auditoría.</div>
             ) : (

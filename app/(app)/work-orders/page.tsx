@@ -295,13 +295,36 @@ function WorkOrdersPageInner() {
 
             setRows(mapped);
         } catch (e: any) {
-            setErrorMessage(e?.message ?? "Error al cargar datos de Supabase");
+            setErrorMessage(e?.message ?? "Error loading work orders");
             setRows([]);
         } finally {
             setLoadingWO(false);
         }
     }, []);
+    useEffect(() => {
+        if (!companyId) return;
 
+        const channel = supabase
+            .channel(`work-orders-list-${companyId}`)
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "work_orders",
+                    filter: `company_id=eq.${companyId}`,
+                },
+                async () => {
+                    console.log("🔄 Work Orders changed → refreshing list");
+                    await loadOrders(companyId);
+                },
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [companyId, loadOrders]);
 
     const loadCustomers = useCallback(async (cid: string) => {
         setCustomersLoading(true);
@@ -317,7 +340,7 @@ function WorkOrdersPageInner() {
             if (error) throw error;
             setCustomers((data ?? []) as CustomerRow[]);
         } catch (e) {
-            console.error("Error cargando customers:", e);
+            console.error("Error loading customers:", e);
             setCustomers([]);
         } finally {
             setCustomersLoading(false);
@@ -338,7 +361,7 @@ function WorkOrdersPageInner() {
             if (error) throw error;
             setLocations((data ?? []) as LocationRow[]);
         } catch (e) {
-            console.error("Error cargando locations:", e);
+            console.error("Error loading locations:", e);
             setLocations([]);
         } finally {
             setLocationsLoading(false);
@@ -1055,14 +1078,14 @@ function WorkOrdersPageInner() {
                 {/* Estados de carga */}
                 {authLoading ? (
                     <div style={{ padding: 30, textAlign: "center", opacity: 0.75 }}>
-                        Cargando…
+                        Loading...
                     </div>
                 ) : !user ? (
                     // ✅ No logueado → Sign in / Sign up visible
                     AuthBox
                 ) : isLoadingCompany ? (
                     <div style={{ padding: 30, textAlign: "center", opacity: 0.75 }}>
-                        Cargando empresa…
+                        Loading company...
                     </div>
                 ) : !companyId ? (
                     <div
@@ -1701,10 +1724,10 @@ function WorkOrdersPageInner() {
                         ) : null}
 
                         {loadingWO ? (
-                            <div style={{ opacity: 0.7 }}>Cargando órdenes…</div>
+                            <div style={{ opacity: 0.7 }}>Loading work orders...</div>
                         ) : isTechView ? (
                             visibleRows.length === 0 ? (
-                                <div style={{ opacity: 0.6 }}>No tienes órdenes asignadas.</div>
+                                <div style={{ opacity: 0.6 }}>No assigned work orders.</div>
                             ) : (
                                 <>
                                     {renderTechSection("My Active Work", techInProgressRows)}
