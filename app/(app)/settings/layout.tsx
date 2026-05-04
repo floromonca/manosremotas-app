@@ -38,18 +38,28 @@ function SettingsNavItem({
                 alignItems: "center",
                 justifyContent: "center",
                 whiteSpace: "nowrap",
-                padding: variant === "mobile" ? "10px 14px" : "12px 14px",
+
+                padding: variant === "mobile" ? "8px 10px" : "10px 12px",
+
                 borderRadius: MR_THEME.radius.control,
                 textDecoration: "none",
                 fontSize: 14,
                 fontWeight: isActive ? 700 : 600,
                 lineHeight: 1.3,
-                background: isActive ? MR_THEME.colors.primarySoft : "transparent",
-                color: isActive ? MR_THEME.colors.primaryHover : MR_THEME.colors.textPrimary,
-                border: isActive
-                    ? `1px solid ${MR_THEME.colors.primarySoft}`
-                    : `1px solid ${MR_THEME.colors.border}`,
-                boxShadow: isActive ? MR_THEME.shadows.cardSoft : "none",
+                paddingBottom: variant === "mobile" ? 6 : 8,
+
+                background: "transparent",
+
+                color: isActive
+                    ? MR_THEME.colors.primaryHover
+                    : MR_THEME.colors.textSecondary,
+
+                border: "none",
+                boxShadow: "none",
+
+                borderBottom: isActive
+                    ? `2px solid ${MR_THEME.colors.primary}`
+                    : "2px solid transparent",
             }}
         >
             {label}
@@ -110,61 +120,62 @@ export default function SettingsLayout({
                     display: none;
                 }
 
-            @media (max-width: 1400px) {
-                    .mr-settings-shell {
-                        padding: 0 0 28px;
-                    }
+            @media (max-width: 768px) {
+    .mr-settings-shell {
+        padding: 0 0 24px;
+    }
 
-                    .mr-settings-grid {
-                        display: block;
-                    }
+    .mr-settings-grid {
+        display: block;
+    }
 
-                    .mr-settings-sidebar {
-                        display: none;
-                    }
+    .mr-settings-sidebar {
+        display: none;
+    }
 
-                    .mr-settings-mobile-nav {
-                        display: block;
-                        margin-bottom: 18px;
-                    }
+    .mr-settings-mobile-nav {
+    display: block;
+    margin: 4px 0 16px;
+}
 
-                    .mr-settings-mobile-scroll {
-                        display: flex;
-                        gap: 8px;
-                        overflow-x: auto;
-                        padding: 2px 2px 10px;
-                        -webkit-overflow-scrolling: touch;
-                    }
+    .mr-settings-mobile-scroll {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 2px 0 8px;
+        -webkit-overflow-scrolling: touch;
+    }
 
-                    .mr-settings-mobile-scroll::-webkit-scrollbar {
-                        display: none;
-                    }
-                }
+    .mr-settings-mobile-scroll::-webkit-scrollbar {
+        display: none;
+    }
+}
             `}</style>
 
             <div className="mr-settings-shell">
                 <div className="mr-settings-mobile-nav">
                     <div
                         style={{
-                            border: `1px solid ${MR_THEME.colors.border}`,
-                            borderRadius: MR_THEME.radius.card,
-                            background: MR_THEME.colors.cardBg,
-                            boxShadow: MR_THEME.shadows.cardSoft,
-                            padding: 12,
+                            padding: "6px 2px 0",
                         }}
                     >
                         <div
                             style={{
-                                fontSize: 13,
+                                fontSize: 16,
                                 fontWeight: 800,
                                 color: MR_THEME.colors.textPrimary,
-                                marginBottom: 10,
+                                marginBottom: 8,
                             }}
                         >
                             Settings
                         </div>
 
-                        <div className="mr-settings-mobile-scroll">
+                        <div
+                            className="mr-settings-mobile-scroll"
+                            style={{
+                                borderBottom: `1px solid ${MR_THEME.colors.border}`,
+                            }}
+                        >
                             {settingsNavItems.map((item) => (
                                 <SettingsNavItem
                                     key={item.href}

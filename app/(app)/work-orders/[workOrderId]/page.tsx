@@ -1009,56 +1009,14 @@ export default function WorkOrderDetailPage() {
                                 }
                                 assignedTechName={assignedTechName}
                             />
-                            <WorkOrderSiteReportSection
-                                report={wo.site_report}
-                                draft={siteReportDraft}
-                                saving={savingSiteReport}
-                                isTech={myRole === "tech"}
-                                canEdit={
-                                    myRole === "tech" &&
-                                    canChangeWorkOrderStatus({
-                                        userId: myUserId,
-                                        isAdminOrOwner: isAdmin,
-                                        role: myRole,
-                                        canOperate,
-                                        assignedTo: wo.assigned_to,
-                                    })
-                                }
-                                lastSavedAt={siteReportSavedAt}
-                                onChangeDraft={setSiteReportDraft}
-                                onSave={saveSiteReport}
+                            <WorkOrderCustomerSection
+                                customerForm={customerForm}
+                                customerId={wo?.customer_id ?? null}
+                                isAdmin={isAdmin}
                             />
-                            <WorkOrderPhotosSection
-                                photos={photos}
-                                activePhotoTab={activePhotoTab}
-                                setActivePhotoTab={setActivePhotoTab}
-                                onUploadPhoto={handlePhotoUpload}
-                                onDeletePhoto={handleDeletePhoto}
-                                onOpenPhoto={setSelectedPhotoId}
-                            />
-                            {photoError ? (
-                                <div
-                                    style={{
-                                        marginTop: -4,
-                                        padding: "10px 12px",
-                                        borderRadius: 10,
-                                        border: "1px solid #fecaca",
-                                        background: "#fff1f2",
-                                        color: "#b91c1c",
-                                        fontSize: 13,
-                                        fontWeight: 700,
-                                        lineHeight: 1.4,
-                                    }}
-                                >
-                                    {photoError}
-                                </div>
-                            ) : null}
-
-                            <WorkOrderCheckInsSection checkIns={checkIns} />
                             <div
                                 style={{
-                                    paddingTop: 6,
-                                    borderTop: "1px solid #eee",
+                                    paddingTop: 4,
                                 }}
                             >
                                 <WorkOrderItemsHeader
@@ -1098,12 +1056,54 @@ export default function WorkOrderDetailPage() {
                                     invoiceStatus={invoiceStatus}
                                 />
                             </div>
-
-                            <WorkOrderCustomerSection
-                                customerForm={customerForm}
-                                customerId={wo?.customer_id ?? null}
-                                isAdmin={isAdmin}
+                            <WorkOrderPhotosSection
+                                photos={photos}
+                                activePhotoTab={activePhotoTab}
+                                setActivePhotoTab={setActivePhotoTab}
+                                onUploadPhoto={handlePhotoUpload}
+                                onDeletePhoto={handleDeletePhoto}
+                                onOpenPhoto={setSelectedPhotoId}
                             />
+                            {photoError ? (
+                                <div
+                                    style={{
+                                        marginTop: -4,
+                                        padding: "10px 12px",
+                                        borderRadius: 10,
+                                        border: "1px solid #fecaca",
+                                        background: "#fff1f2",
+                                        color: "#b91c1c",
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        lineHeight: 1.4,
+                                    }}
+                                >
+                                    {photoError}
+                                </div>
+                            ) : null}
+                            <WorkOrderSiteReportSection
+                                report={wo.site_report}
+                                draft={siteReportDraft}
+                                saving={savingSiteReport}
+                                isTech={myRole === "tech"}
+                                canEdit={
+                                    myRole === "tech" &&
+                                    canChangeWorkOrderStatus({
+                                        userId: myUserId,
+                                        isAdminOrOwner: isAdmin,
+                                        role: myRole,
+                                        canOperate,
+                                        assignedTo: wo.assigned_to,
+                                    })
+                                }
+                                lastSavedAt={siteReportSavedAt}
+                                onChangeDraft={setSiteReportDraft}
+                                onSave={saveSiteReport}
+                            />
+
+
+                            <WorkOrderCheckInsSection checkIns={checkIns} />
+
                         </div>
                     </div>
                 ) : null

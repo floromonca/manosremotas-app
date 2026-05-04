@@ -217,52 +217,54 @@ export default function WorkOrderItemsTable({
                                 </div>
                             </div>
                             {/* Pricing */}
-                            <div
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                    marginTop: 6,
-                                    paddingTop: 6,
-                                    borderTop: `1px solid ${MR_THEME.colors.border}`,
-                                    fontSize: 12,
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        color: MR_THEME.colors.textMuted,
-                                        fontWeight: 600,
-                                        fontSize: 12,
-                                    }}
-                                >
-                                    Unit: ${Number(it.unit_price ?? 0).toFixed(2)}
-                                </div>
-
+                            {isAdmin ? (
                                 <div
                                     style={{
                                         display: "flex",
-                                        alignItems: "baseline",
-                                        gap: 5,
-                                        fontWeight: 900,
-                                        color: MR_THEME.colors.primary,
-                                        fontSize: 14,
+                                        justifyContent: "space-between",
+                                        alignItems: "center",
+                                        marginTop: 6,
+                                        paddingTop: 6,
+                                        borderTop: `1px solid ${MR_THEME.colors.border}`,
+                                        fontSize: 12,
                                     }}
                                 >
-                                    <span
+                                    <div
                                         style={{
-                                            fontSize: 11,
                                             color: MR_THEME.colors.textMuted,
-                                            fontWeight: 800,
+                                            fontWeight: 600,
+                                            fontSize: 12,
                                         }}
                                     >
-                                        Total
-                                    </span>
-                                    ${(
-                                        (qtyDone ?? qtyPlanned ?? 0) *
-                                        Number(it.unit_price ?? 0)
-                                    ).toFixed(2)}
+                                        Unit: ${Number(it.unit_price ?? 0).toFixed(2)}
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            alignItems: "baseline",
+                                            gap: 5,
+                                            fontWeight: 900,
+                                            color: MR_THEME.colors.primary,
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                color: MR_THEME.colors.textMuted,
+                                                fontWeight: 800,
+                                            }}
+                                        >
+                                            Total
+                                        </span>
+                                        ${(
+                                            (qtyDone ?? qtyPlanned ?? 0) *
+                                            Number(it.unit_price ?? 0)
+                                        ).toFixed(2)}
+                                    </div>
                                 </div>
-                            </div>
+                            ) : null}
                             {isPendingPricing && isAdmin && (
                                 <div
                                     style={{
