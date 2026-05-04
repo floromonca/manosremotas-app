@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
@@ -31,7 +31,7 @@ type WorkOrder = {
     assigned_to?: string | null;
 };
 
-export default function MyDayPage() {
+function MyDayContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const returnTo = searchParams.get("returnTo");
@@ -383,5 +383,12 @@ export default function MyDayPage() {
                 />
             </div>
         </div>
+    );
+}
+export default function MyDayPage() {
+    return (
+        <Suspense fallback={<div style={{ padding: 20 }}>Loading...</div>}>
+            <MyDayContent />
+        </Suspense>
     );
 }
