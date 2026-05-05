@@ -197,6 +197,8 @@ export default function WorkOrderItemsTable({
                                                 fontSize: 15,
                                                 textAlign: "center",
                                                 background: MR_THEME.colors.cardBg,
+                                                color: "#0f172a",
+                                                WebkitTextFillColor: "#0f172a",
                                             }}
                                             onChange={(e) => {
                                                 setLocalQtyDone((prev) => ({
