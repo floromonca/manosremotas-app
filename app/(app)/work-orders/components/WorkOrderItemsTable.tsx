@@ -131,53 +131,56 @@ export default function WorkOrderItemsTable({
                                 {it.description ?? "—"}
                             </div>
 
-                            {/* Type + Status */}
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                <span
-                                    style={{
-                                        padding: "4px 8px",
-                                        borderRadius: MR_THEME.radius.pill,
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                        background: tipo === "Extra" ? MR_THEME.colors.primarySoft : MR_THEME.colors.cardBgSoft,
-                                        color: tipo === "Extra" ? MR_THEME.colors.primary : MR_THEME.colors.textPrimary,
-                                    }}
-                                >
-                                    {tipo}
-                                </span>
-
-                                <span
-                                    style={{
-                                        padding: "4px 8px",
-                                        borderRadius: MR_THEME.radius.pill,
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        border: `1px solid ${isPendingPricing ? MR_THEME.colors.warning : MR_THEME.colors.success}`,
-                                        background: isPendingPricing ? "#fff7ed" : "#ecfdf5",
-                                        color: isPendingPricing ? "#9a3412" : "#166534",
-                                    }}
-                                >
-                                    {isPendingPricing ? "Pending pricing" : "Approved"}
-                                </span>
-                            </div>
                             {/* Quantities */}
                             <div
                                 style={{
-                                    display: "flex",
-                                    gap: 12,
-                                    color: MR_THEME.colors.textSecondary,
+                                    display: "grid",
+                                    gap: 6,
                                 }}
                             >
-                                <div style={{ fontSize: 12, fontWeight: 600 }}>
-                                    <strong style={{ color: MR_THEME.colors.textPrimary }}>Planned:</strong>{" "}
-                                    {hasPlanned ? qtyPlanned : "—"}
+                                {/* Planned */}
+                                <div
+                                    style={{
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: MR_THEME.colors.textSecondary,
+                                    }}
+                                >
+                                    Planned:{" "}
+                                    <span style={{ color: MR_THEME.colors.textPrimary }}>
+                                        {hasPlanned ? qtyPlanned : "—"}
+                                    </span>
                                 </div>
 
-                                <div style={{ fontSize: 12, fontWeight: 600 }}>
-                                    <strong style={{ color: MR_THEME.colors.textPrimary }}>Done:</strong>{" "}
+                                {/* Completed */}
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            color: MR_THEME.colors.textMuted,
+                                            minWidth: 68,
+                                        }}
+                                    >
+                                        Completed
+                                    </div>
+
                                     {isAdmin ? (
-                                        qtyDone ?? 0
+                                        <div
+                                            style={{
+                                                fontSize: 15,
+                                                fontWeight: 800,
+                                                color: MR_THEME.colors.textPrimary,
+                                            }}
+                                        >
+                                            {qtyDone ?? 0}
+                                        </div>
                                     ) : (
                                         <input
                                             type="text"
@@ -186,12 +189,13 @@ export default function WorkOrderItemsTable({
                                             value={localQtyDone[it.item_id] ?? (qtyDone ?? "").toString()}
                                             placeholder="0"
                                             style={{
-                                                width: 110,
-                                                padding: "8px 10px",
+                                                width: 105,
+                                                padding: "6px 10px",
                                                 borderRadius: 10,
-                                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                                color: MR_THEME.colors.textPrimary,
+                                                border: `1.5px solid ${MR_THEME.colors.primary}`,
                                                 fontWeight: 700,
+                                                fontSize: 15,
+                                                textAlign: "center",
                                                 background: MR_THEME.colors.cardBg,
                                             }}
                                             onChange={(e) => {
@@ -202,7 +206,8 @@ export default function WorkOrderItemsTable({
                                             }}
                                             onBlur={async () => {
                                                 const raw = localQtyDone[it.item_id];
-                                                const n = raw === "" || raw === undefined ? null : Number(raw);
+                                                const n =
+                                                    raw === "" || raw === undefined ? null : Number(raw);
 
                                                 await updateQtyDone(it.item_id, n);
 
@@ -216,7 +221,77 @@ export default function WorkOrderItemsTable({
                                     )}
                                 </div>
                             </div>
-                            {/* Pricing */}
+
+                            {/* Type + Status + Note */}
+                            <div
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: 8,
+                                    marginTop: 2,
+                                }}
+                            >
+                                <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                                    <span
+                                        style={{
+                                            padding: "4px 8px",
+                                            borderRadius: MR_THEME.radius.pill,
+                                            fontSize: 11,
+                                            fontWeight: 800,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            background:
+                                                tipo === "Extra"
+                                                    ? MR_THEME.colors.primarySoft
+                                                    : MR_THEME.colors.cardBgSoft,
+                                            color:
+                                                tipo === "Extra"
+                                                    ? MR_THEME.colors.primary
+                                                    : MR_THEME.colors.textPrimary,
+                                        }}
+                                    >
+                                        {tipo}
+                                    </span>
+
+                                    <span
+                                        style={{
+                                            padding: "4px 8px",
+                                            borderRadius: MR_THEME.radius.pill,
+                                            fontSize: 11,
+                                            fontWeight: 800,
+                                            border: `1px solid ${isPendingPricing
+                                                ? MR_THEME.colors.warning
+                                                : MR_THEME.colors.success
+                                                }`,
+                                            background: isPendingPricing ? "#fff7ed" : "#ecfdf5",
+                                            color: isPendingPricing ? "#9a3412" : "#166534",
+                                        }}
+                                    >
+                                        {isPendingPricing ? "Pending pricing" : "Approved"}
+                                    </span>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        padding: 0,
+                                        color: MR_THEME.colors.primary,
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                    onClick={() =>
+                                        setOpenNoteItemId(
+                                            openNoteItemId === it.item_id ? null : it.item_id
+                                        )
+                                    }
+                                >
+                                    {it.tech_note ? "Edit note" : "+ Add note"}
+                                </button>
+                            </div>                            {/* Pricing */}
                             {isAdmin ? (
                                 <div
                                     style={{
@@ -384,24 +459,6 @@ export default function WorkOrderItemsTable({
                                             {it.tech_note}
                                         </div>
                                     ) : null}
-
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpenNoteItemId(it.item_id)}
-                                        style={{
-                                            background: "transparent",
-                                            border: "none",
-                                            padding: 0,
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                            color: MR_THEME.colors.primary,
-                                            cursor: "pointer",
-                                            alignSelf: "flex-start",
-                                            marginTop: 2,
-                                        }}
-                                    >
-                                        {it.tech_note ? "Edit note" : "+ Add note"}
-                                    </button>
                                 </>
                             )}
                         </div>
