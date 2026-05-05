@@ -120,42 +120,71 @@ export default function PlatformCompaniesPage() {
                 padding: "28px 24px 40px",
             }}
         >
-            <div style={{ marginBottom: 22 }}>
-                <div
-                    style={{
-                        fontSize: 12,
-                        fontWeight: 800,
-                        letterSpacing: "0.08em",
-                        textTransform: "uppercase",
-                        color: "#64748b",
-                        marginBottom: 10,
-                    }}
-                >
-                    Platform
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 16,
+                    marginBottom: 22,
+                    flexWrap: "wrap",
+                }}
+            >
+                <div>
+                    <div
+                        style={{
+                            fontSize: 12,
+                            fontWeight: 800,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            color: "#64748b",
+                            marginBottom: 10,
+                        }}
+                    >
+                        Platform
+                    </div>
+
+                    <h1
+                        style={{
+                            fontSize: 42,
+                            lineHeight: 1.05,
+                            fontWeight: 900,
+                            color: "#0f172a",
+                            margin: 0,
+                            marginBottom: 10,
+                        }}
+                    >
+                        Companies
+                    </h1>
+
+                    <div
+                        style={{
+                            fontSize: 16,
+                            color: "#64748b",
+                            maxWidth: 760,
+                        }}
+                    >
+                        View all registered companies and enter one to operate or support it.
+                    </div>
                 </div>
 
-                <h1
+                <button
+                    type="button"
+                    onClick={() => router.push("/control-center")}
                     style={{
-                        fontSize: 42,
-                        lineHeight: 1.05,
-                        fontWeight: 900,
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        background: "#ffffff",
                         color: "#0f172a",
-                        margin: 0,
-                        marginBottom: 10,
+                        cursor: "pointer",
+                        fontSize: 13,
+                        fontWeight: 800,
+                        boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                     }}
                 >
-                    Companies
-                </h1>
-
-                <div
-                    style={{
-                        fontSize: 16,
-                        color: "#64748b",
-                        maxWidth: 760,
-                    }}
-                >
-                    View all registered companies and enter one to operate or support it.
-                </div>
+                    Go to app →
+                </button>
             </div>
 
             {errorMsg ? (

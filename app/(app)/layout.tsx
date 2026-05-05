@@ -318,6 +318,20 @@ export default function AppShellLayout({
                                     >
                                         Settings
                                     </button>
+                                    {isSuperAdmin && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setUserMenuOpen(false);
+                                                router.push("/platform/companies");
+                                            }}
+                                            onMouseEnter={(e) => (e.currentTarget.style.background = MR_THEME.colors.cardBgSoft)}
+                                            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                                            style={menuItemStyle}
+                                        >
+                                            Platform
+                                        </button>
+                                    )}
                                     <div
                                         style={{
                                             height: 1,
@@ -404,7 +418,7 @@ export default function AppShellLayout({
                                     boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                                 }}
                             >
-                                ← Back to Companies
+                              Exit support
                             </button>
                         </div>
                     )
