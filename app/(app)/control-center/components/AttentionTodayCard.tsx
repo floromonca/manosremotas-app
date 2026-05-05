@@ -26,11 +26,11 @@ export default function AttentionTodayCard({ lists }: AttentionTodayCardProps) {
                 background: MR_THEME.colors.cardBg,
                 border: `1px solid ${MR_THEME.colors.border}`,
                 borderRadius: MR_THEME.radius.card,
-                padding: MR_THEME.layout.cardPadding,
+               padding: 16,
                 boxShadow: MR_THEME.shadows.cardSoft,
             }}
         >
-            <div style={{ marginBottom: MR_THEME.spacing.lg }}>
+            <div style={{ marginBottom: 12 }}>
                 <div
                     style={{
                         fontSize: 12,
@@ -54,29 +54,18 @@ export default function AttentionTodayCard({ lists }: AttentionTodayCardProps) {
                 >
                     Attention Today
                 </h2>
-
-                <p
-                    style={{
-                        margin: "6px 0 0 0",
-                        fontSize: 14,
-                        color: MR_THEME.colors.textSecondary,
-                        lineHeight: 1.5,
-                    }}
-                >
-                    Priority items that may require action from office or operations.
-                </p>
+              
             </div>
-
             <div
                 style={{
                     display: "flex",
                     flexDirection: "column",
-                    gap: MR_THEME.spacing.lg,
+                   gap: 6,
                 }}
             >
                 <ListBlock
                     title={`Unassigned (${lists.unassigned.length})`}
-                    helper="Work orders without technician assignment."
+                    helper="No technician assigned."
                     onOpen={() => router.push("/work-orders?filter=unassigned")}
                     items={lists.unassigned.slice(0, 4).map((x) => ({
                         title: x.job_type,

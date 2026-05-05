@@ -26,93 +26,89 @@ export default function ListBlock({
     return (
         <div
             style={{
-                border: `1px solid ${MR_THEME.colors.border}`,
-                borderRadius: MR_THEME.radius.card,
-                background: MR_THEME.colors.cardBgSoft,
-                overflow: "hidden",
+                borderBottom: `1px solid ${MR_THEME.colors.border}`,
+                padding: "10px 0",
             }}
         >
             <div
                 style={{
-                    width: "100%",
-                    padding: 16,
-                    background: "transparent",
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) auto",
+                    gap: 10,
+                    alignItems: "center",
                 }}
             >
-                <div className="listBlockHeader">
-                    <div style={{ minWidth: 0, width: "100%" }}>
+                <button
+                    type="button"
+                    onClick={onOpen}
+                    disabled={!onOpen}
+                    style={{
+                        minWidth: 0,
+                        padding: 0,
+                        border: "none",
+                        background: "transparent",
+                        textAlign: "left",
+                        cursor: onOpen ? "pointer" : "default",
+                    }}
+                >
+                    <div
+                        style={{
+                            fontWeight: 850,
+                            fontSize: 15,
+                            color: MR_THEME.colors.textPrimary,
+                            lineHeight: 1.25,
+                        }}
+                    >
+                        {title}
+                    </div>
+
+                    {helper ? (
                         <div
                             style={{
-                                fontWeight: 900,
-                                fontSize: 20,
-                                color: MR_THEME.colors.textPrimary,
-                                lineHeight: 1.2,
+                                marginTop: 3,
+                                fontSize: 12,
+                                color: MR_THEME.colors.textSecondary,
+                                lineHeight: 1.35,
                             }}
                         >
-                            {title}
+                            {helper}
                         </div>
+                    ) : null}
+                </button>
 
-                        {helper ? (
-                            <div
-                                style={{
-                                    marginTop: 6,
-                                    fontSize: 13,
-                                    color: MR_THEME.colors.textSecondary,
-                                    lineHeight: 1.5,
-                                }}
-                            >
-                                {helper}
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div className="listBlockActions">
-                        {onOpen ? (
-                            <button
-                                type="button"
-                                onClick={onOpen}
-                                style={secondaryButtonStyle}
-                            >
-                                View all
-                            </button>
-                        ) : null}
-
-                        <button
-                            type="button"
-                            onClick={() => setExpanded((v) => !v)}
-                            style={{
-                                ...secondaryButtonStyle,
-                                background: expanded
-                                    ? MR_THEME.colors.primarySoft
-                                    : MR_THEME.colors.cardBg,
-                                color: expanded
-                                    ? MR_THEME.colors.primaryHover
-                                    : MR_THEME.colors.textPrimary,
-                            }}
-                        >
-                            {expanded ? "Hide details" : "Show details"}
-                        </button>
-                    </div>
-                </div>
+                <button
+                    type="button"
+                    onClick={() => setExpanded((v) => !v)}
+                    style={{
+                        padding: 0,
+                        border: "none",
+                        background: "transparent",
+                        color: MR_THEME.colors.textSecondary,
+                        fontWeight: 700,
+                        opacity: 0.75,
+                        cursor: "pointer",
+                        fontSize: 12,
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    {expanded ? "Hide" : "View →"}
+                </button>
             </div>
 
             {expanded ? (
-                <div style={{ padding: "0 16px 16px" }}>
+                <div style={{ marginTop: 8 }}>
                     {items.length === 0 ? (
                         <div
                             style={{
-                                padding: "14px 16px",
-                                borderRadius: MR_THEME.radius.control,
-                                background: MR_THEME.colors.cardBg,
-                                border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                                padding: "8px 0",
                                 color: MR_THEME.colors.textSecondary,
-                                fontSize: 13,
+                                fontSize: 12,
                             }}
                         >
                             Nothing here right now.
                         </div>
                     ) : (
-                        <div style={{ display: "grid", gap: 10 }}>
+                        <div style={{ display: "grid" }}>
                             {items.map((it, idx) => (
                                 <button
                                     key={idx}
@@ -122,93 +118,58 @@ export default function ListBlock({
                                     style={{
                                         width: "100%",
                                         textAlign: "left",
-                                        padding: "14px 16px",
-                                        background: MR_THEME.colors.cardBg,
-                                        border: `1px solid ${MR_THEME.colors.border}`,
-                                        borderRadius: MR_THEME.radius.control,
+                                        padding: "8px 0",
+                                        background: "transparent",
+                                        border: "none",
+                                        borderTop:
+                                            idx === 0
+                                                ? `1px solid ${MR_THEME.colors.border}`
+                                                : "none",
                                         cursor: onOpen ? "pointer" : "default",
                                     }}
                                 >
                                     <div
                                         style={{
-                                            fontWeight: 800,
-                                            fontSize: 15,
-                                            color: MR_THEME.colors.textPrimary,
-                                            lineHeight: 1.4,
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            gap: 10,
+                                            alignItems: "center",
                                         }}
                                     >
-                                        {it.title}
-                                    </div>
-
-                                    {it.meta ? (
-                                        <div
+                                        <span
                                             style={{
-                                                marginTop: 8,
-                                                display: "inline-flex",
-                                                alignItems: "center",
-                                                padding: "4px 8px",
-                                                borderRadius: 999,
-                                                background: MR_THEME.colors.cardBgSoft,
-                                                color: MR_THEME.colors.textSecondary,
-                                                fontFamily: "monospace",
-                                                fontSize: 12,
-                                                fontWeight: 700,
+                                                minWidth: 0,
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                fontWeight: 750,
+                                                fontSize: 13,
+                                                color: MR_THEME.colors.textPrimary,
                                             }}
                                         >
-                                            WO {it.meta}
-                                        </div>
-                                    ) : null}
+                                            {it.title}
+                                        </span>
+
+                                        {it.meta ? (
+                                            <span
+                                                style={{
+                                                    flexShrink: 0,
+                                                    color: MR_THEME.colors.textMuted,
+                                                    fontFamily: "monospace",
+                                                    fontSize: 11,
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                WO {it.meta}
+                                            </span>
+                                        ) : null}
+                                    </div>
                                 </button>
                             ))}
                         </div>
                     )}
                 </div>
             ) : null}
-
-            <style jsx>{`
-   .listBlockHeader {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-   .listBlockActions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-    @media (max-width: 720px) {
-        .listBlockHeader {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .listBlockActions {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .listBlockActions button {
-            width: 100%;
-        }
-    }
-`}</style>
         </div>
     );
 }
-
-const secondaryButtonStyle: React.CSSProperties = {
-    padding: "12px 16px",
-    borderRadius: MR_THEME.radius.control,
-    border: `1px solid ${MR_THEME.colors.border}`,
-    background: MR_THEME.colors.cardBgSoft,
-    color: MR_THEME.colors.textPrimary,
-    cursor: "pointer",
-    fontWeight: 800,
-    whiteSpace: "nowrap",
-};

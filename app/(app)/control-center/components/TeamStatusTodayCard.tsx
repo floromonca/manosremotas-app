@@ -49,7 +49,7 @@ export default function TeamStatusTodayCard({
                 background: MR_THEME.colors.cardBg,
                 border: `1px solid ${MR_THEME.colors.border}`,
                 borderRadius: MR_THEME.radius.card,
-                padding: 22,
+                padding: 16,
                 boxShadow: MR_THEME.shadows.cardSoft,
             }}
         >
@@ -64,17 +64,6 @@ export default function TeamStatusTodayCard({
                 >
                     Team Status Today
                 </h2>
-
-                <p
-                    style={{
-                        margin: "6px 0 0",
-                        fontSize: 13,
-                        color: MR_THEME.colors.textSecondary,
-                        lineHeight: 1.45,
-                    }}
-                >
-                    See who is currently on shift and identify shifts that may need attention.
-                </p>
             </div>
 
             {loading ? (
@@ -111,21 +100,17 @@ export default function TeamStatusTodayCard({
                                     style={{
                                         display: "grid",
                                         gridTemplateColumns: "minmax(0, 1fr) auto",
-                                        gap: 14,
+                                        gap: 10,
                                         alignItems: "center",
-                                        padding: "12px 14px",
-                                        borderRadius: MR_THEME.radius.control,
-                                        border: stale
-                                            ? `1px solid ${MR_THEME.colors.warning}`
-                                            : `1px solid ${MR_THEME.colors.border}`,
-                                        background: stale
-                                            ? MR_THEME.colors.warning + "10"
-                                            : MR_THEME.colors.cardBgSoft,
+                                        padding: "8px 0",
+                                        borderBottom: `1px solid ${MR_THEME.colors.border}`,
+                                        background: "transparent",
                                     }}
                                 >
                                     <div style={{ minWidth: 0 }}>
                                         <div
                                             style={{
+                                                fontSize: 14,
                                                 fontWeight: 800,
                                                 color: MR_THEME.colors.textPrimary,
                                                 overflow: "hidden",
@@ -138,7 +123,7 @@ export default function TeamStatusTodayCard({
 
                                         <div
                                             style={{
-                                                marginTop: 6,
+                                                marginTop: 4,
                                                 display: "flex",
                                                 gap: 8,
                                                 flexWrap: "wrap",
@@ -193,8 +178,9 @@ export default function TeamStatusTodayCard({
                                     <div
                                         style={{
                                             display: "flex",
-                                            gap: 8,
+                                            gap: 6,
                                             alignItems: "center",
+                                            justifyContent: "flex-end",
                                         }}
                                     >
                                         {isStaleShift(r.check_in_at) && r.shift_id && onCloseShift ? (
@@ -209,24 +195,24 @@ export default function TeamStatusTodayCard({
                                                 }}
                                                 style={{
                                                     fontSize: 12,
-                                                    fontWeight: 800,
-                                                    padding: "6px 10px",
-                                                    borderRadius: 999,
-                                                    border: `1px solid ${MR_THEME.colors.warning}`,
-                                                    background: MR_THEME.colors.warning + "15",
+                                                    fontWeight: 700,
+                                                    opacity: 0.8,
+                                                    padding: 0,
+                                                    border: "none",
+                                                    background: "transparent",
                                                     color: MR_THEME.colors.warning,
                                                     cursor: "pointer",
                                                 }}
                                             >
-                                                Close shift
+                                                Close
                                             </button>
                                         ) : null}
 
                                         <div
                                             style={{
                                                 fontSize: 12,
-                                                fontWeight: 800,
-                                                padding: "6px 10px",
+                                                fontWeight: 700,
+                                                padding: "5px 8px",
                                                 borderRadius: 999,
                                                 background: r.is_on_shift
                                                     ? MR_THEME.colors.success + "22"

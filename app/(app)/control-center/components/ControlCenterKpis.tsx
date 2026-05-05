@@ -28,8 +28,8 @@ export default function ControlCenterKpis({
         <section
             style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 16,
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                gap: 10,
             }}
         >
             <KpiCard
@@ -59,12 +59,14 @@ export default function ControlCenterKpis({
                 onClick={onOpenInvoices}
             />
 
-            <KpiCard
-                title="Revenue This Month"
-                value={loading ? "…" : revenueMonthLabel}
-                accentColor="#7c3aed"
-                onClick={onOpenInvoices}
-            />
+            <div style={{ gridColumn: "1 / -1" }}>
+                <KpiCard
+                    title="Revenue This Month"
+                    value={loading ? "…" : revenueMonthLabel}
+                    accentColor="#7c3aed"
+                    onClick={onOpenInvoices}
+                />
+            </div>
         </section>
     );
 }

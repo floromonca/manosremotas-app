@@ -22,23 +22,23 @@ export default function KpiCard({
         <div
             onClick={onClick}
             style={{
-                padding: 20,
+                padding: "14px 14px 12px",
                 border: `1px solid ${MR_THEME.colors.border}`,
-                borderRadius: MR_THEME.radius.card,
+                borderRadius: 14,
                 background: MR_THEME.colors.cardBg,
                 cursor: clickable ? "pointer" : "default",
                 transition: "transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease",
                 boxShadow: MR_THEME.shadows.cardSoft,
                 display: "flex",
                 flexDirection: "column",
-                gap: 12,
-                minHeight: 118,
+                gap: 8,
+                minHeight: 84,
                 position: "relative",
                 overflow: "hidden",
             }}
             onMouseEnter={(e) => {
                 if (!clickable) return;
-                e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.transform = "translateY(-1px)";
                 e.currentTarget.style.boxShadow = MR_THEME.shadows.card;
                 e.currentTarget.style.borderColor = MR_THEME.colors.borderStrong;
             }}
@@ -55,17 +55,17 @@ export default function KpiCard({
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: 4,
+                    height: 3,
                     background: accentColor || MR_THEME.colors.border,
                 }}
             />
 
             <div
                 style={{
-                    fontSize: 13,
-                    fontWeight: 600,
+                    fontSize: 12,
+                    fontWeight: 700,
                     color: MR_THEME.colors.textSecondary,
-                    lineHeight: 1.4,
+                    lineHeight: 1.25,
                     paddingTop: 2,
                 }}
             >
@@ -74,30 +74,38 @@ export default function KpiCard({
 
             <div
                 style={{
-                    fontSize: 38,
-                    lineHeight: 1,
-                    fontWeight: 800,
-                    color: MR_THEME.colors.textPrimary,
-                    letterSpacing: "-0.03em",
+                    display: "flex",
+                    alignItems: "flex-end",
+                    justifyContent: "space-between",
+                    gap: 8,
                 }}
             >
-                {value}
-            </div>
-
-            {clickable ? (
                 <div
                     style={{
-                        marginTop: "auto",
-                        fontSize: 13,
+                        fontSize: 30,
+                        lineHeight: 1,
+                        fontWeight: 800,
                         color: MR_THEME.colors.textPrimary,
-                        fontWeight: 700,
+                        letterSpacing: "-0.03em",
                     }}
                 >
-                    View →
+                    {value}
                 </div>
-            ) : (
-                <div style={{ marginTop: "auto", height: 18 }} />
-            )}
+
+                {clickable ? (
+                    <div
+                        style={{
+                            fontSize: 12,
+                            color: MR_THEME.colors.textSecondary,
+                            fontWeight: 800,
+                            lineHeight: 1,
+                            paddingBottom: 3,
+                        }}
+                    >
+                        →
+                    </div>
+                ) : null}
+            </div>
         </div>
     );
 }
