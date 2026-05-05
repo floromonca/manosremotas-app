@@ -26,6 +26,7 @@ import WorkOrderPhotosSection from "../components/WorkOrderPhotosSection";
 import WorkOrderSiteReportSection from "../components/WorkOrderSiteReportSection";
 import PhotoPreviewModal from "../components/PhotoPreviewModal";
 import WorkOrderCheckInsSection from "../components/WorkOrderCheckInsSection";
+import WorkOrderCheckInBar from "../components/WorkOrderCheckInBar";
 import { useWorkOrderPhotos } from "../hooks/useWorkOrderPhotos";
 
 type WorkOrder = {
@@ -972,9 +973,18 @@ export default function WorkOrderDetailPage() {
                         <div
                             style={{
                                 display: "grid",
-                                gap: 14,
+                                gap: 10,
                             }}
                         >
+                            <WorkOrderCheckInBar
+                                wo={wo}
+                                checkIns={checkIns}
+                                myUserId={myUserId}
+                                onCheckInRecorded={async () => {
+                                    const rows = await loadCheckIns();
+                                    setCheckIns(rows);
+                                }}
+                            />
                             <WorkOrderSummarySection
                                 wo={wo}
                                 checkIns={checkIns}
@@ -1009,11 +1019,13 @@ export default function WorkOrderDetailPage() {
                                 }
                                 assignedTechName={assignedTechName}
                             />
-                            <WorkOrderCustomerSection
-                                customerForm={customerForm}
-                                customerId={wo?.customer_id ?? null}
-                                isAdmin={isAdmin}
-                            />
+                            {isAdmin ? (
+                                <WorkOrderCustomerSection
+                                    customerForm={customerForm}
+                                    customerId={wo?.customer_id ?? null}
+                                    isAdmin={isAdmin}
+                                />
+                            ) : null}
                             <div
                                 style={{
                                     paddingTop: 4,

@@ -219,7 +219,7 @@ export default function WorkOrderSummarySection({
     return (
         <div
             style={{
-                padding: MR_THEME.layout.cardPadding,
+                padding: MR_THEME.layout.compactCardPadding,
                 borderRadius: MR_THEME.radius.card,
                 border: `1px solid ${MR_THEME.colors.border}`,
                 background: MR_THEME.colors.cardBg,
@@ -271,56 +271,53 @@ export default function WorkOrderSummarySection({
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                    gap: 10,
+                    gridTemplateColumns: "1fr",
+                    gap: 4,
                     marginTop: MR_THEME.spacing.md,
                 }}
             >
                 <div
                     style={{
-                        padding: MR_THEME.layout.compactCardPadding,
-                        borderRadius: MR_THEME.radius.control,
-                        background: MR_THEME.colors.cardBg,
-                        border: `1px solid ${MR_THEME.colors.border}`,
+                        padding: "6px 0",
                     }}
                 >
-                    <div
-                        style={{
-                            ...labelStyle,
-                            marginBottom: MR_THEME.spacing.xs,
-                        }}
-                    >
-                        Customer
-                    </div>
-                    <div
-                        style={{
-                            ...MR_THEME.typography.cardTitle,
-                            color: MR_THEME.colors.textPrimary,
-                        }}
-                    >
-                        {wo.customer_name || "—"}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
+                        <span style={labelStyle}>Customer:</span>
+                        <span
+                            style={{
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textPrimary,
+                            }}
+                        >
+                            {wo.customer_name || "—"}
+                        </span>
                     </div>
                 </div>
 
                 <div
                     style={{
-                        padding: MR_THEME.layout.compactCardPadding,
-                        borderRadius: MR_THEME.radius.control,
-                        background: MR_THEME.colors.cardBg,
-                        border: `1px solid ${MR_THEME.colors.border}`,
+                        padding: "6px 0",
                     }}
                 >
                     <div
                         style={{
                             display: "flex",
-                            alignItems: "center",
                             justifyContent: "space-between",
-                            gap: MR_THEME.spacing.sm,
-                            marginBottom: MR_THEME.spacing.xs,
+                            gap: 10,
+                            flexWrap: "wrap",
+                            alignItems: "center",
                         }}
                     >
-                        <div style={labelStyle}>
-                            Address
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "baseline" }}>
+                            <span style={labelStyle}>Address:</span>
+                            <span
+                                style={{
+                                    fontWeight: 800,
+                                    color: MR_THEME.colors.textPrimary,
+                                }}
+                            >
+                                {wo.service_address || "—"}
+                            </span>
                         </div>
 
                         {googleMapsUrl ? (
@@ -331,7 +328,6 @@ export default function WorkOrderSummarySection({
                                 style={{
                                     display: "inline-flex",
                                     alignItems: "center",
-                                    gap: MR_THEME.spacing.xs,
                                     padding: "5px 10px",
                                     borderRadius: MR_THEME.radius.pill,
                                     border: `1px solid ${MR_THEME.colors.border}`,
@@ -347,44 +343,29 @@ export default function WorkOrderSummarySection({
                             </a>
                         ) : null}
                     </div>
-
-                    <div
-                        style={{
-                            ...MR_THEME.typography.body,
-                            color: MR_THEME.colors.textPrimary,
-                            fontWeight: 700,
-                        }}
-                    >
-                        {wo.service_address || "—"}
-                    </div>
                 </div>
                 <div
                     style={{
-                        padding: MR_THEME.layout.compactCardPadding,
-                        borderRadius: MR_THEME.radius.control,
-                        background: MR_THEME.colors.cardBg,
-                        border: `1px solid ${MR_THEME.colors.border}`,
+                        padding: "6px 0",
                     }}
                 >
                     <div
                         style={{
                             display: "flex",
+                            gap: 8,
+                            flexWrap: "wrap",
                             alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: MR_THEME.spacing.sm,
                             marginBottom: MR_THEME.spacing.sm,
                         }}
                     >
-                        <div style={labelStyle}>
-                            Status
-                        </div>
+                        <span style={labelStyle}>Status:</span>
 
-                        <div
+                        <span
                             style={{
                                 display: "inline-flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                padding: "6px 10px",
+                                padding: "5px 10px",
                                 borderRadius: MR_THEME.radius.pill,
                                 background: MR_THEME.colors.primarySoft,
                                 color: MR_THEME.colors.primary,
@@ -395,7 +376,7 @@ export default function WorkOrderSummarySection({
                             }}
                         >
                             {niceLabel(wo.status)}
-                        </div>
+                        </span>
                     </div>
 
                     <button
@@ -681,211 +662,40 @@ export default function WorkOrderSummarySection({
                 </div>
                 <div
                     style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: MR_THEME.spacing.sm,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: 8,
+                        paddingTop: 6,
                     }}
                 >
-                    <div
-                        style={{
-                            padding: "10px 12px",
-                            borderRadius: MR_THEME.radius.control,
-                            background: MR_THEME.colors.cardBgSoft,
-                            border: `1px solid ${MR_THEME.colors.border}`,
-                        }}
-                    >
-                        <div
+                    <div>
+                        <span style={labelStyle}>Priority:</span>{" "}
+                        <span
                             style={{
-                                fontSize: 13,
-                                color: MR_THEME.colors.textSecondary,
-                                fontWeight: 600,
-                                lineHeight: 1.35,
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textPrimary,
+                                textTransform: "capitalize",
                             }}
                         >
-                            Priority:{" "}
-                            <span
-                                style={{
-                                    color: MR_THEME.colors.textPrimary,
-                                    fontWeight: 800,
-                                    textTransform: "capitalize",
-                                }}
-                            >
-                                {niceLabel(wo.priority)}
-                            </span>
-                        </div>
+                            {niceLabel(wo.priority)}
+                        </span>
                     </div>
 
-                    <div
-                        style={{
-                            padding: "10px 12px",
-                            borderRadius: MR_THEME.radius.control,
-                            background: MR_THEME.colors.cardBgSoft,
-                            border: `1px solid ${MR_THEME.colors.border}`,
-                        }}
-                    >
-                        <div
+                    <div>
+                        <span style={labelStyle}>Assigned:</span>{" "}
+                        <span
                             style={{
-                                fontSize: 13,
-                                color: MR_THEME.colors.textSecondary,
-                                fontWeight: 600,
-                                lineHeight: 1.35,
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textPrimary,
                             }}
                         >
-                            Assigned:{" "}
-                            <span
-                                style={{
-                                    color: MR_THEME.colors.textPrimary,
-                                    fontWeight: 800,
-                                }}
-                            >
-                                {assignedTechName ?? "—"}
-                            </span>
-                        </div>
+                            {assignedTechName ?? "—"}
+                        </span>
                     </div>
                 </div>
             </div>
 
-            {canCheckIn ? (
-                <div
-                    style={{
-                        marginTop: 14,
-                        padding: 14,
-                        borderRadius: MR_THEME.radius.card,
-                        background: MR_THEME.colors.primarySurface,
-                        border: `1px solid ${MR_THEME.colors.primary}`,
-                    }}
-                >
-                    <div
-                        style={{
-                            fontSize: 10,
-                            textTransform: "uppercase",
-                            letterSpacing: 0.8,
-                            color: MR_THEME.colors.primary,
-                            fontWeight: 800,
-                            marginBottom: 4,
-                        }}
-                    >
-                        On-site Check-in
-                    </div>
-
-                    <div
-                        style={{
-                            fontSize: 11,
-                            color: MR_THEME.colors.textSecondary,
-                            marginBottom: 8,
-                            lineHeight: 1.35,
-                        }}
-                    >
-                        We use your location only to validate check-in for this work order.
-                    </div>
-                    {hasAnyCheckIn ? (
-                        <div
-                            style={{
-                                padding: "8px 10px",
-                                borderRadius: 10,
-                                background: "#f9fafb",
-                                border: "1px solid #e5e7eb",
-                                fontSize: 12,
-                                lineHeight: 1.35,
-                                color: "#374151",
-                            }}
-                        >
-                            <div style={{ fontWeight: 800, color: "#111827", marginBottom: 2 }}>
-                                Checked in at{" "}
-                                {latestCheckIn?.check_in_at
-                                    ? new Date(latestCheckIn.check_in_at).toLocaleString("en-CA", {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                        hour: "numeric",
-                                        minute: "2-digit",
-                                    })
-                                    : "—"}
-                            </div>
-
-                            <div style={{ marginTop: 4 }}>
-                                Status: {formatCheckInLabel(latestCheckIn?.geofence_status)}
-                            </div>
-
-                            <div style={{ marginTop: 4 }}>
-                                Distance: {latestCheckIn?.distance_to_site_m != null ? `${latestCheckIn.distance_to_site_m} m` : "—"}
-                            </div>
-
-                            {hasCheckedOut ? (
-                                <div style={{ marginTop: 8, fontWeight: 800, color: MR_THEME.colors.success }}>
-                                    Checked out at{" "}
-                                    {latestCheckIn?.check_out_at
-                                        ? new Date(latestCheckIn.check_out_at).toLocaleString("en-CA", {
-                                            month: "short",
-                                            day: "numeric",
-                                            year: "numeric",
-                                            hour: "numeric",
-                                            minute: "2-digit",
-                                        })
-                                        : "—"}
-                                </div>
-                            ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleCheckOut}
-                                    disabled={checkingIn}
-                                    style={{
-                                        marginTop: 10,
-                                        padding: "8px 12px",
-                                        borderRadius: MR_THEME.radius.control,
-                                        border: `1px solid ${MR_THEME.colors.primary}`,
-                                        background: MR_THEME.colors.primary,
-                                        color: "white",
-                                        fontWeight: 900,
-                                        fontSize: 12,
-                                        cursor: checkingIn ? "not-allowed" : "pointer",
-                                        opacity: checkingIn ? 0.7 : 1,
-                                    }}
-                                >
-                                    {checkingIn ? "Checking out..." : "Check Out"}
-                                </button>
-                            )}
-                        </div>
-                    ) : (
-                        <>
-                            <button
-                                onClick={handleCheckIn}
-                                disabled={checkingIn}
-                                style={{
-                                    padding: "10px 14px",
-                                    borderRadius: MR_THEME.radius.control,
-                                    border: `1px solid ${MR_THEME.colors.primary}`,
-                                    background: MR_THEME.colors.primary,
-                                    color: "white",
-                                    fontWeight: 900,
-                                    fontSize: 13,
-                                    cursor: checkingIn ? "not-allowed" : "pointer",
-                                    opacity: checkingIn ? 0.7 : 1,
-                                }}
-                            >
-                                {checkingIn ? "Checking in..." : "Check In"}
-                            </button>
-
-                            {checkInMessage ? (
-                                <div
-                                    style={{
-                                        marginTop: 12,
-                                        padding: 10,
-                                        borderRadius: 10,
-                                        background: "#ffffff",
-                                        border: "1px solid #e5e7eb",
-                                        fontSize: 14,
-                                        lineHeight: 1.5,
-                                        color: "#374151",
-                                    }}
-                                >
-                                    {checkInMessage}
-                                </div>
-                            ) : null}
-                        </>
-                    )}
-                </div>
-            ) : null}
 
             {invoiceIsLocked ? (
                 <div

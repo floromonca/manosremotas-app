@@ -48,7 +48,7 @@ export default function WorkOrderDetailHeader({
         >
             <div
                 style={{
-                    padding: "14px 14px 12px",
+                    padding: "10px 12px",
                     borderRadius: MR_THEME.radius.card,
                     border: `1px solid ${MR_THEME.colors.border}`,
                     background: MR_THEME.colors.cardBg,
@@ -86,11 +86,11 @@ export default function WorkOrderDetailHeader({
 
                 <div
                     style={{
-                        fontSize: 24,
+                        fontSize: 20,
                         lineHeight: 1.15,
                         fontWeight: 900,
                         color: "#111827",
-                        marginBottom: 10,
+                        marginBottom: 6,
                         wordBreak: "break-word",
                     }}
                 >
@@ -119,21 +119,23 @@ export default function WorkOrderDetailHeader({
                         Ref: <span style={{ fontFamily: "monospace" }}>{workOrderId.slice(0, 8)}</span>
                     </span>
 
-                    <span
-                        style={{
-                            padding: "5px 10px",
-                            borderRadius: 999,
-                            background: "#f3f4f6",
-                            border: "1px solid #e5e7eb",
-                            fontSize: 12,
-                            fontWeight: 800,
-                            color: "#111827",
-                        }}
-                    >
-                        Role: {myRole ?? "—"}
-                    </span>
+                    {isAdmin ? (
+                        <span
+                            style={{
+                                padding: "5px 10px",
+                                borderRadius: 999,
+                                background: "#f3f4f6",
+                                border: "1px solid #e5e7eb",
+                                fontSize: 12,
+                                fontWeight: 800,
+                                color: "#111827",
+                            }}
+                        >
+                            Role: {myRole ?? "—"}
+                        </span>
+                    ) : null}
 
-                    {invoiceId ? (
+                   {isAdmin && invoiceId ? (
                         <span
                             style={{
                                 padding: "5px 10px",
@@ -152,7 +154,7 @@ export default function WorkOrderDetailHeader({
                         </span>
                     ) : null}
 
-                    {invoiceId && invoiceStatus ? (
+                 {isAdmin && invoiceId && invoiceStatus ? (
                         <span
                             style={{
                                 display: "inline-block",
