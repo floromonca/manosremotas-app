@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
-import CustomerHeaderCard from "../components/CustomerHeaderCard";
+import { MR_THEME } from "../../../../lib/theme";
 import CustomerContactCard from "../components/CustomerContactCard";
 import CustomerLocationsCard from "../components/CustomerLocationsCard";
 
@@ -68,6 +68,15 @@ export default function CustomerDetailPage() {
     const [loadingPreview, setLoadingPreview] = useState(false);
     const [hasPreviewedPeriod, setHasPreviewedPeriod] = useState(false);
     const [defaultTaxRate, setDefaultTaxRate] = useState(0.13);
+    const formatMoney = useCallback((value: number) => {
+        return new Intl.NumberFormat("en-CA", {
+            style: "currency",
+            currency: "CAD",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(Number(value || 0));
+    }, []);
+
 
 
     const selectedPreviewTotals = useMemo(() => {
@@ -283,12 +292,6 @@ export default function CustomerDetailPage() {
         try {
             setGeneratingPeriodInvoice(true);
 
-            console.log("DEBUG generate_period_invoice_from_selection input", {
-                p_company_id: companyId,
-                p_customer_id: customerId,
-                p_work_order_ids: selectedWOs,
-            });
-
             const response = await supabase.rpc(
                 "generate_period_invoice_from_selection",
                 {
@@ -297,8 +300,6 @@ export default function CustomerDetailPage() {
                     p_work_order_ids: selectedWOs,
                 }
             );
-
-            console.log("DEBUG generate_period_invoice_from_selection response", response);
 
             const { data, error } = response;
 
@@ -314,14 +315,10 @@ export default function CustomerDetailPage() {
                 return;
             }
 
-            console.log("DEBUG invoice RPC data", data);
-
             const invoiceId =
                 typeof data === "string"
                     ? data
                     : data?.invoice_id ?? data?.id ?? null;
-
-            console.log("DEBUG resolved invoiceId", invoiceId);
 
             if (!invoiceId) {
                 alert(
@@ -377,7 +374,7 @@ export default function CustomerDetailPage() {
         <div
             style={{
                 padding: "28px 24px 40px",
-                background: "#f8fafc",
+                background: MR_THEME.colors.appBg,
                 minHeight: "100%",
             }}
         >
@@ -388,17 +385,18 @@ export default function CustomerDetailPage() {
                         style={{
                             height: 42,
                             padding: "0 14px",
-                            borderRadius: 12,
-                            border: "1px solid #d1d5db",
-                            background: "#ffffff",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                            background: MR_THEME.colors.cardBg,
                             cursor: "pointer",
                             fontWeight: 800,
-                            color: "#111827",
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                            color: MR_THEME.colors.textPrimary,
+                            boxShadow: MR_THEME.shadows.cardSoft,
                         }}
                     >
                         ← Back to Customers
                     </button>
+
                 </div>
 
                 {loading ? (
@@ -530,13 +528,15 @@ export default function CustomerDetailPage() {
                                         )
                                     }
                                     style={{
-                                        padding: "10px 14px",
-                                        borderRadius: 12,
-                                        border: "1px solid #d1d5db",
-                                        background: "#0f172a",
-                                        color: "white",
+                                        height: 42,
+                                        padding: "0 14px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.primary}`,
+                                        background: MR_THEME.colors.primary,
+                                        color: "#ffffff",
                                         fontWeight: 800,
                                         cursor: "pointer",
+                                        boxShadow: MR_THEME.shadows.cardSoft,
                                     }}
                                 >
                                     + New Work Order
@@ -547,13 +547,13 @@ export default function CustomerDetailPage() {
                                     style={{
                                         height: 42,
                                         padding: "0 16px",
-                                        borderRadius: 12,
-                                        border: "1px solid #d1d5db",
-                                        background: "#ffffff",
-                                        color: "#111827",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.textPrimary,
                                         cursor: "pointer",
                                         fontWeight: 800,
-                                        boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                                        boxShadow: MR_THEME.shadows.cardSoft,
                                     }}
                                 >
                                     Edit Customer
@@ -584,21 +584,22 @@ export default function CustomerDetailPage() {
                 ) : null}
                 <div
                     style={{
-                        border: "1px solid #e5e7eb",
+                        border: `1px solid ${MR_THEME.colors.border}`,
                         padding: 20,
-                        borderRadius: 18,
-                        background: "#ffffff",
-                        boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                        borderRadius: MR_THEME.radius.card,
+                        background: MR_THEME.colors.cardBg,
+                        boxShadow: MR_THEME.shadows.card,
                         marginBottom: 20,
                     }}
                 >
+
                     <div style={{ marginBottom: 14 }}>
                         <div
                             style={{
                                 fontSize: 12,
                                 textTransform: "uppercase",
                                 letterSpacing: 1.2,
-                                color: "#64748b",
+                                color: MR_THEME.colors.textMuted,
                                 fontWeight: 800,
                                 marginBottom: 6,
                             }}
@@ -609,7 +610,7 @@ export default function CustomerDetailPage() {
                             style={{
                                 fontWeight: 900,
                                 fontSize: 24,
-                                color: "#0f172a",
+                                color: MR_THEME.colors.textPrimary,
                                 lineHeight: 1.15,
                                 letterSpacing: "-0.02em",
                             }}
@@ -621,7 +622,7 @@ export default function CustomerDetailPage() {
                     {recentWorkOrders.length === 0 ? (
                         <div
                             style={{
-                                color: "#64748b",
+                                color: MR_THEME.colors.textSecondary,
                                 fontSize: 14,
                                 lineHeight: 1.6,
                             }}
@@ -689,17 +690,18 @@ export default function CustomerDetailPage() {
                                 return (
                                     <div
                                         key={wo.work_order_id}
+                                        className="recentWorkOrderRow"
                                         onClick={() => router.push(`/work-orders/${wo.work_order_id}`)}
                                         onMouseEnter={() => setHoveredRecentWO(wo.work_order_id)}
                                         onMouseLeave={() => setHoveredRecentWO(null)}
                                         style={{
                                             border:
                                                 hoveredRecentWO === wo.work_order_id
-                                                    ? "1px solid #d0d5dd"
-                                                    : "1px solid #e5e7eb",
-                                            borderRadius: 14,
+                                                    ? `1px solid ${MR_THEME.colors.borderStrong}`
+                                                    : `1px solid ${MR_THEME.colors.border}`,
+                                            borderRadius: MR_THEME.radius.card,
                                             padding: 16,
-                                            background: "#ffffff",
+                                            background: MR_THEME.colors.cardBg,
                                             display: "flex",
                                             justifyContent: "space-between",
                                             alignItems: "flex-start",
@@ -709,8 +711,8 @@ export default function CustomerDetailPage() {
                                             transition: "all 0.15s ease",
                                             boxShadow:
                                                 hoveredRecentWO === wo.work_order_id
-                                                    ? "0 4px 10px rgba(0,0,0,0.05)"
-                                                    : "0 1px 2px rgba(16,24,40,0.04)",
+                                                    ? MR_THEME.shadows.card
+                                                    : MR_THEME.shadows.cardSoft,
                                             transform:
                                                 hoveredRecentWO === wo.work_order_id
                                                     ? "translateY(-1px)"
@@ -718,6 +720,7 @@ export default function CustomerDetailPage() {
                                         }}
                                     >
                                         <div
+                                            className="recentWorkOrderMain"
                                             style={{
                                                 minWidth: 0,
                                                 display: "flex",
@@ -728,9 +731,9 @@ export default function CustomerDetailPage() {
                                         >
                                             <div
                                                 style={{
-                                                    fontWeight: 800,
+                                                    fontWeight: 900,
                                                     fontSize: 15,
-                                                    color: "#0f172a",
+                                                    color: MR_THEME.colors.textPrimary,
                                                     letterSpacing: "-0.01em",
                                                 }}
                                             >
@@ -740,7 +743,7 @@ export default function CustomerDetailPage() {
                                             <div
                                                 style={{
                                                     fontSize: 13,
-                                                    color: "#64748b",
+                                                    color: MR_THEME.colors.textSecondary,
                                                     lineHeight: 1.5,
                                                     wordBreak: "break-word",
                                                 }}
@@ -750,6 +753,7 @@ export default function CustomerDetailPage() {
                                         </div>
 
                                         <div
+                                            className="recentWorkOrderActions"
                                             style={{
                                                 display: "flex",
                                                 alignItems: "center",
@@ -760,6 +764,7 @@ export default function CustomerDetailPage() {
                                             }}
                                         >
                                             <div
+                                                className="recentWorkOrderMeta"
                                                 style={{
                                                     display: "flex",
                                                     flexDirection: "column",
@@ -786,7 +791,7 @@ export default function CustomerDetailPage() {
                                                 <div
                                                     style={{
                                                         fontSize: 12,
-                                                        color: "#98a2b3",
+                                                        color: MR_THEME.colors.textMuted,
                                                         whiteSpace: "nowrap",
                                                     }}
                                                 >
@@ -796,17 +801,19 @@ export default function CustomerDetailPage() {
 
                                             <button
                                                 type="button"
+                                                className="recentWorkOrderButton"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     router.push(`/work-orders/${wo.work_order_id}`);
                                                 }}
                                                 style={{
-                                                    padding: "10px 14px",
-                                                    borderRadius: 10,
-                                                    border: "1px solid #d0d5dd",
-                                                    background: "#ffffff",
-                                                    fontWeight: 700,
-                                                    color: "#344054",
+                                                    height: 40,
+                                                    padding: "0 14px",
+                                                    borderRadius: MR_THEME.radius.control,
+                                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                    background: MR_THEME.colors.cardBg,
+                                                    fontWeight: 800,
+                                                    color: MR_THEME.colors.textPrimary,
                                                     cursor: "pointer",
                                                 }}
                                             >
@@ -814,6 +821,7 @@ export default function CustomerDetailPage() {
                                             </button>
                                         </div>
                                     </div>
+
                                 );
                             })}
                         </div>
@@ -821,12 +829,13 @@ export default function CustomerDetailPage() {
                 </div>
                 <div
                     style={{
-                        border: "1px solid #e5e7eb",
+                        border: `1px solid ${MR_THEME.colors.border}`,
                         padding: 20,
-                        borderRadius: 18,
-                        background: "#ffffff",
-                        boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
+                        borderRadius: MR_THEME.radius.card,
+                        background: MR_THEME.colors.cardBg,
+                        boxShadow: MR_THEME.shadows.card,
                     }}
+
                 >
                     <div style={{ marginBottom: 14 }}>
                         <div
@@ -834,7 +843,7 @@ export default function CustomerDetailPage() {
                                 fontSize: 12,
                                 textTransform: "uppercase",
                                 letterSpacing: 1.2,
-                                color: "#64748b",
+                                color: MR_THEME.colors.textMuted,
                                 fontWeight: 800,
                                 marginBottom: 6,
                             }}
@@ -845,7 +854,7 @@ export default function CustomerDetailPage() {
                             style={{
                                 fontWeight: 900,
                                 fontSize: 24,
-                                color: "#0f172a",
+                                color: MR_THEME.colors.textPrimary,
                                 lineHeight: 1.15,
                                 letterSpacing: "-0.02em",
                             }}
@@ -858,7 +867,7 @@ export default function CustomerDetailPage() {
                         style={{
                             marginTop: 0,
                             marginBottom: 18,
-                            color: "#64748b",
+                            color: MR_THEME.colors.textSecondary,
                             fontSize: 14,
                             lineHeight: 1.6,
                             maxWidth: 780,
@@ -888,7 +897,7 @@ export default function CustomerDetailPage() {
                                         marginBottom: 8,
                                         fontSize: 13,
                                         fontWeight: 800,
-                                        color: "#374151",
+                                        color: MR_THEME.colors.textPrimary,
                                     }}
                                 >
                                     Start date
@@ -900,13 +909,16 @@ export default function CustomerDetailPage() {
                                     onChange={(e) => setPeriodStart(e.target.value)}
                                     style={{
                                         width: "100%",
-                                        padding: "12px 14px",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: 12,
-                                        background: "#fff",
+                                        height: 44,
+                                        padding: "0 14px",
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        borderRadius: MR_THEME.radius.control,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.textPrimary,
                                         fontSize: 14,
                                         boxSizing: "border-box",
                                     }}
+
                                 />
                             </div>
 
@@ -918,7 +930,7 @@ export default function CustomerDetailPage() {
                                         marginBottom: 8,
                                         fontSize: 13,
                                         fontWeight: 800,
-                                        color: "#374151",
+                                        color: MR_THEME.colors.textPrimary,
                                     }}
                                 >
                                     End date
@@ -930,13 +942,16 @@ export default function CustomerDetailPage() {
                                     onChange={(e) => setPeriodEnd(e.target.value)}
                                     style={{
                                         width: "100%",
-                                        padding: "12px 14px",
-                                        border: "1px solid #d1d5db",
-                                        borderRadius: 12,
-                                        background: "#fff",
+                                        height: 44,
+                                        padding: "0 14px",
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        borderRadius: MR_THEME.radius.control,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.textPrimary,
                                         fontSize: 14,
                                         boxSizing: "border-box",
                                     }}
+
                                 />
                             </div>
                         </div>
@@ -953,20 +968,29 @@ export default function CustomerDetailPage() {
                                 disabled={loadingPreview || !periodStart || !periodEnd}
                                 style={{
                                     minWidth: 220,
-                                    padding: "12px 18px",
-                                    borderRadius: 12,
-                                    border: "1px solid #d1d5db",
+                                    height: 44,
+                                    padding: "0 18px",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${loadingPreview || !periodStart || !periodEnd
+                                        ? MR_THEME.colors.borderStrong
+                                        : MR_THEME.colors.borderStrong
+                                        }`,
                                     background:
-                                        loadingPreview || !periodStart || !periodEnd ? "#e5e7eb" : "#ffffff",
+                                        loadingPreview || !periodStart || !periodEnd
+                                            ? MR_THEME.colors.cardBgSoft
+                                            : MR_THEME.colors.cardBg,
                                     color:
-                                        loadingPreview || !periodStart || !periodEnd ? "#6b7280" : "#111827",
+                                        loadingPreview || !periodStart || !periodEnd
+                                            ? MR_THEME.colors.textMuted
+                                            : MR_THEME.colors.textPrimary,
                                     cursor:
                                         loadingPreview || !periodStart || !periodEnd
                                             ? "not-allowed"
                                             : "pointer",
                                     fontWeight: 800,
-                                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                                    boxShadow: MR_THEME.shadows.cardSoft,
                                 }}
+
                             >
                                 {loadingPreview ? "Loading..." : "Preview Work Orders"}
                             </button>
@@ -978,11 +1002,12 @@ export default function CustomerDetailPage() {
                             style={{
                                 marginTop: 22,
                                 padding: 16,
-                                borderRadius: 14,
-                                border: "1px dashed #d1d5db",
-                                background: "#fafafa",
-                                color: "#6b7280",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                                background: MR_THEME.colors.cardBgSoft,
+                                color: MR_THEME.colors.textSecondary,
                             }}
+
                         >
                             No eligible work orders found for this period.
                         </div>
@@ -992,7 +1017,7 @@ export default function CustomerDetailPage() {
                         <div
                             style={{
                                 marginTop: 22,
-                                borderTop: "1px solid #ececec",
+                                borderTop: `1px solid ${MR_THEME.colors.border}`,
                                 paddingTop: 18,
                             }}
                         >
@@ -1002,14 +1027,14 @@ export default function CustomerDetailPage() {
                                         fontSize: 12,
                                         textTransform: "uppercase",
                                         letterSpacing: 1,
-                                        color: "#6b7280",
+                                        color: MR_THEME.colors.textMuted,
                                         fontWeight: 800,
                                         marginBottom: 6,
                                     }}
                                 >
                                     Period Billing Preview
                                 </div>
-                                <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
+                                <div style={{ fontWeight: 900, fontSize: 18, color: MR_THEME.colors.textPrimary }}>
                                     Eligible Work Orders
                                 </div>
                             </div>
@@ -1033,10 +1058,12 @@ export default function CustomerDetailPage() {
                                                 alignItems: "center",
                                                 justifyContent: "space-between",
                                                 gap: 12,
-                                                border: checked ? "1px solid #c7d7fe" : "1px solid #e5e7eb",
-                                                borderRadius: 14,
+                                                border: checked
+                                                    ? `1px solid ${MR_THEME.colors.primary}`
+                                                    : `1px solid ${MR_THEME.colors.border}`,
+                                                borderRadius: MR_THEME.radius.control,
                                                 padding: 14,
-                                                background: checked ? "#f3f7ff" : "#fff",
+                                                background: checked ? MR_THEME.colors.primarySoft : MR_THEME.colors.cardBg,
                                                 cursor: "pointer",
                                             }}
                                         >
@@ -1061,7 +1088,7 @@ export default function CustomerDetailPage() {
                                                         style={{
                                                             fontWeight: 800,
                                                             fontSize: 14,
-                                                            color: "#111827",
+                                                            color: MR_THEME.colors.textPrimary,
                                                             letterSpacing: "-0.01em",
                                                         }}
                                                     >
@@ -1071,7 +1098,7 @@ export default function CustomerDetailPage() {
                                                     <div
                                                         style={{
                                                             fontSize: 13,
-                                                            color: "#64748b",
+                                                            color: MR_THEME.colors.textSecondary,
                                                         }}
                                                     >
                                                         {wo.service_address || "No service address"}
@@ -1080,7 +1107,7 @@ export default function CustomerDetailPage() {
                                                     <div
                                                         style={{
                                                             fontSize: 12,
-                                                            color: "#9ca3af",
+                                                            color: MR_THEME.colors.textMuted,
                                                         }}
                                                     >
                                                         {wo.created_at
@@ -1095,10 +1122,15 @@ export default function CustomerDetailPage() {
                                             </div>
 
                                             <div style={{ textAlign: "right" }}>
-                                                <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 4 }}>
+                                                <div style={{
+                                                    fontSize: 12, color: MR_THEME.colors.textMuted
+                                                    , marginBottom: 4
+                                                }}>
                                                     Subtotal
                                                 </div>
-                                                <div style={{ fontWeight: 900, color: "#111827" }}>
+                                                <div style={{
+                                                    fontWeight: 900, color: MR_THEME.colors.textPrimary
+                                                }}>
                                                     {Number(wo.subtotal ?? 0).toLocaleString("en-CA", {
                                                         style: "currency",
                                                         currency: "CAD",
@@ -1123,16 +1155,21 @@ export default function CustomerDetailPage() {
                                 <div
                                     style={{
                                         padding: 14,
-                                        borderRadius: 12,
-                                        border: "1px solid #e5e7eb",
-                                        background: "#fcfcfd",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        background: MR_THEME.colors.cardBgSoft,
                                     }}
                                 >
-                                    <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700, marginBottom: 6 }}>
+                                    <div style={{
+                                        fontSize: 12, color: MR_THEME.colors.textSecondary
+                                        , fontWeight: 700, marginBottom: 6
+                                    }}>
                                         Subtotal
                                     </div>
-                                    <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
-                                        ${selectedPreviewTotals.subtotal.toFixed(2)}
+                                    <div style={{
+                                        fontWeight: 900, fontSize: 18, color: MR_THEME.colors.textPrimary
+                                    }}>
+                                        {formatMoney(selectedPreviewTotals.subtotal)}
                                     </div>
                                 </div>
 
@@ -1148,25 +1185,26 @@ export default function CustomerDetailPage() {
                                         Tax
                                     </div>
                                     <div style={{ fontWeight: 900, fontSize: 18, color: "#111827" }}>
-                                        ${selectedPreviewTotals.tax.toFixed(2)}
+                                        {formatMoney(selectedPreviewTotals.tax)}
                                     </div>
                                 </div>
 
                                 <div
                                     style={{
                                         padding: 14,
-                                        borderRadius: 12,
-                                        border: "1px solid #d1d5db",
-                                        background: "#111827",
-                                        color: "white",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.primary}`,
+                                        background: MR_THEME.colors.primary,
+                                        color: "#ffffff",
                                     }}
+
                                 >
                                     <div style={{ fontSize: 12, opacity: 0.8, fontWeight: 700, marginBottom: 6 }}>
                                         Total
                                     </div>
 
                                     <div style={{ fontWeight: 900, fontSize: 18 }}>
-                                        ${selectedPreviewTotals.total.toFixed(2)}
+                                        {formatMoney(selectedPreviewTotals.total)}
                                     </div>
                                 </div>
                             </div>
@@ -1184,19 +1222,19 @@ export default function CustomerDetailPage() {
                                     style={{
                                         height: 44,
                                         padding: "0 18px",
-                                        borderRadius: 12,
+                                        borderRadius: MR_THEME.radius.control,
                                         border:
                                             generatingPeriodInvoice || selectedWOs.length === 0
-                                                ? "1px solid #d1d5db"
-                                                : "1px solid #111827",
+                                                ? `1px solid ${MR_THEME.colors.borderStrong}`
+                                                : `1px solid ${MR_THEME.colors.primary}`,
                                         background:
                                             generatingPeriodInvoice || selectedWOs.length === 0
-                                                ? "#f9fafb"
-                                                : "#111827",
+                                                ? MR_THEME.colors.cardBgSoft
+                                                : MR_THEME.colors.primary,
                                         color:
                                             generatingPeriodInvoice || selectedWOs.length === 0
-                                                ? "#9ca3af"
-                                                : "white",
+                                                ? MR_THEME.colors.textMuted
+                                                : "#ffffff",
                                         cursor:
                                             generatingPeriodInvoice || selectedWOs.length === 0
                                                 ? "not-allowed"
@@ -1207,8 +1245,9 @@ export default function CustomerDetailPage() {
                                         boxShadow:
                                             generatingPeriodInvoice || selectedWOs.length === 0
                                                 ? "none"
-                                                : "0 1px 2px rgba(0,0,0,0.06)",
+                                                : MR_THEME.shadows.cardSoft,
                                     }}
+
                                 >
                                     {generatingPeriodInvoice
                                         ? "Generating..."
@@ -1218,7 +1257,33 @@ export default function CustomerDetailPage() {
                         </div>
                     )}
                 </div>
+
+                <style jsx>{`
+                    @media (max-width: 720px) {
+                        .recentWorkOrderRow {
+                            display: grid !important;
+                            grid-template-columns: 1fr !important;
+                            gap: 12px !important;
+                        }
+
+                        .recentWorkOrderActions {
+                            width: 100%;
+                            margin-left: 0 !important;
+                            justify-content: space-between !important;
+                            align-items: center !important;
+                        }
+
+                        .recentWorkOrderMeta {
+                            align-items: flex-start !important;
+                        }
+
+                        .recentWorkOrderButton {
+                            min-width: 112px;
+                        }
+                    }
+                `}</style>
             </div>
         </div>
     );
 }
+

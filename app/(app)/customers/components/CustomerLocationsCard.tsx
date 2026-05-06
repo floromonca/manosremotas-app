@@ -1,3 +1,5 @@
+import { MR_THEME } from "../../../../lib/theme";
+
 type Location = {
     location_id: string;
     label: string | null;
@@ -17,12 +19,11 @@ export default function CustomerLocationsCard({
     return (
         <div
             style={{
-                border: "1px solid #e5e7eb",
-                padding: 18,
-                borderRadius: 16,
-                background: "white",
-                marginBottom: 20,
-                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                border: `1px solid ${MR_THEME.colors.border}`,
+                padding: 16,
+                borderRadius: MR_THEME.radius.card,
+                background: MR_THEME.colors.cardBg,
+                boxShadow: MR_THEME.shadows.card,
             }}
         >
             <div
@@ -41,14 +42,21 @@ export default function CustomerLocationsCard({
                             fontSize: 12,
                             textTransform: "uppercase",
                             letterSpacing: 1,
-                            color: "#6b7280",
+                            color: MR_THEME.colors.textMuted,
                             fontWeight: 800,
                             marginBottom: 6,
                         }}
                     >
                         Customer Locations
                     </div>
-                    <div style={{ fontWeight: 900, fontSize: 22, color: "#111827" }}>
+
+                    <div
+                        style={{
+                            fontWeight: 900,
+                            fontSize: 20,
+                            color: MR_THEME.colors.textPrimary,
+                        }}
+                    >
                         Locations
                     </div>
                 </div>
@@ -56,44 +64,51 @@ export default function CustomerLocationsCard({
                 <button
                     onClick={onAddLocation}
                     style={{
-                        padding: "10px 14px",
-                        borderRadius: 12,
-                        border: "1px solid #111827",
-                        background: "#111827",
-                        color: "white",
+                        height: 42,
+                        padding: "0 14px",
+                        borderRadius: MR_THEME.radius.control,
+                        border: `1px solid ${MR_THEME.colors.primary}`,
+                        background: MR_THEME.colors.primary,
+                        color: "#ffffff",
                         cursor: "pointer",
                         fontWeight: 800,
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                        boxShadow: MR_THEME.shadows.cardSoft,
                     }}
                 >
                     + Add Location
                 </button>
             </div>
 
-            <div style={{ display: "grid", gap: 12 }}>
-                {locations.map((l) => (
+            <div style={{ display: "grid", gap: 10 }}>
+                {locations.map((location) => (
                     <div
-                        key={l.location_id}
+                        key={location.location_id}
                         style={{
-                            border: "1px solid #e5e7eb",
-                            padding: 14,
-                            borderRadius: 14,
-                            background: "#fcfcfd",
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            padding: 12,
+                            borderRadius: MR_THEME.radius.control,
+                            background: MR_THEME.colors.cardBgSoft,
                         }}
                     >
                         <div
                             style={{
-                                fontWeight: 800,
-                                fontSize: 16,
-                                color: "#111827",
+                                fontWeight: 900,
+                                fontSize: 15,
+                                color: MR_THEME.colors.textPrimary,
                                 marginBottom: 6,
                             }}
                         >
-                            {l.label || "Location"}
+                            {location.label || "Location"}
                         </div>
 
-                        <div style={{ color: "#4b5563", lineHeight: 1.5 }}>
-                            {l.address || "—"}
+                        <div
+                            style={{
+                                color: MR_THEME.colors.textSecondary,
+                                lineHeight: 1.5,
+                                wordBreak: "break-word",
+                            }}
+                        >
+                            {location.address || "—"}
                         </div>
                     </div>
                 ))}
@@ -102,10 +117,10 @@ export default function CustomerLocationsCard({
                     <div
                         style={{
                             padding: 16,
-                            borderRadius: 14,
-                            border: "1px dashed #d1d5db",
-                            background: "#fafafa",
-                            color: "#6b7280",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                            background: MR_THEME.colors.cardBgSoft,
+                            color: MR_THEME.colors.textSecondary,
                         }}
                     >
                         No locations yet.

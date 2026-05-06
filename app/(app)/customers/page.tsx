@@ -24,10 +24,25 @@ export default function CustomersPage() {
 
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
+    const [search, setSearch] = useState("");
 
     const canAccessCustomers = useMemo(() => {
         return !!myRole && ADMIN_CUSTOMER_ROLES.includes(myRole);
     }, [myRole]);
+    const filteredCustomers = useMemo(() => {
+        const q = search.trim().toLowerCase();
+
+        if (!q) return customers;
+
+        return customers.filter((customer) => {
+            const name = customer.name.toLowerCase();
+            const email = (customer.email || "").toLowerCase();
+            const phone = (customer.phone || "").toLowerCase();
+
+            return name.includes(q) || email.includes(q) || phone.includes(q);
+        });
+    }, [customers, search]);
+
 
     const loadCustomers = useCallback(async () => {
         if (!companyId) return;
@@ -116,7 +131,7 @@ export default function CustomersPage() {
             >
                 <div
                     style={{
-                        maxWidth: 980,
+                        maxWidth: 1180,
                         margin: "0 auto",
                         color: MR_THEME.colors.textSecondary,
                     }}
@@ -137,7 +152,7 @@ export default function CustomersPage() {
         >
             <div
                 style={{
-                    maxWidth: 980,
+                    maxWidth: 1180,
                     margin: "0 auto",
                     display: "grid",
                     gap: 18,
@@ -247,6 +262,48 @@ export default function CustomersPage() {
                         + New Customer
                     </button>
                 </section>
+                {customers.length > 0 ? (
+                    <section
+                        style={{
+                            border: `1px solid ${MR_THEME.colors.border}`,
+                            borderRadius: MR_THEME.radius.card,
+                            background: MR_THEME.colors.cardBg,
+                            boxShadow: MR_THEME.shadows.card,
+                            padding: 16,
+                        }}
+                    >
+                        <div style={{ display: "grid", gap: 6 }}>
+                            <label
+                                style={{
+                                    fontSize: 11,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 0.8,
+                                    color: MR_THEME.colors.textMuted,
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Search
+                            </label>
+
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Customer name, email, or phone"
+                                style={{
+                                    width: "100%",
+                                    height: 44,
+                                    padding: "0 14px",
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    borderRadius: MR_THEME.radius.control,
+                                    background: MR_THEME.colors.cardBg,
+                                    color: MR_THEME.colors.textPrimary,
+                                    fontSize: 14,
+                                    boxSizing: "border-box",
+                                }}
+                            />
+                        </div>
+                    </section>
+                ) : null}
 
                 {loading ? (
                     <section
@@ -290,14 +347,29 @@ export default function CustomersPage() {
                     </section>
                 ) : null}
 
-                {!loading && customers.length > 0 ? (
+                {!loading && customers.length > 0 && filteredCustomers.length === 0 ? (
+                    <section
+                        style={{
+                            border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                            padding: 24,
+                            borderRadius: MR_THEME.radius.card,
+                            background: MR_THEME.colors.cardBg,
+                            color: MR_THEME.colors.textSecondary,
+                            boxShadow: MR_THEME.shadows.card,
+                        }}
+                    >
+                        No customers match the current search.
+                    </section>
+                ) : null}
+
+                {!loading && filteredCustomers.length > 0 ? (
                     <section
                         style={{
                             display: "grid",
                             gap: 12,
                         }}
                     >
-                        {customers.map((customer) => (
+                        {filteredCustomers.map((customer) => (
                             <article
                                 key={customer.customer_id}
                                 style={{
@@ -365,22 +437,28 @@ export default function CustomersPage() {
             </div>
 
             <style jsx>{`
-                @media (max-width: 720px) {
-                    main {
-                        padding: 16px !important;
-                    }
+    @media (max-width: 720px) {
+        main {
+            padding: 16px !important;
+        }
 
-                    section,
-                    article {
-                        grid-template-columns: 1fr !important;
-                    }
+        section,
+        article {
+            grid-template-columns: 1fr !important;
+        }
 
-                    button,
-                    a {
-                        width: 100%;
-                    }
-                }
-            `}</style>
+        article {
+            padding: 16px !important;
+            gap: 12px !important;
+        }
+
+        button,
+        a {
+            width: 100%;
+        }
+    }
+`}</style>
+
         </main>
     );
 }
@@ -389,7 +467,7 @@ function InfoBlock({ label, value }: { label: string; value: string }) {
     return (
         <div
             style={{
-                padding: "8px 10px",
+                padding: "7px 10px",
                 borderRadius: MR_THEME.radius.control,
                 border: `1px solid ${MR_THEME.colors.border}`,
                 background: MR_THEME.colors.cardBgSoft,
