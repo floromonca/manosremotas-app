@@ -11,6 +11,7 @@ type NewItemDraft = {
     unit_price: number;
     taxable: boolean;
     catalog_item_id: string | null;
+    uom: string | null;
 };
 
 type Props = {
@@ -105,7 +106,6 @@ export default function WorkOrderNewItemForm({
             })
             .slice(0, 6);
     }, [catalogItems, newItem.description]);
-    console.log("WorkOrderNewItemForm isAdmin:", isAdmin, "myRole:", myRole);
     return (
         <div
             style={{
@@ -216,7 +216,12 @@ export default function WorkOrderNewItemForm({
                     value={newItem.description}
                     onChange={(e) => {
                         const value = e.target.value;
-                        setNewItem((s) => ({ ...s, description: value }));
+                        setNewItem((s) => ({
+                            ...s,
+                            description: value,
+                            catalog_item_id: null,
+                            uom: null,
+                        }));
                         setShowCatalogSuggestions(true);
                         if (descError) setDescError(false);
                     }}
@@ -233,7 +238,18 @@ export default function WorkOrderNewItemForm({
                         boxSizing: "border-box",
                     }}
                 />
-
+                {newItem.catalog_item_id ? (
+                    <div
+                        style={{
+                            marginTop: 6,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: MR_THEME.colors.primary,
+                        }}
+                    >
+                        From catalog
+                    </div>
+                ) : null}
                 {showCatalogSuggestions && catalogSuggestions.length > 0 ? (
                     <div
                         style={{
@@ -262,6 +278,7 @@ export default function WorkOrderNewItemForm({
                                         unit_price: item.unit_price ?? 0,
                                         taxable: item.taxable,
                                         catalog_item_id: item.service_catalog_item_id,
+                                        uom: item.uom ?? null,
                                     }));
 
                                     setUnitPriceInput(
@@ -296,8 +313,12 @@ export default function WorkOrderNewItemForm({
                                         marginTop: 2,
                                     }}
                                 >
-                                    {item.uom} •{" "}
-                                    {item.unit_price === null ? "No price" : `$${item.unit_price}`}
+                                    {item.uom}
+                                    {isAdmin || myRole === "owner" || myRole === "admin" ? (
+                                        <>
+                                            {" "}• {item.unit_price === null ? "No price" : `$${item.unit_price}`}
+                                        </>
+                                    ) : null}
                                 </div>
                             </button>
                         ))}

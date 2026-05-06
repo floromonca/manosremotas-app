@@ -14,6 +14,7 @@ type WorkOrderItem = {
     pending_pricing?: boolean | null;
     pricing_status?: string | null;
     tech_note?: string | null;
+    uom: string | null;
 };
 type Props = {
     items: WorkOrderItem[];
@@ -128,7 +129,7 @@ export default function WorkOrderItemsTable({
                                     color: MR_THEME.colors.textPrimary,
                                 }}
                             >
-                                {it.description ?? "—"}
+                                {it.description ?? "—"} {it.uom ? <span style={{ color: "#64748b" }}>({it.uom})</span> : null}
                             </div>
 
                             {/* Quantities */}
@@ -558,7 +559,22 @@ export default function WorkOrderItemsTable({
                             <React.Fragment key={it.item_id}>
                                 <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
                                     <td style={{ padding: "10px 8px", color: "#111827", fontWeight: 700 }}>
-                                        {it.description ?? "—"}
+                                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                                            <span>{it.description ?? "—"}</span>
+
+                                            {it.uom ? (
+                                                <span
+                                                    style={{
+                                                        fontSize: 12,
+                                                        color: MR_THEME.colors.textMuted,
+                                                        fontWeight: 700,
+                                                        textTransform: "uppercase",
+                                                    }}
+                                                >
+                                                    {it.uom}
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </td>
 
                                     <td style={{ padding: "14px 12px" }}>

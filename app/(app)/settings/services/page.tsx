@@ -18,7 +18,18 @@ type ServiceFormState = {
     taxable: boolean;
     active: boolean;
 };
+type CsvPreviewStatus = "ready" | "duplicate" | "conflict" | "error";
 
+type CsvPreviewRow = {
+    rowNumber: number;
+    service_name: string;
+    unit: string;
+    unit_price: string;
+    taxable: string;
+    description: string;
+    status: CsvPreviewStatus;
+    message: string;
+};
 const emptyForm: ServiceFormState = {
     name: "",
     description: "",
@@ -37,6 +48,13 @@ export default function ServicesSettingsPage() {
     const [search, setSearch] = useState("");
     const [editingItem, setEditingItem] = useState<ServiceCatalogItem | null>(null);
     const [form, setForm] = useState<ServiceFormState>(emptyForm);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importStep, setImportStep] = useState<"instructions" | "upload">("instructions");
+    const [selectedCsvFile, setSelectedCsvFile] = useState<File | null>(null);
+    const [csvText, setCsvText] = useState<string>("");
+    const [csvRows, setCsvRows] = useState<string[][]>([]);
+    const [csvErrors, setCsvErrors] = useState<string[]>([]);
+    const [csvPreviewRows, setCsvPreviewRows] = useState<CsvPreviewRow[]>([]);
 
     const loadItems = useCallback(async () => {
         if (!companyId) {
@@ -93,6 +111,26 @@ export default function ServicesSettingsPage() {
             active: item.active,
         });
     }
+    function handleDownloadTemplate() {
+        const csv = [
+            "service_name,unit,unit_price,taxable,description",
+            '"Drywall repair",each,120,yes,"Small drywall repair"',
+            '"Painting",hour,65,yes,"Interior painting labor"',
+            '"Inspection",each,,no,"Initial site inspection"',
+        ].join("\n");
+
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "services_template.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
 
     async function handleSave() {
         if (!companyId) {
@@ -153,7 +191,68 @@ export default function ServicesSettingsPage() {
             setSaving(false);
         }
     }
+    async function handleImportServices() {
+        if (!companyId) {
+            alert("No active company selected.");
+            return;
+        }
 
+        const blockingRows = csvPreviewRows.filter(
+            (row) => row.status === "conflict" || row.status === "error"
+        );
+
+        if (blockingRows.length > 0) {
+            alert("Please fix conflicts or errors before importing.");
+            return;
+        }
+
+        const rowsToImport = csvPreviewRows.filter((row) => row.status === "ready");
+
+        if (rowsToImport.length === 0) {
+            alert("No ready services to import.");
+            return;
+        }
+
+        const confirmed = window.confirm(
+            `Import ${rowsToImport.length} services? Duplicate rows will be skipped.`
+        );
+
+        if (!confirmed) return;
+
+        setSaving(true);
+
+        try {
+            await Promise.all(
+                rowsToImport.map((row) =>
+                    createServiceCatalogItem(companyId, {
+                        name: row.service_name.trim(),
+                        description: row.description.trim() || null,
+                        uom: row.unit.trim(),
+                        unit_price:
+                            row.unit_price.trim() === "" ? null : Number(row.unit_price.trim()),
+                        taxable: row.taxable.toLowerCase() === "yes",
+                    })
+                )
+            );
+
+            alert(`${rowsToImport.length} services imported successfully.`);
+
+            setShowImportModal(false);
+            setImportStep("instructions");
+            setSelectedCsvFile(null);
+            setCsvText("");
+            setCsvRows([]);
+            setCsvErrors([]);
+            setCsvPreviewRows([]);
+
+            await loadItems();
+        } catch (e: any) {
+            console.error("Error importing services:", e);
+            alert(e?.message || "Could not import services.");
+        } finally {
+            setSaving(false);
+        }
+    }
     async function handleToggleActive(item: ServiceCatalogItem) {
         const nextActive = !item.active;
 
@@ -220,9 +319,16 @@ export default function ServicesSettingsPage() {
 
                         <button
                             type="button"
-                            disabled
-                            title="CSV import will be added later."
-                            style={disabledButtonStyle}
+                            onClick={() => {
+                                setSelectedCsvFile(null);
+                                setCsvText("");
+                                setCsvRows([]);
+                                setCsvErrors([]);
+                                setCsvPreviewRows([]);
+                                setImportStep("instructions");
+                                setShowImportModal(true);
+                            }}
+                            style={secondaryButtonStyle}
                         >
                             Import CSV
                         </button>
@@ -574,6 +680,465 @@ export default function ServicesSettingsPage() {
                     )}
                 </div>
             </section>
+            {showImportModal ? (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="import-csv-title"
+                    style={modalOverlayStyle}
+                >
+                    <div style={modalCardStyle}>
+                        <div style={eyebrowStyle}>Import CSV</div>
+
+                        <h2
+                            id="import-csv-title"
+                            style={{
+                                margin: 0,
+                                color: MR_THEME.colors.textPrimary,
+                                fontSize: 22,
+                                fontWeight: 900,
+                            }}
+                        >
+                            Import services from CSV
+                        </h2>
+                        {importStep === "instructions" ? (
+                            <div>
+                                <p
+                                    style={{
+                                        margin: "8px 0 0",
+                                        color: MR_THEME.colors.textSecondary,
+                                        fontSize: 14,
+                                        lineHeight: 1.55,
+                                    }}
+                                >
+                                    Prepare your file using this required format.
+                                </p>
+
+                                <div
+                                    style={{
+                                        marginTop: 16,
+                                        padding: 14,
+                                        borderRadius: MR_THEME.radius.card,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        background: MR_THEME.colors.cardBgSoft,
+                                    }}
+                                >
+                                    <div style={labelStyle}>Columns</div>
+
+                                    <code
+                                        style={{
+                                            display: "block",
+                                            marginTop: 8,
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontSize: 13,
+                                            whiteSpace: "normal",
+                                            wordBreak: "break-word",
+                                        }}
+                                    >
+                                        service_name,unit,unit_price,taxable,description
+                                    </code>
+
+                                    <ul
+                                        style={{
+                                            margin: "12px 0 0",
+                                            paddingLeft: 18,
+                                            color: MR_THEME.colors.textSecondary,
+                                            fontSize: 14,
+                                            lineHeight: 1.6,
+                                        }}
+                                    >
+                                        <li>service_name is required.</li>
+                                        <li>unit is required.</li>
+                                        <li>unit_price is optional.</li>
+                                        <li>taxable accepts yes or no.</li>
+                                        <li>description is optional.</li>
+                                    </ul>
+                                </div>
+
+                                <div
+                                    style={{
+                                        marginTop: 18,
+                                        display: "flex",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadTemplate}
+                                        style={primaryButtonStyle}
+                                    >
+                                        Download template
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setImportStep("upload")}
+                                        style={secondaryButtonStyle}
+                                    >
+                                        Continue to upload
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowImportModal(false);
+                                            setImportStep("instructions");
+                                            setSelectedCsvFile(null);
+                                            setCsvText("");
+                                            setCsvRows([]);
+                                            setCsvErrors([]);
+                                            setCsvPreviewRows([]);
+                                        }}
+                                        style={secondaryButtonStyle}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ marginTop: 16 }}>
+                                <p
+                                    style={{
+                                        margin: "8px 0 0",
+                                        color: MR_THEME.colors.textSecondary,
+                                        fontSize: 14,
+                                        lineHeight: 1.55,
+                                    }}
+                                >
+                                    Select your CSV file. In the next step we will show a preview
+                                    before importing.
+                                </p>
+
+                                <div
+                                    style={{
+                                        marginTop: 16,
+                                        padding: 18,
+                                        border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                                        borderRadius: MR_THEME.radius.card,
+                                        textAlign: "center",
+                                        color: MR_THEME.colors.textSecondary,
+                                        fontSize: 14,
+                                    }}
+                                >
+                                    <label
+                                        style={{
+                                            display: "grid",
+                                            gap: 10,
+                                            cursor: "pointer",
+                                        }}
+                                    >
+                                        <input
+                                            type="file"
+                                            accept=".csv,text/csv"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0] ?? null;
+                                                setSelectedCsvFile(file);
+
+                                                if (file) {
+                                                    const reader = new FileReader();
+
+                                                    reader.onload = (event) => {
+                                                        const text = event.target?.result as string;
+                                                        setCsvText(text);
+                                                        // Parse CSV (simple, soporta comillas básicas)
+                                                        const rows = text
+                                                            .split(/\r?\n/)
+                                                            .filter((line) => line.trim().length > 0)
+                                                            .map((line) => {
+                                                                // separa por comas respetando comillas
+                                                                const result: string[] = [];
+                                                                let current = "";
+                                                                let inQuotes = false;
+
+                                                                for (let i = 0; i < line.length; i++) {
+                                                                    const char = line[i];
+
+                                                                    if (char === '"') {
+                                                                        inQuotes = !inQuotes;
+                                                                    } else if (char === "," && !inQuotes) {
+                                                                        result.push(current);
+                                                                        current = "";
+                                                                    } else {
+                                                                        current += char;
+                                                                    }
+                                                                }
+
+                                                                result.push(current);
+                                                                return result.map((cell) => cell.replace(/^"|"$/g, "").trim());
+                                                            });
+
+                                                        setCsvRows(rows);
+                                                        const expectedHeaders = ["service_name", "unit", "unit_price", "taxable", "description"];
+                                                        const header = rows[0] || [];
+                                                        const errors: string[] = [];
+
+                                                        if (header.length === 0) {
+                                                            errors.push("CSV file is empty.");
+                                                        } else {
+                                                            const normalizedHeader = header.map((h) => h.toLowerCase());
+
+                                                            expectedHeaders.forEach((col) => {
+                                                                if (!normalizedHeader.includes(col)) {
+                                                                    errors.push(`Missing column: ${col}`);
+                                                                }
+                                                            });
+                                                        }
+
+                                                        setCsvErrors(errors);
+                                                        // Build preview rows with status
+                                                        const dataRows = rows.slice(1);
+
+                                                        const preview: CsvPreviewRow[] = [];
+
+                                                        const seen = new Map<string, string>(); // key: service_name+unit → price
+                                                        const existing = new Set(
+                                                            items.map((item) => `${item.name.toLowerCase()}__${item.uom.toLowerCase()}`)
+                                                        );
+
+                                                        dataRows.forEach((r, index) => {
+                                                            const service_name = r[0] || "";
+                                                            const unit = r[1] || "";
+                                                            const unit_price = r[2] || "";
+                                                            const taxable = r[3] || "";
+                                                            const description = r[4] || "";
+
+                                                            let status: CsvPreviewStatus = "ready";
+                                                            let message = "";
+
+                                                            // Basic validation
+                                                            if (!service_name || !unit) {
+                                                                status = "error";
+                                                                message = "Missing service_name or unit";
+                                                            }
+
+                                                            if (taxable && !["yes", "no"].includes(taxable.toLowerCase())) {
+                                                                status = "error";
+                                                                message = "Invalid taxable value";
+                                                            }
+
+                                                            if (unit_price && isNaN(Number(unit_price))) {
+                                                                status = "error";
+                                                                message = "unit_price must be numeric";
+                                                            }
+
+                                                            const key = `${service_name.toLowerCase()}__${unit.toLowerCase()}`;
+
+                                                            if (status === "ready") {
+                                                                if (existing.has(key)) {
+                                                                    status = "duplicate";
+                                                                    message = "Already exists in catalog";
+                                                                } else if (seen.has(key)) {
+                                                                    const existingPrice = seen.get(key);
+
+                                                                    if (existingPrice === unit_price) {
+                                                                        status = "duplicate";
+                                                                        message = "Duplicate row";
+                                                                    } else {
+                                                                        status = "conflict";
+                                                                        message = `Conflicting price: existing ${existingPrice}, new ${unit_price}`;
+                                                                    }
+                                                                } else {
+                                                                    seen.set(key, unit_price);
+                                                                }
+                                                            }
+
+                                                            preview.push({
+                                                                rowNumber: index + 2,
+                                                                service_name,
+                                                                unit,
+                                                                unit_price,
+                                                                taxable,
+                                                                description,
+                                                                status,
+                                                                message,
+                                                            });
+                                                        });
+
+                                                        setCsvPreviewRows(preview);
+                                                    };
+
+                                                    reader.readAsText(file);
+                                                }
+                                            }}
+                                            style={{ display: "none" }}
+                                        />
+
+                                        <span style={{ fontWeight: 900, color: MR_THEME.colors.textPrimary }}>
+                                            Choose CSV file
+                                        </span>
+
+                                        <span>
+                                            {selectedCsvFile ? selectedCsvFile.name : "No file selected yet."}
+                                        </span>
+                                    </label>
+                                    {csvRows.length > 0 ? (
+                                        <div
+                                            style={{
+                                                marginTop: 14,
+                                                textAlign: "left",
+                                                fontSize: 13,
+                                                color: MR_THEME.colors.textSecondary,
+                                            }}
+                                        >
+                                            Preview ready: {Math.max(csvRows.length - 1, 0)} services found.
+                                        </div>
+                                    ) : null}
+                                    {csvRows.length > 0 ? (
+                                        <div
+                                            style={{
+                                                marginTop: 12,
+                                                maxHeight: 200,
+                                                overflow: "auto",
+                                                border: `1px solid ${MR_THEME.colors.border}`,
+                                                borderRadius: MR_THEME.radius.card,
+                                                background: MR_THEME.colors.cardBg,
+                                            }}
+                                        >
+                                            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                                                <thead>
+                                                    <tr style={{ background: MR_THEME.colors.cardBgSoft }}>
+                                                        {["service_name", "unit", "unit_price", "taxable", "description", "status"].map(
+                                                            (col, idx) => (
+                                                                <th
+                                                                    key={idx}
+                                                                    style={{
+                                                                        textAlign: "left",
+                                                                        padding: "8px 10px",
+                                                                        borderBottom: `1px solid ${MR_THEME.colors.border}`,
+                                                                        fontWeight: 900,
+                                                                        color: MR_THEME.colors.textPrimary,
+                                                                    }}
+                                                                >
+                                                                    {col}
+                                                                </th>
+                                                            )
+                                                        )}
+                                                    </tr>
+                                                </thead>
+
+                                                <tbody>
+                                                    {csvPreviewRows.map((row, i) => (
+                                                        <tr key={i}>
+                                                            <td style={cellStyle}>{row.service_name || "—"}</td>
+                                                            <td style={cellStyle}>{row.unit || "—"}</td>
+                                                            <td style={cellStyle}>{row.unit_price || "—"}</td>
+                                                            <td style={cellStyle}>{row.taxable || "—"}</td>
+                                                            <td style={cellStyle}>{row.description || "—"}</td>
+
+                                                            <td
+                                                                style={{
+                                                                    ...cellStyle,
+                                                                    fontWeight: 900,
+                                                                    color:
+                                                                        row.status === "ready"
+                                                                            ? MR_THEME.colors.success
+                                                                            : row.status === "duplicate"
+                                                                                ? MR_THEME.colors.warning
+                                                                                : MR_THEME.colors.danger,
+                                                                }}
+                                                            >
+                                                                {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+
+                                                                {row.message ? (
+                                                                    <div
+                                                                        style={{
+                                                                            marginTop: 2,
+                                                                            fontSize: 11,
+                                                                            fontWeight: 700,
+                                                                            color: MR_THEME.colors.textSecondary,
+                                                                        }}
+                                                                    >
+                                                                        {row.message}
+                                                                    </div>
+                                                                ) : null}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : null}
+
+                                    {csvErrors.length > 0 ? (
+                                        <div>
+                                            {csvErrors.map((err, i) => (
+                                                <div key={i}>• {err}</div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div
+                                    style={{
+                                        marginTop: 18,
+                                        display: "flex",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={handleImportServices}
+                                        disabled={
+                                            saving ||
+                                            csvPreviewRows.length === 0 ||
+                                            csvPreviewRows.every((row) => row.status !== "ready") ||
+                                            csvPreviewRows.some((row) => row.status === "conflict" || row.status === "error")
+                                        }
+                                        style={{
+                                            ...primaryButtonStyle,
+                                            opacity:
+                                                saving ||
+                                                    csvPreviewRows.length === 0 ||
+                                                    csvPreviewRows.every((row) => row.status !== "ready") ||
+                                                    csvPreviewRows.some((row) => row.status === "conflict" || row.status === "error")
+                                                    ? 0.55
+                                                    : 1,
+                                            cursor:
+                                                saving ||
+                                                    csvPreviewRows.length === 0 ||
+                                                    csvPreviewRows.every((row) => row.status !== "ready") ||
+                                                    csvPreviewRows.some((row) => row.status === "conflict" || row.status === "error")
+                                                    ? "not-allowed"
+                                                    : "pointer",
+                                        }}
+                                    >
+                                        {csvPreviewRows.every((row) => row.status !== "ready")
+                                            ? "Nothing to import"
+                                            : saving
+                                                ? "Importing..."
+                                                : "Import services"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setImportStep("instructions")}
+                                        style={secondaryButtonStyle}
+                                    >
+                                        Back
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowImportModal(false);
+                                            setImportStep("instructions");
+                                            setSelectedCsvFile(null);
+                                            setCsvText("");
+                                            setCsvRows([]);
+                                            setCsvErrors([]);
+                                            setCsvPreviewRows([]);
+                                        }}
+                                        style={secondaryButtonStyle}
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : null}
 
             <style jsx>{`
                 .headerRow {
@@ -843,4 +1408,29 @@ const smallButtonStyle: React.CSSProperties = {
     fontSize: 12,
     fontWeight: 900,
     cursor: "pointer",
+};
+const cellStyle: React.CSSProperties = {
+    padding: "6px 10px",
+    borderBottom: `1px solid ${MR_THEME.colors.border}`,
+    color: MR_THEME.colors.textSecondary,
+};
+const modalOverlayStyle: React.CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 50,
+    background: "rgba(15, 23, 42, 0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 18,
+};
+
+const modalCardStyle: React.CSSProperties = {
+    width: "100%",
+    maxWidth: 560,
+    borderRadius: MR_THEME.radius.card,
+    border: `1px solid ${MR_THEME.colors.border}`,
+    background: MR_THEME.colors.cardBg,
+    boxShadow: MR_THEME.shadows.card,
+    padding: 22,
 };

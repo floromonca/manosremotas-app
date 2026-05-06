@@ -64,6 +64,7 @@ type WorkOrderItem = {
     pending_pricing?: boolean | null;
     pricing_status?: string | null;
     tech_note?: string | null;
+    uom: string | null;
 };
 
 type WorkOrderCheckIn = {
@@ -251,6 +252,7 @@ export default function WorkOrderDetailPage() {
         unit_price: 0,
         taxable: true,
         catalog_item_id: null as string | null,
+        uom: null as string | null,
     });
     const invoiceStatusNormalized = useMemo(
         () => normalizeInvoiceStatus(invoiceStatus),
@@ -355,7 +357,7 @@ export default function WorkOrderDetailPage() {
         const { data, error } = await supabase
             .from("work_order_items")
             .select(
-                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, taxable, pending_pricing, pricing_status"
+                "item_id, description, quantity, qty_planned, qty_done, tech_note, unit_price, uom, taxable, pending_pricing, pricing_status"
             )
             .eq("work_order_id", workOrderId)
             .order("created_at", { ascending: true });
@@ -859,6 +861,7 @@ export default function WorkOrderDetailPage() {
                 item_type: "service",
                 description: desc,
                 catalog_item_id: newItem.catalog_item_id ?? null,
+                uom: newItem.uom ?? null,
             };
 
             const payload = isAdmin
@@ -894,6 +897,7 @@ export default function WorkOrderDetailPage() {
                 unit_price: 0,
                 taxable: true,
                 catalog_item_id: null,
+                uom: null,
             });
             setShowForm(false);
         } catch (e: unknown) {
