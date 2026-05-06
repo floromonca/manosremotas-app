@@ -75,12 +75,21 @@ export async function GET(
 
         const html = renderInvoiceHtml(data);
 
-        // ✅ USAR CHROMIUM SERVERLESS
-        browser = await playwright.launch({
-            args: chromium.args,
-            executablePath: await chromium.executablePath(),
-            headless: true,
-        });
+        const isLocalDev = process.env.NODE_ENV !== "production";
+
+        browser = await playwright.launch(
+            isLocalDev
+                ? {
+                    channel: "chrome",
+                    headless: true,
+                }
+                : {
+                    args: chromium.args,
+                    executablePath: await chromium.executablePath(),
+                    headless: true,
+                }
+        );
+
 
         const page = await browser.newPage();
 

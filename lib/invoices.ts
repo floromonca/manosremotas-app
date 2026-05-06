@@ -194,7 +194,7 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   const { data: items, error: itemsErr } = await supabase
     .from("work_order_items")
     .select(
-      "description, quantity, qty_planned, qty_done, unit_price, taxable, pending_pricing, pricing_status",
+      "description, quantity, qty_planned, qty_done, unit_price, taxable, pending_pricing, pricing_status, uom",
     )
     .eq("work_order_id", workOrderId)
     .order("created_at", { ascending: true });
@@ -231,7 +231,12 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
           unit_price: it?.unit_price ?? 0,
           tax_rate: taxable ? defaultTaxRate : 0,
           synced_from_wo: true,
+          uom:
+            typeof it?.uom === "string" && it.uom.trim()
+              ? it.uom.trim()
+              : null,
         };
+
       });
 
     console.log("🧾 Copy items payload (tax_rate check):", payload);
@@ -263,6 +268,7 @@ type InvoiceHtmlItem = {
   work_order_id?: string | null;
   description?: string | null;
   qty?: number | null;
+  uom?: string | null;
   unit_price?: number | null;
   tax_rate?: number | null;
   line_subtotal?: number | null;
@@ -505,13 +511,13 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
     ? items
       .map((item) => {
         return `
-          <tr>
-            <td class="desc">${escHtml(item.description || "")}</td>
-            <td class="num">${Number(item.qty ?? 0)}</td>
-            <td class="num">${moneyHtml(item.unit_price, currency)}</td>
-            <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
-          </tr>
-        `;
+        <tr>
+          <td class="desc">${escHtml(item.description || "")}</td>
+          <td class="num">${Number(item.qty ?? 0)}${item.uom ? ` ${escHtml(item.uom)}` : ""}</td>
+          <td class="num">${moneyHtml(item.unit_price, currency)}${item.uom ? ` / ${escHtml(item.uom)}` : ""}</td>
+          <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
+        </tr>
+      `;
       })
       .join("")
     : `
@@ -569,15 +575,16 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
           ? woItems
             .map((item) => {
               return `
-                  <tr>
-                    <td class="desc">${escHtml(item.description || "")}</td>
-                    <td class="num">${Number(item.qty ?? 0)}</td>
-                    <td class="num">${moneyHtml(item.unit_price, currency)}</td>
-                    <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
-                  </tr>
-                `;
+        <tr>
+          <td class="desc">${escHtml(item.description || "")}</td>
+          <td class="num">${Number(item.qty ?? 0)}${item.uom ? ` ${escHtml(item.uom)}` : ""}</td>
+          <td class="num">${moneyHtml(item.unit_price, currency)}${item.uom ? ` / ${escHtml(item.uom)}` : ""}</td>
+          <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
+        </tr>
+      `;
             })
             .join("")
+
           : `
               <tr>
                 <td colspan="4" class="empty">No items for this work order</td>
@@ -1219,7 +1226,7 @@ tr{
    dejamos márgenes al motor PDF (Playwright),
    no duplicamos con @page margin aquí. */
 
-@media (max-width: 900px){
+@media screen and (max-width: 900px){
   .topbar,
   .section-grid{
     grid-template-columns:1fr;

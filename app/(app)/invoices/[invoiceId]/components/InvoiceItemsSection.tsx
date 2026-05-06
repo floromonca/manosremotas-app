@@ -14,7 +14,9 @@ type InvoiceItemRowType = {
     line_total: number | null;
     created_at: string | null;
     synced_from_wo?: boolean | null;
+    uom?: string | null;
 };
+
 
 type Props = {
     items: InvoiceItemRowType[];

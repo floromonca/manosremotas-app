@@ -74,7 +74,9 @@ type InvoiceItemRow = {
     line_total: number | null;
     created_at: string | null;
     synced_from_wo?: boolean | null;
+    uom?: string | null;
 };
+
 
 type InvoicePaymentRow = {
     payment_id: string;
@@ -249,10 +251,11 @@ export default function InvoicePage() {
             const { data: itemData, error: itemErr } = await supabase
                 .from("invoice_items")
                 .select(
-                    "invoice_item_id, description, qty, unit_price, tax_rate, line_subtotal, line_tax, line_total, synced_from_wo, created_at"
+                    "invoice_item_id, description, qty, unit_price, tax_rate, line_subtotal, line_tax, line_total, synced_from_wo, uom, created_at"
                 )
                 .eq("invoice_id", invoiceId)
                 .order("created_at", { ascending: true });
+
 
             if (itemErr) throw itemErr;
 

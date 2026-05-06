@@ -11,7 +11,9 @@ type InvoiceItemRowType = {
     line_total: number | null;
     created_at: string | null;
     synced_from_wo?: boolean | null;
+    uom?: string | null;
 };
+
 
 type Props = {
     item: InvoiceItemRowType;
@@ -44,6 +46,10 @@ export default function InvoiceItemRow({
     const qtyN = Number(item.qty ?? 0);
     const unitN = Number(item.unit_price ?? 0);
     const taxN = Number(item.tax_rate ?? 0);
+    const uomLabel = item.uom?.trim() || "";
+    const qtyLabel = uomLabel ? `Qty (${uomLabel})` : "Qty";
+    const unitPriceLabel = uomLabel ? `Unit Price / ${uomLabel}` : "Unit Price";
+
 
     const fallbackSub = qtyN * unitN;
     const fallbackTax = fallbackSub * taxN;
@@ -224,7 +230,7 @@ export default function InvoiceItemRow({
                                     fontWeight: 800,
                                 }}
                             >
-                                Qty
+                                {qtyLabel}
                             </div>
 
                             <input
@@ -249,7 +255,8 @@ export default function InvoiceItemRow({
                                     fontWeight: 800,
                                 }}
                             >
-                                Unit Price
+                                {unitPriceLabel}
+
                             </div>
 
                             <input
@@ -343,7 +350,7 @@ export default function InvoiceItemRow({
                             fontWeight: 700,
                         }}
                     >
-                        Qty: {qtyN}
+                        Qty: {qtyN}{uomLabel ? ` ${uomLabel}` : ""}
                     </span>
 
                     <span
@@ -360,7 +367,7 @@ export default function InvoiceItemRow({
                             fontWeight: 700,
                         }}
                     >
-                        Unit: {unitN}
+                        Unit price: {money(unitN, currencyCode)}{uomLabel ? ` / ${uomLabel}` : ""}
                     </span>
 
                     <span
