@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { supabase } from "../../../../lib/supabaseClient";
+import { useActiveCompany } from "../../../../hooks/useActiveCompany";
 
 type PreferencesForm = {
     require_work_order_notes: boolean;
@@ -21,17 +23,143 @@ const DEFAULT_PREFERENCES: PreferencesForm = {
 };
 
 export default function SettingsPreferencesPage() {
+    const { companyId } = useActiveCompany();
+
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [form, setForm] = useState<PreferencesForm>(DEFAULT_PREFERENCES);
+    const [errorMsg, setErrorMsg] = useState("");
     const [okMsg, setOkMsg] = useState("");
+
+    useEffect(() => {
+        if (!companyId) {
+            setLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPreferences = async () => {
+            setLoading(true);
+            setErrorMsg("");
+            setOkMsg("");
+
+            try {
+                const { data, error } = await supabase
+                    .from("company_settings")
+                    .select(
+                        `
+                        require_work_order_notes,
+                        show_customer_email_on_invoice,
+                        show_customer_phone_on_invoice,
+                        auto_open_pdf_after_generate,
+                        compact_invoice_view,
+                        enable_internal_reference_field
+                        `,
+                    )
+                    .eq("company_id", companyId)
+                    .maybeSingle();
+
+                if (error) throw error;
+
+                if (!cancelled) {
+                    setForm({
+                        require_work_order_notes:
+                            data?.require_work_order_notes ?? DEFAULT_PREFERENCES.require_work_order_notes,
+                        show_customer_email_on_invoice:
+                            data?.show_customer_email_on_invoice ??
+                            DEFAULT_PREFERENCES.show_customer_email_on_invoice,
+                        show_customer_phone_on_invoice:
+                            data?.show_customer_phone_on_invoice ??
+                            DEFAULT_PREFERENCES.show_customer_phone_on_invoice,
+                        auto_open_pdf_after_generate:
+                            data?.auto_open_pdf_after_generate ??
+                            DEFAULT_PREFERENCES.auto_open_pdf_after_generate,
+                        compact_invoice_view:
+                            data?.compact_invoice_view ?? DEFAULT_PREFERENCES.compact_invoice_view,
+                        enable_internal_reference_field:
+                            data?.enable_internal_reference_field ??
+                            DEFAULT_PREFERENCES.enable_internal_reference_field,
+                    });
+                }
+            } catch (e: any) {
+                if (!cancelled) {
+                    setErrorMsg(e?.message ?? String(e));
+                    setForm(DEFAULT_PREFERENCES);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+
+        loadPreferences();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [companyId]);
 
     const setField = (key: keyof PreferencesForm, value: boolean) => {
         setForm((prev) => ({ ...prev, [key]: value }));
+        setErrorMsg("");
         setOkMsg("");
     };
 
-    const handleSave = () => {
-        setOkMsg("Preferences layout saved locally for now. Next step is connecting these options to company settings.");
+    const handleSave = async () => {
+        if (!companyId) {
+            setErrorMsg("No company selected.");
+            return;
+        }
+
+        setSaving(true);
+        setErrorMsg("");
+        setOkMsg("");
+
+        try {
+            const { error } = await supabase
+                .from("company_settings")
+                .upsert(
+                    {
+                        company_id: companyId,
+                        ...form,
+                    },
+                    { onConflict: "company_id" },
+                );
+
+            if (error) throw error;
+
+            setOkMsg("Preferences saved successfully.");
+        } catch (e: any) {
+            setErrorMsg(e?.message ?? String(e));
+        } finally {
+            setSaving(false);
+        }
     };
+
+    if (loading) {
+        return (
+            <div
+                style={{
+                    width: "100%",
+                    maxWidth: 1180,
+                    margin: "0 auto",
+                    padding: "8px 0 32px 0",
+                }}
+            >
+                <div
+                    style={{
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 16,
+                        background: "#fff",
+                        padding: 20,
+                        color: "#6b7280",
+                    }}
+                >
+                    Loading preferences...
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div
@@ -87,6 +215,22 @@ export default function SettingsPreferencesPage() {
                     Configure operational defaults and interface behavior for your workspace.
                 </div>
             </div>
+
+            {errorMsg ? (
+                <div
+                    style={{
+                        marginBottom: 18,
+                        padding: "12px 14px",
+                        border: "1px solid #fecaca",
+                        background: "#fff5f5",
+                        borderRadius: 12,
+                        color: "#991b1b",
+                        fontSize: 14,
+                    }}
+                >
+                    <strong>Error:</strong> {errorMsg}
+                </div>
+            ) : null}
 
             {okMsg ? (
                 <div
@@ -211,7 +355,7 @@ export default function SettingsPreferencesPage() {
                                 maxWidth: 720,
                             }}
                         >
-                            Save operational and interface preferences for work orders, invoices, and system behavior. The next step for this module is persisting these options at company level.
+                            Save operational and interface preferences for work orders, invoices, and system behavior.
                         </div>
                     </div>
 
@@ -243,20 +387,21 @@ export default function SettingsPreferencesPage() {
                         <button
                             type="button"
                             onClick={handleSave}
+                            disabled={saving}
                             style={{
                                 height: 44,
                                 padding: "0 18px",
                                 borderRadius: 10,
                                 border: "1px solid #d1d5db",
-                                background: "#111827",
-                                color: "#ffffff",
-                                cursor: "pointer",
+                                background: saving ? "#f3f4f6" : "#111827",
+                                color: saving ? "#6b7280" : "#ffffff",
+                                cursor: saving ? "not-allowed" : "pointer",
                                 fontWeight: 700,
                                 fontSize: 14,
-                                boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                                boxShadow: saving ? "none" : "0 1px 2px rgba(0,0,0,0.06)",
                             }}
                         >
-                            Save Changes
+                            {saving ? "Saving..." : "Save Changes"}
                         </button>
                     </div>
                 </div>

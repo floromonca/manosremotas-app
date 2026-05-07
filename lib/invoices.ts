@@ -348,6 +348,11 @@ type InvoiceHtmlData = {
   invoice_work_orders?: InvoiceHtmlIncludedWorkOrder[];
 };
 
+type InvoiceRenderOptions = {
+  showCustomerEmail?: boolean;
+  showCustomerPhone?: boolean;
+};
+
 function moneyHtml(value: number | null | undefined, currency = "CAD") {
   return new Intl.NumberFormat(currency === "COP" ? "es-CO" : "en-CA", {
     style: "currency",
@@ -475,7 +480,10 @@ function displayWorkOrder(invoice: InvoiceHtmlData["invoice"]) {
   return workOrderId.slice(0, 8);
 }
 
-export function renderInvoiceHtml(data: InvoiceHtmlData): string {
+export function renderInvoiceHtml(
+  data: InvoiceHtmlData,
+  options: InvoiceRenderOptions = {},
+): string {
   const invoice = data.invoice ?? {};
   const company = data.company ?? {};
   const items = data.items ?? [];
@@ -506,6 +514,8 @@ export function renderInvoiceHtml(data: InvoiceHtmlData): string {
 
   const invoiceType = invoice.invoice_type ?? "standard";
   const isPeriodInvoice = invoiceType === "period";
+  const showCustomerEmail = options.showCustomerEmail ?? true;
+  const showCustomerPhone = options.showCustomerPhone ?? true;
 
   const flatRows = items.length
     ? items
@@ -1306,8 +1316,8 @@ tr{
   <div class="card">
     <h3>Bill To</h3>
     <strong>${escHtml(invoice.customer_name || "—")}</strong>
-    ${invoice.customer_email ? `<div>${escHtml(invoice.customer_email)}</div>` : ""}
-    ${invoice.customer_phone ? `<div>${escHtml(invoice.customer_phone)}</div>` : ""}
+    ${showCustomerEmail && invoice.customer_email ? `<div>${escHtml(invoice.customer_email)}</div>` : ""}
+    ${showCustomerPhone && invoice.customer_phone ? `<div>${escHtml(invoice.customer_phone)}</div>` : ""}
   </div>
 
   <div class="card">

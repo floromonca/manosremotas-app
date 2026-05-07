@@ -102,6 +102,7 @@ export default function BillingSettingsPage() {
 
         try {
             const payload = {
+                company_id: companyId,
                 payment_terms_days: settings.payment_terms_days,
                 invoice_prefix: settings.invoice_prefix.trim() || "INV-",
                 work_order_prefix: settings.work_order_prefix.trim() || "WO-",
@@ -111,10 +112,16 @@ export default function BillingSettingsPage() {
 
             const { error } = await supabase
                 .from("company_settings")
-                .update(payload)
-                .eq("company_id", companyId);
+                .upsert(payload, { onConflict: "company_id" });
 
             if (error) throw error;
+
+            const { error: companyError } = await supabase
+                .from("companies")
+                .update({ payment_terms_days: settings.payment_terms_days })
+                .eq("company_id", companyId);
+
+            if (companyError) throw companyError;
 
             setSettings((prev) => ({
                 ...prev,

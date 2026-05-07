@@ -73,7 +73,21 @@ export async function GET(
             return new NextResponse("Acceso denegado a esta factura", { status: 403 });
         }
 
-        const html = renderInvoiceHtml(data);
+        const { data: settings, error: settingsError } = await supabaseAdmin
+            .from("company_settings")
+            .select("show_customer_email_on_invoice, show_customer_phone_on_invoice")
+            .eq("company_id", invoiceCompanyId)
+            .maybeSingle();
+
+        if (settingsError) {
+            console.error("company_settings error:", settingsError);
+            return new NextResponse("Error consultando preferencias de invoice", { status: 500 });
+        }
+
+        const html = renderInvoiceHtml(data, {
+            showCustomerEmail: settings?.show_customer_email_on_invoice ?? true,
+            showCustomerPhone: settings?.show_customer_phone_on_invoice ?? true,
+        });
 
         const isLocalDev = process.env.NODE_ENV !== "production";
 

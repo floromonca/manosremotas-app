@@ -95,6 +95,18 @@ type IncludedWorkOrderRow = {
     created_at: string | null;
 };
 
+type InvoicePreferences = {
+    show_customer_email_on_invoice: boolean;
+    show_customer_phone_on_invoice: boolean;
+    compact_invoice_view: boolean;
+};
+
+const DEFAULT_INVOICE_PREFERENCES: InvoicePreferences = {
+    show_customer_email_on_invoice: true,
+    show_customer_phone_on_invoice: true,
+    compact_invoice_view: false,
+};
+
 function money(amount: any, currencyCode?: string | null) {
     const x = Number(amount ?? 0);
     const value = Number.isFinite(x) ? x : 0;
@@ -205,6 +217,9 @@ export default function InvoicePage() {
 
     const [sendingInvoice, setSendingInvoice] = useState(false);
     const [includedWorkOrders, setIncludedWorkOrders] = useState<IncludedWorkOrderRow[]>([]);
+    const [invoicePreferences, setInvoicePreferences] = useState<InvoicePreferences>(
+        DEFAULT_INVOICE_PREFERENCES
+    );
 
 
     useEffect(() => {
@@ -229,6 +244,7 @@ export default function InvoicePage() {
             setItems([]);
             setPayments([]);
             setIncludedWorkOrders([]);
+            setInvoicePreferences(DEFAULT_INVOICE_PREFERENCES);
             setErr("");
             setLoading(false);
             return;
@@ -287,6 +303,14 @@ export default function InvoicePage() {
 
             const nextInv = (invData as any) ?? null;
 
+            const { data: preferenceData, error: preferenceErr } = await supabase
+                .from("company_settings")
+                .select("show_customer_email_on_invoice, show_customer_phone_on_invoice, compact_invoice_view")
+                .eq("company_id", companyId)
+                .maybeSingle();
+
+            if (preferenceErr) throw preferenceErr;
+
             const normalizedIncludedWOs: IncludedWorkOrderRow[] = ((iwoData as any[]) ?? []).map((row: any) => {
                 const wo = Array.isArray(row.work_orders) ? row.work_orders[0] : row.work_orders;
 
@@ -305,6 +329,17 @@ export default function InvoicePage() {
             setItems((itemData as any) ?? []);
             setPayments((paymentData as any) ?? []);
             setIncludedWorkOrders(normalizedIncludedWOs);
+            setInvoicePreferences({
+                show_customer_email_on_invoice:
+                    preferenceData?.show_customer_email_on_invoice ??
+                    DEFAULT_INVOICE_PREFERENCES.show_customer_email_on_invoice,
+                show_customer_phone_on_invoice:
+                    preferenceData?.show_customer_phone_on_invoice ??
+                    DEFAULT_INVOICE_PREFERENCES.show_customer_phone_on_invoice,
+                compact_invoice_view:
+                    preferenceData?.compact_invoice_view ??
+                    DEFAULT_INVOICE_PREFERENCES.compact_invoice_view,
+            });
 
         } catch (e: any) {
             setErr(e?.message ?? "Error cargando invoice");
@@ -312,6 +347,7 @@ export default function InvoicePage() {
             setItems([]);
             setPayments([]);
             setIncludedWorkOrders([]);
+            setInvoicePreferences(DEFAULT_INVOICE_PREFERENCES);
         } finally {
             setLoading(false);
         }
@@ -692,7 +728,7 @@ export default function InvoicePage() {
             style={{
                 minHeight: "100%",
                 background: "#f8fafc",
-                padding: "28px 24px 44px",
+                padding: invoicePreferences.compact_invoice_view ? "18px 18px 32px" : "28px 24px 44px",
                 overflowX: "hidden",
             }}
         >
@@ -701,7 +737,7 @@ export default function InvoicePage() {
                 <div
                     style={{
                         display: "grid",
-                        gap: 18,
+                        gap: invoicePreferences.compact_invoice_view ? 12 : 18,
                     }}
                 >
                     <div
@@ -710,7 +746,7 @@ export default function InvoicePage() {
                             borderRadius: 20,
                             background: "linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%)",
                             boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                            padding: 20,
+                            padding: invoicePreferences.compact_invoice_view ? 14 : 20,
                         }}
                     >
                         <div
@@ -877,6 +913,9 @@ export default function InvoicePage() {
                             billingEmail={billingEmail}
                             savingBillingEmail={savingBillingEmail}
                             isDraft={isDraft}
+                            showCustomerEmail={invoicePreferences.show_customer_email_on_invoice}
+                            showCustomerPhone={invoicePreferences.show_customer_phone_on_invoice}
+                            compactView={invoicePreferences.compact_invoice_view}
                             totals={totals}
                             depositRequired={depositRequired}
                             paymentsTotal={paymentsTotal}

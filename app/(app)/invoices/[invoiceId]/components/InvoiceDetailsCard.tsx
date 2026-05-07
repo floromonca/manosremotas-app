@@ -35,6 +35,9 @@ type Props = {
     billingEmail: string;
     savingBillingEmail: boolean;
     isDraft: boolean;
+    showCustomerEmail: boolean;
+    showCustomerPhone: boolean;
+    compactView: boolean;
     totals: Totals;
     depositRequired: number;
     paymentsTotal: number;
@@ -50,6 +53,9 @@ export default function InvoiceDetailsCard({
     billingEmail,
     savingBillingEmail,
     isDraft,
+    showCustomerEmail,
+    showCustomerPhone,
+    compactView,
     totals,
     depositRequired,
     paymentsTotal,
@@ -78,10 +84,10 @@ export default function InvoiceDetailsCard({
                 borderRadius: 20,
                 background: "#ffffff",
                 boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                padding: 20,
+                padding: compactView ? 14 : 20,
             }}
         >
-            <div style={{ display: "grid", gap: 18 }}>
+            <div style={{ display: "grid", gap: compactView ? 12 : 18 }}>
                 <div
                     style={{
                         display: "flex",
@@ -130,7 +136,7 @@ export default function InvoiceDetailsCard({
                             <span>
                                 • <b style={{ color: "#111827" }}>Currency:</b> {inv.currency_code ?? "—"}
                             </span>
-                            {inv.customer_phone ? (
+                            {showCustomerPhone && inv.customer_phone ? (
                                 <span>
                                     • <b style={{ color: "#111827" }}>Tel:</b> {inv.customer_phone}
                                 </span>
@@ -193,7 +199,7 @@ export default function InvoiceDetailsCard({
                     style={{
                         display: "grid",
                         gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(220px, 1fr))",
-                        gap: 14,
+                        gap: compactView ? 10 : 14,
                     }}
                 >
                     <div
@@ -201,7 +207,7 @@ export default function InvoiceDetailsCard({
                             background: "#f8fafc",
                             border: "1px solid #e5e7eb",
                             borderRadius: 14,
-                            padding: 16,
+                            padding: compactView ? 12 : 16,
                         }}
                     >
                         <div
@@ -226,7 +232,7 @@ export default function InvoiceDetailsCard({
                             background: "#f0fdf4",
                             border: "1px solid #bbf7d0",
                             borderRadius: 14,
-                            padding: 16,
+                            padding: compactView ? 12 : 16,
                         }}
                     >
                         <div
@@ -251,7 +257,7 @@ export default function InvoiceDetailsCard({
                             background: "#fff7ed",
                             border: "1px solid #fed7aa",
                             borderRadius: 14,
-                            padding: 16,
+                            padding: compactView ? 12 : 16,
                         }}
                     >
                         <div
@@ -275,15 +281,16 @@ export default function InvoiceDetailsCard({
                 <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: isMobile ? "1fr" : "minmax(280px, 1.25fr) minmax(260px, 0.95fr)",
-                        gap: 16,
+                        gridTemplateColumns: isMobile || !showCustomerEmail ? "1fr" : "minmax(280px, 1.25fr) minmax(260px, 0.95fr)",
+                        gap: compactView ? 10 : 16,
                     }}
                 >
+                    {showCustomerEmail ? (
                     <div
                         style={{
                             display: "grid",
                             gap: 10,
-                            padding: 16,
+                            padding: compactView ? 12 : 16,
                             borderRadius: 16,
                             border: "1px solid #e5e7eb",
                             background: "#fcfcfd",
@@ -352,12 +359,13 @@ export default function InvoiceDetailsCard({
                             </button>
                         </div>
                     </div>
+                    ) : null}
 
                     <div
                         style={{
                             display: "grid",
                             gap: 10,
-                            padding: 16,
+                            padding: compactView ? 12 : 16,
                             borderRadius: 16,
                             border: "1px solid #e5e7eb",
                             background: "#ffffff",

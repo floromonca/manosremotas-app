@@ -225,6 +225,21 @@ export default function ControlCenterCompanyPage() {
 
             if (error) throw error;
 
+            const { error: settingsError } = await supabase
+                .from("company_settings")
+                .upsert(
+                    {
+                        company_id: companyId,
+                        country_code: form.country_code.trim(),
+                        currency_code: form.currency_code.trim(),
+                        timezone: form.timezone.trim(),
+                        payment_terms_days: paymentTermsDays,
+                    },
+                    { onConflict: "company_id" },
+                );
+
+            if (settingsError) throw settingsError;
+
             refreshCompany();
             router.refresh();
             setOkMsg("Changes saved successfully.");
