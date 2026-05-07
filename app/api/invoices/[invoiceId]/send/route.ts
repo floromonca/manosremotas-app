@@ -19,6 +19,19 @@ function escHtml(value: string | null | undefined) {
     .replaceAll("'", "&#039;");
 }
 
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function cleanEmailName(value: string) {
+  return value.replace(/[<>"]/g, "").trim();
+}
+
+function formatInvoiceSender(companyName: string, fromEmail: string) {
+  const displayName = cleanEmailName(companyName + " via ManosRemotas") || "ManosRemotas";
+  return displayName + " <" + fromEmail + ">";
+}
+
 export async function POST(
   _req: Request,
   context: { params: Promise<{ invoiceId: string }> }
@@ -145,6 +158,13 @@ export async function POST(
       );
     }
 
+    if (!isValidEmail(customerEmail)) {
+      return NextResponse.json(
+        { ok: false, error: "Customer email is not valid" },
+        { status: 400 }
+      );
+    }
+
     const appUrl =
       process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL;
 
@@ -172,7 +192,8 @@ export async function POST(
 
     const total = Number(invoice.total ?? 0);
     const balanceDue = Number(invoice.balance_due ?? total);
-    const statusLabel = String(invoice.status ?? "draft")
+    const nextStatus = currentStatus === "draft" ? "sent" : invoice.status;
+    const statusLabel = String(nextStatus ?? "sent")
       .replaceAll("_", " ")
       .toUpperCase();
 
@@ -274,9 +295,33 @@ export async function POST(
       );
     }
 
+    if (resendFrom.includes("@resend.dev")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "Resend is using the test sender onboarding@resend.dev. Verify manosremotas.com in Resend and set RESEND_FROM_EMAIL to invoices@manosremotas.com before sending invoices to customers.",
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!isValidEmail(resendFrom)) {
+      return NextResponse.json(
+        { ok: false, error: "RESEND_FROM_EMAIL is not valid" },
+        { status: 500 }
+      );
+    }
+
+    const replyTo =
+      company.email && isValidEmail(String(company.email).trim())
+        ? String(company.email).trim()
+        : undefined;
+
     const { error: sendError, data: sendData } = await resend.emails.send({
-      from: resendFrom,
+      from: formatInvoiceSender(companyName, resendFrom),
       to: [customerEmail],
+      replyTo,
       subject:
         currentStatus === "draft"
           ? `Invoice ${invoiceNumber} – ${money(total)} from ${companyName}`
@@ -294,8 +339,6 @@ export async function POST(
         { status: 500 }
       );
     }
-
-    const nextStatus = currentStatus === "draft" ? "sent" : invoice.status;
 
     const { error: updateError } = await supabaseAdmin
       .from("invoices")
