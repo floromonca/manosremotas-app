@@ -20,6 +20,11 @@ const DEFAULT_SETTINGS: BillingSettings = {
     invoice_footer_note: "",
 };
 
+const normalizeLegacyPrefix = (value: string, fallback: string) => {
+    const normalized = (value.trim() || fallback).replace(/[-\s]+$/g, "");
+    return normalized || fallback.replace(/[-\s]+$/g, "");
+};
+
 export default function BillingSettingsPage() {
     const { companyId, companyName } = useActiveCompany();
 
@@ -118,7 +123,11 @@ export default function BillingSettingsPage() {
 
             const { error: companyError } = await supabase
                 .from("companies")
-                .update({ payment_terms_days: settings.payment_terms_days })
+                .update({
+                    payment_terms_days: settings.payment_terms_days,
+                    invoice_prefix: normalizeLegacyPrefix(settings.invoice_prefix, "INV-"),
+                    work_order_prefix: normalizeLegacyPrefix(settings.work_order_prefix, "WO-"),
+                })
                 .eq("company_id", companyId);
 
             if (companyError) throw companyError;
