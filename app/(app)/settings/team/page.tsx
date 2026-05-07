@@ -331,7 +331,7 @@ export default function TeamPage() {
 
                         <button
                             type="button"
-                            onClick={() => router.push("/settings/team/payroll")}
+                            onClick={() => router.push("/payroll")}
                             style={{
                                 height: 42,
                                 padding: "0 16px",

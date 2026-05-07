@@ -115,6 +115,13 @@ export default function AppSidebar({ onNavigate }: Props) {
             />
 
             <SidebarItem
+                href="/payroll"
+                label={isAdmin ? "Payroll" : "My Time"}
+                isActive={pathname.startsWith("/payroll")}
+                onNavigate={onNavigate}
+            />
+
+            <SidebarItem
                 href="/profile"
                 label="Profile"
                 isActive={pathname.startsWith("/profile")}
