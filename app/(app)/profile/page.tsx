@@ -94,19 +94,19 @@ export default function ProfilePage() {
         try {
             const nextFullName = fullNameInput.trim();
 
-            const { data, error } = await supabase
-                .from("company_members")
-                .update({
-                    full_name: nextFullName || null,
-                })
-                .eq("company_id", companyId)
-                .eq("user_id", user.id)
-                .select("user_id, company_id, full_name");
+            const res = await fetch("/api/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    companyId,
+                    fullName: nextFullName,
+                }),
+            });
 
-            if (error) throw error;
+            const payload = await res.json().catch(() => null);
 
-            if (!data || data.length === 0) {
-                throw new Error("Profile update did not affect any row. Check RLS or membership match.");
+            if (!res.ok) {
+                throw new Error(payload?.error ?? "Could not update profile.");
             }
 
             await refreshProfileData(companyId, user.id);
