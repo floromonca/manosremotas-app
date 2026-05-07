@@ -36,7 +36,7 @@ async function getDefaultTaxRate(companyId: string) {
     const rate = Number((data as any)?.rate ?? NaN);
     if (!Number.isFinite(rate)) return FALLBACK_TAX_RATE;
 
-    return rate;
+    return rate > 1 ? rate / 100 : rate;
 }
 
 function todayIso() {

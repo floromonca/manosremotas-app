@@ -12,6 +12,18 @@ type Tax = {
     is_default: boolean;
 };
 
+const smallButtonStyle: React.CSSProperties = {
+    height: 36,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: "1px solid #d1d5db",
+    background: "#ffffff",
+    color: "#111827",
+    cursor: "pointer",
+    fontWeight: 800,
+    fontSize: 13,
+};
+
 export default function TaxesPage() {
     const { companyId, companyName } = useActiveCompany();
 
@@ -19,6 +31,7 @@ export default function TaxesPage() {
     const [loading, setLoading] = useState(true);
 
     const [showForm, setShowForm] = useState(false);
+    const [editingTax, setEditingTax] = useState<Tax | null>(null);
     const [taxName, setTaxName] = useState("");
     const [taxRate, setTaxRate] = useState("");
     const [saving, setSaving] = useState(false);
@@ -58,8 +71,53 @@ export default function TaxesPage() {
     }, [companyId]);
 
     const resetForm = () => {
+        setEditingTax(null);
         setTaxName("");
         setTaxRate("");
+    };
+
+    const normalizedRate = (rate: number) => (rate > 1 ? rate / 100 : rate);
+
+    const syncDefaultTax = async (tax: { tax_name: string | null; rate: number }) => {
+        if (!companyId) return;
+
+        const defaultTaxRate = normalizedRate(Number(tax.rate));
+
+        const { error: companyError } = await supabase
+            .from("companies")
+            .update({ tax_rate_default: defaultTaxRate })
+            .eq("company_id", companyId);
+
+        if (companyError) throw companyError;
+
+        const { error: settingsError } = await supabase
+            .from("company_settings")
+            .upsert(
+                {
+                    company_id: companyId,
+                    tax_name: tax.tax_name,
+                    default_tax_rate: defaultTaxRate,
+                },
+                { onConflict: "company_id" },
+            );
+
+        if (settingsError) throw settingsError;
+    };
+
+    const startCreate = () => {
+        resetForm();
+        setShowForm(true);
+        setErrorMsg("");
+        setOkMsg("");
+    };
+
+    const startEdit = (tax: Tax) => {
+        setEditingTax(tax);
+        setTaxName(tax.tax_name);
+        setTaxRate(String(tax.rate));
+        setShowForm(true);
+        setErrorMsg("");
+        setOkMsg("");
     };
 
     const handleSave = async () => {
@@ -93,19 +151,123 @@ export default function TaxesPage() {
         try {
             const isFirstTax = taxes.length === 0;
 
-            const { error } = await supabase.from("tax_profiles").insert({
-                company_id: companyId,
-                tax_name: cleanName,
-                rate: parsedRate,
-                is_default: isFirstTax,
-            });
+            if (editingTax) {
+                const { error } = await supabase
+                    .from("tax_profiles")
+                    .update({
+                        tax_name: cleanName,
+                        rate: parsedRate,
+                    })
+                    .eq("tax_profile_id", editingTax.tax_profile_id)
+                    .eq("company_id", companyId);
 
-            if (error) throw error;
+                if (error) throw error;
+
+                if (editingTax.is_default) {
+                    await syncDefaultTax({ tax_name: cleanName, rate: parsedRate });
+                }
+            } else {
+                const { error } = await supabase.from("tax_profiles").insert({
+                    company_id: companyId,
+                    tax_name: cleanName,
+                    rate: parsedRate,
+                    is_default: isFirstTax,
+                });
+
+                if (error) throw error;
+
+                if (isFirstTax) {
+                    await syncDefaultTax({ tax_name: cleanName, rate: parsedRate });
+                }
+            }
 
             resetForm();
             setShowForm(false);
-            setOkMsg("Tax created successfully.");
+            setOkMsg(editingTax ? "Tax updated successfully." : "Tax created successfully.");
 
+            await loadTaxes();
+        } catch (e: any) {
+            setErrorMsg(e?.message ?? String(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSetDefault = async (tax: Tax) => {
+        if (!companyId || tax.is_default) return;
+
+        const confirmed = window.confirm(`Set "${tax.tax_name}" as the default tax profile?`);
+        if (!confirmed) return;
+
+        setSaving(true);
+        setErrorMsg("");
+        setOkMsg("");
+
+        try {
+            const { error: clearError } = await supabase
+                .from("tax_profiles")
+                .update({ is_default: false })
+                .eq("company_id", companyId);
+
+            if (clearError) throw clearError;
+
+            const { error: defaultError } = await supabase
+                .from("tax_profiles")
+                .update({ is_default: true })
+                .eq("tax_profile_id", tax.tax_profile_id)
+                .eq("company_id", companyId);
+
+            if (defaultError) throw defaultError;
+
+            await syncDefaultTax(tax);
+            setOkMsg("Default tax updated successfully.");
+            await loadTaxes();
+        } catch (e: any) {
+            setErrorMsg(e?.message ?? String(e));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (tax: Tax) => {
+        if (!companyId) return;
+
+        const confirmed = window.confirm(`Delete "${tax.tax_name}"?`);
+        if (!confirmed) return;
+
+        setSaving(true);
+        setErrorMsg("");
+        setOkMsg("");
+
+        try {
+            const { error } = await supabase
+                .from("tax_profiles")
+                .delete()
+                .eq("tax_profile_id", tax.tax_profile_id)
+                .eq("company_id", companyId);
+
+            if (error) throw error;
+
+            if (tax.is_default) {
+                const nextDefault = taxes.find((row) => row.tax_profile_id !== tax.tax_profile_id) ?? null;
+
+                if (nextDefault) {
+                    const { error: nextError } = await supabase
+                        .from("tax_profiles")
+                        .update({ is_default: true })
+                        .eq("tax_profile_id", nextDefault.tax_profile_id)
+                        .eq("company_id", companyId);
+
+                    if (nextError) throw nextError;
+                    await syncDefaultTax(nextDefault);
+                } else {
+                    await syncDefaultTax({ tax_name: null, rate: 0 });
+                }
+            }
+
+            resetForm();
+            setShowForm(false);
+            setOkMsg("Tax deleted successfully.");
             await loadTaxes();
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
@@ -209,7 +371,12 @@ export default function TaxesPage() {
                         <button
                             type="button"
                             onClick={() => {
-                                setShowForm((prev) => !prev);
+                                if (showForm) {
+                                    resetForm();
+                                    setShowForm(false);
+                                } else {
+                                    startCreate();
+                                }
                                 setErrorMsg("");
                                 setOkMsg("");
                             }}
@@ -295,7 +462,7 @@ export default function TaxesPage() {
                                     marginBottom: 6,
                                 }}
                             >
-                                New Tax
+                                {editingTax ? "Edit Tax" : "New Tax"}
                             </div>
 
                             <div
@@ -354,7 +521,7 @@ export default function TaxesPage() {
                                         fontSize: 14,
                                     }}
                                 >
-                                    {saving ? "Saving..." : "Save Tax"}
+                                    {saving ? "Saving..." : editingTax ? "Save Tax" : "Create Tax"}
                                 </button>
                             </div>
                         </div>
@@ -470,6 +637,50 @@ export default function TaxesPage() {
                                         >
                                             {tax.rate}%
                                         </div>
+                                    </div>
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            gap: 8,
+                                            flexWrap: "wrap",
+                                            justifyContent: "flex-end",
+                                        }}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => startEdit(tax)}
+                                            disabled={saving}
+                                            style={smallButtonStyle}
+                                        >
+                                            Edit
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSetDefault(tax)}
+                                            disabled={saving || tax.is_default}
+                                            style={{
+                                                ...smallButtonStyle,
+                                                opacity: saving || tax.is_default ? 0.55 : 1,
+                                                cursor: saving || tax.is_default ? "not-allowed" : "pointer",
+                                            }}
+                                        >
+                                            Set Default
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDelete(tax)}
+                                            disabled={saving}
+                                            style={{
+                                                ...smallButtonStyle,
+                                                borderColor: "#fecaca",
+                                                color: "#991b1b",
+                                            }}
+                                        >
+                                            Delete
+                                        </button>
                                     </div>
                                 </div>
                             ))}
