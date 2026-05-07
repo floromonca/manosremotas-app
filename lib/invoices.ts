@@ -342,6 +342,7 @@ type InvoiceHtmlData = {
     tax_registration?: string | null;
     logo_url?: string | null;
     invoice_footer?: string | null;
+    payment_instructions?: string | null;
   };
   items?: InvoiceHtmlItem[];
   payments?: InvoiceHtmlPayment[];
@@ -516,6 +517,7 @@ export function renderInvoiceHtml(
   const isPeriodInvoice = invoiceType === "period";
   const showCustomerEmail = options.showCustomerEmail ?? true;
   const showCustomerPhone = options.showCustomerPhone ?? true;
+  const paymentInstructions = company.payment_instructions?.trim() ?? "";
 
   const flatRows = items.length
     ? items
@@ -1417,6 +1419,15 @@ tr{
     <div class="notes-header">Notes</div>
     <div class="notes-body">
    ${escHtml(invoice.notes).replace(/\n/g, "<br/>")}
+    </div>
+  </div>
+  ` : ""}
+
+  ${paymentInstructions ? `
+  <div class="notes">
+    <div class="notes-header">Payment Instructions</div>
+    <div class="notes-body">
+   ${escHtml(paymentInstructions).replace(/\n/g, "<br/>")}
     </div>
   </div>
   ` : ""}

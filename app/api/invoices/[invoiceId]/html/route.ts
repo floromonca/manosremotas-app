@@ -81,7 +81,7 @@ export async function GET(
 
     const { data: settings, error: settingsError } = await supabaseAdmin
       .from("company_settings")
-      .select("show_customer_email_on_invoice, show_customer_phone_on_invoice")
+      .select("show_customer_email_on_invoice, show_customer_phone_on_invoice, payment_instructions, invoice_footer_note")
       .eq("company_id", invoiceCompanyId)
       .maybeSingle();
 
@@ -90,7 +90,19 @@ export async function GET(
       return new NextResponse("Error consultando preferencias de invoice", { status: 500 });
     }
 
-    const baseHtml = renderInvoiceHtml(data, {
+    const renderData = {
+      ...(data as any),
+      company: {
+        ...((data as any).company ?? {}),
+        payment_instructions: settings?.payment_instructions ?? null,
+        invoice_footer:
+          settings?.invoice_footer_note ??
+          (data as any).company?.invoice_footer ??
+          null,
+      },
+    };
+
+    const baseHtml = renderInvoiceHtml(renderData, {
       showCustomerEmail: settings?.show_customer_email_on_invoice ?? true,
       showCustomerPhone: settings?.show_customer_phone_on_invoice ?? true,
     });

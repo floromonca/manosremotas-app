@@ -190,6 +190,27 @@ export async function POST(
     const invoiceDate = invoice.invoice_date || invoice.issue_date || "-";
     const dueDate = invoice.due_date || "-";
 
+    const { data: billingSettings, error: billingSettingsError } = await supabaseAdmin
+      .from("company_settings")
+      .select("payment_instructions, invoice_footer_note")
+      .eq("company_id", invoiceCompanyId)
+      .maybeSingle();
+
+    if (billingSettingsError) {
+      console.error("company_settings error:", billingSettingsError);
+      return NextResponse.json(
+        { ok: false, error: "Billing settings lookup failed" },
+        { status: 500 }
+      );
+    }
+
+    const paymentInstructions = String(
+      billingSettings?.payment_instructions ?? ""
+    ).trim();
+    const invoiceFooterNote = String(
+      billingSettings?.invoice_footer_note ?? company.invoice_footer ?? ""
+    ).trim();
+
     const total = Number(invoice.total ?? 0);
     const balanceDue = Number(invoice.balance_due ?? total);
     const nextStatus = currentStatus === "draft" ? "sent" : invoice.status;
@@ -273,8 +294,23 @@ export async function POST(
           </div>
         </div>
 
+        ${paymentInstructions
+        ? `
+        <div style="border:1px solid #e5e7eb; border-radius:14px; padding:18px; background:#ffffff; margin-bottom:22px;">
+          <div style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:#667085; font-weight:800; margin-bottom:10px;">
+            Payment Instructions
+          </div>
+          <div style="font-size:14px; line-height:1.7; color:#475467;">
+            ${escHtml(paymentInstructions).replace(/\n/g, "<br/>")}
+          </div>
+        </div>
+        `
+        : ""}
+
         <div style="font-size:14px; line-height:1.7; color:#475467;">
-          Thank you for your business.
+          ${invoiceFooterNote
+        ? escHtml(invoiceFooterNote).replace(/\n/g, "<br/>")
+        : "Thank you for your business."}
         </div>
 
         <div style="margin-top:20px; padding-top:16px; border-top:1px solid #e5e7eb; font-size:13px; color:#667085;">
