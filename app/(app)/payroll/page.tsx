@@ -705,7 +705,7 @@ const segmentButtonStyle: CSSProperties = {
 
 const segmentButtonActiveStyle: CSSProperties = {
     background: MR_THEME.colors.primary,
-    borderColor: MR_THEME.colors.primaryHover,
+    border: `1px solid ${MR_THEME.colors.primaryHover}`,
     color: "#ffffff",
 };
 
@@ -918,7 +918,7 @@ function statusBadgeStyle(status: string): CSSProperties {
         return {
             ...warningBadgeStyle,
             background: "#eff6ff",
-            borderColor: "#bfdbfe",
+            border: "1px solid #bfdbfe",
             color: "#1d4ed8",
         };
     }
@@ -929,7 +929,7 @@ function statusBadgeStyle(status: string): CSSProperties {
         return {
             ...warningBadgeStyle,
             background: "#ecfdf5",
-            borderColor: "#bbf7d0",
+            border: "1px solid #bbf7d0",
             color: "#047857",
         };
     }
@@ -937,7 +937,7 @@ function statusBadgeStyle(status: string): CSSProperties {
     return {
         ...warningBadgeStyle,
         background: "#f3f4f6",
-        borderColor: "#e5e7eb",
+        border: "1px solid #e5e7eb",
         color: "#374151",
     };
 }
