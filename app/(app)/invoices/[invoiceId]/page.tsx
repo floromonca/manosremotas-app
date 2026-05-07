@@ -90,6 +90,7 @@ type InvoicePaymentRow = {
 type IncludedWorkOrderRow = {
     work_order_id: string;
     work_order_number: string | null;
+    job_type: string | null;
     description: string | null;
     created_at: string | null;
 };
@@ -275,6 +276,7 @@ export default function InvoicePage() {
         work_orders (
             work_order_id,
             work_order_number,
+            job_type,
             description,
             created_at
         )
@@ -291,9 +293,11 @@ export default function InvoicePage() {
                 return {
                     work_order_id: wo?.work_order_id ?? row.work_order_id,
                     work_order_number: wo?.work_order_number ?? null,
+                    job_type: wo?.job_type ?? null,
                     description: wo?.description ?? null,
                     created_at: wo?.created_at ?? null,
                 };
+
             });
 
             setInv(nextInv);
@@ -684,12 +688,15 @@ export default function InvoicePage() {
 
     return (
         <div
+            className="invoicePageShell"
             style={{
                 minHeight: "100%",
                 background: "#f8fafc",
                 padding: "28px 24px 44px",
+                overflowX: "hidden",
             }}
         >
+
             <div style={{ maxWidth: 1180, margin: "0 auto" }}>
                 <div
                     style={{
@@ -707,6 +714,7 @@ export default function InvoicePage() {
                         }}
                     >
                         <div
+                            className="invoiceHeroHeader"
                             style={{
                                 display: "flex",
                                 justifyContent: "space-between",
@@ -715,7 +723,14 @@ export default function InvoicePage() {
                                 flexWrap: "wrap",
                             }}
                         >
-                            <div style={{ minWidth: 280 }}>
+                            <div
+                                className="invoiceHeroInfo"
+                                style={{
+                                    minWidth: 0,
+                                    flex: "1 1 280px",
+                                }}
+                            >
+
                                 <div
                                     style={{
                                         fontSize: 12,
@@ -792,8 +807,18 @@ export default function InvoicePage() {
                                 </div>
                             </div>
 
-                            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                            <div
+                                className="invoiceHeroActions"
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                    flex: "0 1 520px",
+                                    minWidth: 0,
+                                    maxWidth: "100%",
+                                }}
+                            >
                                 <InvoiceActionBar
+
                                     invoiceId={invoiceId}
                                     fromWorkOrder={fromWorkOrder}
                                     hasInvoice={!!inv}
@@ -894,7 +919,33 @@ export default function InvoicePage() {
                     />
                 </div>
 
+                <style jsx>{`
+    @media (max-width: 720px) {
+        .invoicePageShell {
+            padding: 16px !important;
+            overflow-x: hidden;
+        }
+
+        .invoiceHeroHeader {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+        }
+
+        .invoiceHeroInfo {
+            width: 100%;
+            min-width: 0 !important;
+        }
+
+        .invoiceHeroActions {
+            width: 100%;
+            max-width: 100%;
+            justify-content: stretch !important;
+        }
+    }
+`}</style>
+
                 <RecordPaymentModal
+
                     open={showPaymentModal}
                     savingPayment={savingPayment}
                     currentBalance={currentBalance}

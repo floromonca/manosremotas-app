@@ -1,8 +1,11 @@
 "use client";
 
+import { MR_THEME } from "@/lib/theme";
+
 type IncludedWorkOrderRow = {
     work_order_id: string;
     work_order_number: string | null;
+    job_type: string | null;
     description: string | null;
     created_at: string | null;
 };
@@ -31,154 +34,206 @@ export default function IncludedWorkOrdersSection({
     if (workOrders.length === 0) return null;
 
     return (
-        <section
-            style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 20,
-                background: "#ffffff",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
-                padding: 20,
-            }}
-        >
-            <div style={{ display: "grid", gap: 16 }}>
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 16,
-                        flexWrap: "wrap",
-                    }}
-                >
-                    <div style={{ display: "grid", gap: 6 }}>
-                        <div
-                            style={{
-                                fontSize: 12,
-                                textTransform: "uppercase",
-                                letterSpacing: 1.1,
-                                color: "#6b7280",
-                                fontWeight: 800,
-                            }}
-                        >
-                            Included Work Orders
-                        </div>
-
-                        <div
-                            style={{
-                                fontSize: 22,
-                                lineHeight: 1.15,
-                                fontWeight: 900,
-                                color: "#111827",
-                            }}
-                        >
-                            Linked Work Orders
-                        </div>
-
-                        <div
-                            style={{
-                                fontSize: 14,
-                                color: "#6b7280",
-                                lineHeight: 1.6,
-                            }}
-                        >
-                            Review the work orders included in this invoice.
-                        </div>
-                    </div>
-
-                    <div
-                        style={{
-                            minWidth: 88,
-                            height: 36,
-                            padding: "0 12px",
-                            borderRadius: 999,
-                            background: "#f3f4f6",
-                            border: "1px solid #e5e7eb",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 13,
-                            fontWeight: 800,
-                            color: "#374151",
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        {workOrders.length} {workOrders.length === 1 ? "WO" : "WOs"}
-                    </div>
-                </div>
-
-                <div style={{ display: "grid", gap: 12 }}>
-                    {workOrders.map((wo) => (
-                        <div
-                            key={wo.work_order_id}
-                            style={{
-                                padding: 16,
-                                border: "1px solid #e5e7eb",
-                                borderRadius: 16,
-                                background: "#fcfcfd",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                gap: 16,
-                                alignItems: "flex-start",
-                                flexWrap: "wrap",
-                            }}
-                        >
-                            <div style={{ display: "grid", gap: 6, minWidth: 220, flex: 1 }}>
-                                <div
-                                    style={{
-                                        fontWeight: 900,
-                                        fontSize: 16,
-                                        color: "#111827",
-                                    }}
-                                >
-                                    {wo.work_order_number ?? "Work Order"}
-                                </div>
-
-                                {wo.description ? (
-                                    <div
-                                        style={{
-                                            fontSize: 14,
-                                            color: "#4b5563",
-                                            lineHeight: 1.6,
-                                            maxWidth: 760,
-                                        }}
-                                    >
-                                        {wo.description}
-                                    </div>
-                                ) : null}
-
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        color: "#6b7280",
-                                        lineHeight: 1.5,
-                                    }}
-                                >
-                                    Created: {formatCreatedAt(wo.created_at)}
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => onOpenWorkOrder(wo.work_order_id)}
+        <>
+            <section
+                style={{
+                    border: `1px solid ${MR_THEME.colors.border}`,
+                    borderRadius: MR_THEME.radius.card,
+                    background: MR_THEME.colors.cardBg,
+                    boxShadow: MR_THEME.shadows.card,
+                    padding: MR_THEME.layout.cardPadding,
+                }}
+            >
+                <div style={{ display: "grid", gap: 16 }}>
+                    <div className="includedWoHeader">
+                        <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
+                            <div
                                 style={{
-                                    height: 42,
-                                    padding: "0 14px",
-                                    borderRadius: 12,
-                                    border: "1px solid #d1d5db",
-                                    background: "#ffffff",
-                                    cursor: "pointer",
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 1.1,
+                                    color: MR_THEME.colors.textMuted,
                                     fontWeight: 800,
-                                    color: "#111827",
-                                    whiteSpace: "nowrap",
-                                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
                                 }}
                             >
-                                Open WO
-                            </button>
+                                Included Work Orders
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 22,
+                                    lineHeight: 1.15,
+                                    fontWeight: 900,
+                                    color: MR_THEME.colors.textPrimary,
+                                }}
+                            >
+                                Linked Work Orders
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 14,
+                                    color: MR_THEME.colors.textSecondary,
+                                    lineHeight: 1.6,
+                                }}
+                            >
+                                Review the work orders included in this invoice.
+                            </div>
                         </div>
-                    ))}
+
+                        <div
+                            style={{
+                                minWidth: 88,
+                                height: 36,
+                                padding: "0 12px",
+                                borderRadius: 999,
+                                background: MR_THEME.colors.cardBgSoft,
+                                border: `1px solid ${MR_THEME.colors.border}`,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 13,
+                                fontWeight: 800,
+                                color: MR_THEME.colors.textSecondary,
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            {workOrders.length} {workOrders.length === 1 ? "WO" : "WOs"}
+                        </div>
+                    </div>
+
+                    <div style={{ display: "grid", gap: 12 }}>
+                        {workOrders.map((wo) => {
+                            const workOrderTitle =
+                                wo.job_type?.trim() ||
+                                wo.description?.trim() ||
+                                wo.work_order_number ||
+                                "Work Order";
+
+                            const workOrderMeta = wo.work_order_number || "Work Order";
+
+                            const description =
+                                wo.description?.trim() && wo.description.trim() !== workOrderTitle
+                                    ? wo.description.trim()
+                                    : null;
+
+                            return (
+                                <div
+                                    key={wo.work_order_id}
+                                    className="includedWoCard"
+                                    style={{
+                                        padding: 16,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        borderRadius: MR_THEME.radius.card,
+                                        background: MR_THEME.colors.cardBgSoft,
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        gap: 16,
+                                        alignItems: "flex-start",
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    <div style={{ display: "grid", gap: 6, minWidth: 0, flex: 1 }}>
+                                        <div
+                                            style={{
+                                                fontWeight: 900,
+                                                fontSize: 16,
+                                                color: MR_THEME.colors.textPrimary,
+                                                lineHeight: 1.25,
+                                                overflowWrap: "anywhere",
+                                            }}
+                                        >
+                                            {workOrderTitle}
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                fontSize: 14,
+                                                color: MR_THEME.colors.textSecondary,
+                                                lineHeight: 1.6,
+                                                maxWidth: 760,
+                                                overflowWrap: "anywhere",
+                                            }}
+                                        >
+                                            {workOrderMeta}
+                                        </div>
+
+                                        {description ? (
+                                            <div
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: MR_THEME.colors.textMuted,
+                                                    lineHeight: 1.5,
+                                                    maxWidth: 760,
+                                                    overflowWrap: "anywhere",
+                                                }}
+                                            >
+                                                {description}
+                                            </div>
+                                        ) : null}
+
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: MR_THEME.colors.textMuted,
+                                                lineHeight: 1.5,
+                                            }}
+                                        >
+                                            Created: {formatCreatedAt(wo.created_at)}
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpenWorkOrder(wo.work_order_id)}
+                                        className="includedWoButton"
+                                        style={{
+                                            height: 42,
+                                            padding: "0 14px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            cursor: "pointer",
+                                            fontWeight: 800,
+                                            color: MR_THEME.colors.textPrimary,
+                                            whiteSpace: "nowrap",
+                                            boxShadow: MR_THEME.shadows.cardSoft,
+                                        }}
+                                    >
+                                        Open WO
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
+
+            <style jsx>{`
+                .includedWoHeader {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                }
+
+                @media (max-width: 720px) {
+                    .includedWoHeader {
+                        display: grid;
+                        grid-template-columns: 1fr;
+                    }
+
+                    .includedWoCard {
+                        display: grid !important;
+                        grid-template-columns: 1fr !important;
+                    }
+
+                    .includedWoButton {
+                        width: 100%;
+                    }
+                }
+            `}</style>
+        </>
     );
 }

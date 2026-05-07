@@ -1,6 +1,6 @@
 "use client";
 
-import { MR_THEME } from "../../../../../lib/theme";
+import { MR_THEME } from "@/lib/theme";
 
 type InvoicePaymentRow = {
     payment_id: string;
@@ -50,190 +50,214 @@ export default function InvoicePaymentsSection({
     });
 
     return (
-        <section
-            style={{
-                border: `1px solid ${MR_THEME.colors.border}`,
-                borderRadius: MR_THEME.radius.card,
-                background: MR_THEME.colors.cardBg,
-                boxShadow: MR_THEME.shadows.card,
-                padding: MR_THEME.layout.cardPadding,
-            }}
-        >
-            <div style={{ display: "grid", gap: 16 }}>
-                <div
-                    style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: 16,
-                        flexWrap: "wrap",
-                    }}
-                >
-                    <div style={{ display: "grid", gap: 6 }}>
+        <>
+            <section
+                style={{
+                    border: `1px solid ${MR_THEME.colors.border}`,
+                    borderRadius: MR_THEME.radius.card,
+                    background: MR_THEME.colors.cardBg,
+                    boxShadow: MR_THEME.shadows.card,
+                    padding: MR_THEME.layout.cardPadding,
+                }}
+            >
+                <div style={{ display: "grid", gap: 16 }}>
+                    <div className="invoicePaymentsHeader">
+                        <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 1.1,
+                                    color: MR_THEME.colors.textMuted,
+                                    fontWeight: 800,
+                                }}
+                            >
+                                Payments
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 22,
+                                    lineHeight: 1.15,
+                                    fontWeight: 900,
+                                    color: MR_THEME.colors.textPrimary,
+                                }}
+                            >
+                                Payment History
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 14,
+                                    color: MR_THEME.colors.textSecondary,
+                                    lineHeight: 1.6,
+                                }}
+                            >
+                                Review recorded payments applied to this invoice.
+                            </div>
+                        </div>
+
                         <div
                             style={{
-                                fontSize: 12,
-                                textTransform: "uppercase",
-                                letterSpacing: 1.1,
-                                color: MR_THEME.colors.textMuted,
+                                minWidth: 88,
+                                height: 36,
+                                padding: "0 12px",
+                                borderRadius: MR_THEME.radius.pill,
+                                background: MR_THEME.colors.cardBgSoft,
+                                border: `1px solid ${MR_THEME.colors.border}`,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 13,
                                 fontWeight: 800,
-                            }}
-                        >
-                            Payments
-                        </div>
-
-                        <div
-                            style={{
-                                fontSize: 22,
-                                lineHeight: 1.15,
-                                fontWeight: 900,
-                                color: MR_THEME.colors.textPrimary,
-                            }}
-                        >
-                            Payment History
-                        </div>
-
-                        <div
-                            style={{
-                                fontSize: 14,
                                 color: MR_THEME.colors.textSecondary,
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            {payments.length} {payments.length === 1 ? "payment" : "payments"}
+                        </div>
+                    </div>
+
+                    {sortedPayments.length === 0 ? (
+                        <div
+                            style={{
+                                border: `1px dashed ${MR_THEME.colors.borderStrong}`,
+                                borderRadius: MR_THEME.radius.control,
+                                background: MR_THEME.colors.cardBgSoft,
+                                padding: "18px 16px",
+                                color: MR_THEME.colors.textSecondary,
+                                fontSize: 14,
                                 lineHeight: 1.6,
                             }}
                         >
-                            Review recorded payments applied to this invoice.
+                            No payments recorded yet.
                         </div>
-                    </div>
-
-                    <div
-                        style={{
-                            minWidth: 88,
-                            height: 36,
-                            padding: "0 12px",
-                            borderRadius: MR_THEME.radius.pill,
-                            background: MR_THEME.colors.cardBgSoft,
-                            border: `1px solid ${MR_THEME.colors.border}`,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 13,
-                            fontWeight: 800,
-                            color: MR_THEME.colors.textSecondary,
-                            whiteSpace: "nowrap",
-                        }}
-                    >
-                        {payments.length} {payments.length === 1 ? "payment" : "payments"}
-                    </div>
-                </div>
-
-                {sortedPayments.length === 0 ? (
-                    <div
-                        style={{
-                            border: `1px dashed ${MR_THEME.colors.borderStrong}`,
-                            borderRadius: MR_THEME.radius.control,
-                            background: MR_THEME.colors.cardBgSoft,
-                            padding: "18px 16px",
-                            color: MR_THEME.colors.textSecondary,
-                            fontSize: 14,
-                            lineHeight: 1.6,
-                        }}
-                    >
-                        No payments recorded yet.
-                    </div>
-                ) : (
-                    <div style={{ display: "grid", gap: 12 }}>
-                        {sortedPayments.map((p) => (
-                            <div
-                                key={p.payment_id}
-                                style={{
-                                    padding: 16,
-                                    border: `1px solid ${MR_THEME.colors.border}`,
-                                    borderRadius: MR_THEME.radius.control,
-                                    background: MR_THEME.colors.cardBgSoft,
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "flex-start",
-                                    gap: 16,
-                                    flexWrap: "wrap",
-                                }}
-                            >
-                                <div style={{ display: "grid", gap: 6, minWidth: 220 }}>
-                                    <div
-                                        style={{
-                                            fontWeight: 900,
-                                            fontSize: 15,
-                                            color: MR_THEME.colors.textPrimary,
-                                        }}
-                                    >
-                                        {formatPaymentDate(p.payment_date)}
-                                    </div>
-
-                                    <div
-                                        style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            width: "fit-content",
-                                            padding: "5px 10px",
-                                            borderRadius: MR_THEME.radius.pill,
-                                            background: MR_THEME.colors.primarySoft,
-                                            color: MR_THEME.colors.primaryHover,
-                                            fontSize: 12,
-                                            fontWeight: 800,
-                                        }}
-                                    >
-                                        {formatPaymentMethod(p.payment_method)}
-                                    </div>
-
-                                    {p.notes ? (
-                                        <div
-                                            style={{
-                                                fontSize: 13,
-                                                color: MR_THEME.colors.textSecondary,
-                                                lineHeight: 1.6,
-                                                maxWidth: 720,
-                                            }}
-                                        >
-                                            {p.notes}
-                                        </div>
-                                    ) : null}
-                                </div>
-
+                    ) : (
+                        <div style={{ display: "grid", gap: 12 }}>
+                            {sortedPayments.map((p) => (
                                 <div
+                                    key={p.payment_id}
+                                    className="invoicePaymentCard"
                                     style={{
-                                        minWidth: 160,
-                                        textAlign: "right",
-                                        display: "grid",
-                                        gap: 6,
-                                        justifyItems: "end",
+                                        padding: 16,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        borderRadius: MR_THEME.radius.control,
+                                        background: MR_THEME.colors.cardBgSoft,
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "flex-start",
+                                        gap: 16,
+                                        flexWrap: "wrap",
                                     }}
                                 >
-                                    <div
-                                        style={{
-                                            fontSize: 11,
-                                            textTransform: "uppercase",
-                                            letterSpacing: 0.8,
-                                            color: MR_THEME.colors.textMuted,
-                                            fontWeight: 800,
-                                        }}
-                                    >
-                                        Amount
+                                    <div style={{ display: "grid", gap: 6, minWidth: 0, flex: 1 }}>
+                                        <div
+                                            style={{
+                                                fontWeight: 900,
+                                                fontSize: 15,
+                                                color: MR_THEME.colors.textPrimary,
+                                            }}
+                                        >
+                                            {formatPaymentDate(p.payment_date)}
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                width: "fit-content",
+                                                padding: "5px 10px",
+                                                borderRadius: MR_THEME.radius.pill,
+                                                background: MR_THEME.colors.primarySoft,
+                                                color: MR_THEME.colors.primaryHover,
+                                                fontSize: 12,
+                                                fontWeight: 800,
+                                            }}
+                                        >
+                                            {formatPaymentMethod(p.payment_method)}
+                                        </div>
+
+                                        {p.notes ? (
+                                            <div
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: MR_THEME.colors.textSecondary,
+                                                    lineHeight: 1.6,
+                                                    maxWidth: 720,
+                                                    overflowWrap: "anywhere",
+                                                }}
+                                            >
+                                                {p.notes}
+                                            </div>
+                                        ) : null}
                                     </div>
 
-                                    <div
-                                        style={{
-                                            fontWeight: 900,
-                                            fontSize: 24,
-                                            lineHeight: 1.1,
-                                            color: MR_THEME.colors.textPrimary,
-                                        }}
-                                    >
-                                        {money(p.amount, currencyCode)}
+                                    <div className="invoicePaymentAmount">
+                                        <div
+                                            style={{
+                                                fontSize: 11,
+                                                textTransform: "uppercase",
+                                                letterSpacing: 0.8,
+                                                color: MR_THEME.colors.textMuted,
+                                                fontWeight: 800,
+                                            }}
+                                        >
+                                            Amount
+                                        </div>
+
+                                        <div
+                                            style={{
+                                                fontWeight: 900,
+                                                fontSize: 24,
+                                                lineHeight: 1.1,
+                                                color: MR_THEME.colors.textPrimary,
+                                            }}
+                                        >
+                                            {money(p.amount, currencyCode)}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        </section>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </section>
+
+            <style jsx>{`
+                .invoicePaymentsHeader {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 16px;
+                    flex-wrap: wrap;
+                }
+
+                .invoicePaymentAmount {
+                    min-width: 160px;
+                    text-align: right;
+                    display: grid;
+                    gap: 6px;
+                    justify-items: end;
+                }
+
+                @media (max-width: 720px) {
+                    .invoicePaymentsHeader {
+                        display: grid;
+                        grid-template-columns: 1fr;
+                    }
+
+                    .invoicePaymentCard {
+                        display: grid !important;
+                        grid-template-columns: 1fr !important;
+                    }
+
+                    .invoicePaymentAmount {
+                        min-width: 0;
+                        text-align: left;
+                        justify-items: start;
+                    }
+                }
+            `}</style>
+        </>
     );
 }
