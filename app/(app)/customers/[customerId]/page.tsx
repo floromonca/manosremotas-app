@@ -127,7 +127,7 @@ export default function CustomerDetailPage() {
 
             const { data: recentWOData, error: recentWOError } = await supabase
                 .from("work_orders")
-                .select("work_order_id, work_order_number, status, priority, service_address, created_at")
+                .select("work_order_id, work_order_number, job_type, description, status, priority, service_address, created_at")
                 .eq("company_id", companyId)
                 .eq("customer_id", customerId)
                 .order("created_at", { ascending: false })
@@ -687,7 +687,19 @@ export default function CustomerDetailPage() {
                                                         border: "1px solid #e5e7eb",
                                                     };
 
+                                const workOrderTitle =
+                                    wo.job_type?.trim() ||
+                                    wo.description?.trim() ||
+                                    wo.work_order_number ||
+                                    "Work Order";
+
+                                const workOrderMeta = [
+                                    wo.work_order_number,
+                                    wo.service_address,
+                                ].filter(Boolean).join(" · ");
+
                                 return (
+
                                     <div
                                         key={wo.work_order_id}
                                         className="recentWorkOrderRow"
@@ -737,7 +749,8 @@ export default function CustomerDetailPage() {
                                                     letterSpacing: "-0.01em",
                                                 }}
                                             >
-                                                {wo.work_order_number || "Work Order"}
+                                                {workOrderTitle}
+
                                             </div>
 
                                             <div
@@ -748,7 +761,8 @@ export default function CustomerDetailPage() {
                                                     wordBreak: "break-word",
                                                 }}
                                             >
-                                                {wo.service_address || "No service address"}
+                                                {workOrderMeta || "No service address"}
+
                                             </div>
                                         </div>
 
@@ -1043,6 +1057,17 @@ export default function CustomerDetailPage() {
                                 {eligibleWOs.map((wo) => {
                                     const checked = selectedWOs.includes(wo.work_order_id);
 
+                                    const workOrderTitle =
+                                        wo.job_type?.trim() ||
+                                        wo.description?.trim() ||
+                                        wo.work_order_number ||
+                                        "Work Order";
+
+                                    const workOrderMeta = [
+                                        wo.work_order_number,
+                                        wo.service_address,
+                                    ].filter(Boolean).join(" · ");
+
                                     return (
                                         <div
                                             key={wo.work_order_id}
@@ -1092,7 +1117,7 @@ export default function CustomerDetailPage() {
                                                             letterSpacing: "-0.01em",
                                                         }}
                                                     >
-                                                        {wo.work_order_number || "Work Order"}
+                                                        {workOrderTitle}
                                                     </div>
 
                                                     <div
@@ -1101,7 +1126,8 @@ export default function CustomerDetailPage() {
                                                             color: MR_THEME.colors.textSecondary,
                                                         }}
                                                     >
-                                                        {wo.service_address || "No service address"}
+                                                        {workOrderMeta || "No service address"}
+
                                                     </div>
 
                                                     <div
