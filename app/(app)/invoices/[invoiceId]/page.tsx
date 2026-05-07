@@ -14,6 +14,7 @@ import InvoiceItemRow from "./components/InvoiceItemRow";
 import InvoiceItemsSection from "./components/InvoiceItemsSection";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../../hooks/useAuthState";
+import { canManageInvoices } from "../../../../lib/security/roles";
 
 
 async function getDefaultTaxRate(companyId: string) {
@@ -232,7 +233,7 @@ export default function InvoicePage() {
 
         if (isLoadingCompany) return;
 
-        if (myRole !== "owner" && myRole !== "admin") {
+        if (!canManageInvoices(myRole)) {
             router.replace("/work-orders");
             return;
         }
@@ -355,7 +356,7 @@ export default function InvoicePage() {
 
     useEffect(() => {
         if (!companyId) return;
-        if (myRole !== "owner" && myRole !== "admin") return;
+        if (!canManageInvoices(myRole)) return;
         loadAll();
     }, [loadAll, companyId, myRole]);
 

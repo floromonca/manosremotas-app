@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
 import { renderInvoiceHtml } from "../../../../../lib/invoices";
+import { canManageInvoices } from "../../../../../lib/security/roles";
 
 
 type MembershipRow = {
@@ -52,8 +53,6 @@ export async function GET(
       return new NextResponse("Usuario sin empresa vinculada", { status: 403 });
     }
 
-    const allowedCompanyIds = membershipList.map((m) => m.company_id);
-
     const url = new URL(req.url);
     const mode = url.searchParams.get("mode") ?? "pdf";
     const showActions = mode === "preview";
@@ -74,8 +73,11 @@ export async function GET(
     }
 
     const invoiceCompanyId = (data as any)?.invoice?.company_id ?? null;
+    const currentMembership = membershipList.find(
+      (m) => m.company_id === invoiceCompanyId
+    );
 
-    if (!invoiceCompanyId || !allowedCompanyIds.includes(invoiceCompanyId)) {
+    if (!invoiceCompanyId || !currentMembership || !canManageInvoices(currentMembership.role)) {
       return new NextResponse("Acceso denegado a esta factura", { status: 403 });
     }
 

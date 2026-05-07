@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
+import { canManageInvoices } from "../../../../../lib/security/roles";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -126,9 +127,7 @@ export async function POST(
     const currentUserMembership =
       membershipList.find((m) => m.company_id === invoiceCompanyId) ?? null;
 
-    const allowedRolesToSend = new Set(["owner", "admin"]);
-
-    if (!currentUserMembership || !allowedRolesToSend.has(currentUserMembership.role)) {
+    if (!currentUserMembership || !canManageInvoices(currentUserMembership.role)) {
       return NextResponse.json(
         { ok: false, error: "You do not have permission to send invoices" },
         { status: 403 }

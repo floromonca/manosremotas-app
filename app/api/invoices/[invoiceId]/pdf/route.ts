@@ -4,6 +4,7 @@ import { chromium as playwright } from "playwright-core";
 import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
 import { renderInvoiceHtml } from "../../../../../lib/invoices";
+import { canManageInvoices } from "../../../../../lib/security/roles";
 
 export const runtime = "nodejs";
 
@@ -52,8 +53,6 @@ export async function GET(
             return new NextResponse("Usuario sin empresa vinculada", { status: 403 });
         }
 
-        const allowedCompanyIds = membershipList.map((m) => m.company_id);
-
         const { data, error } = await supabaseAdmin.rpc("get_invoice_full", {
             p_invoice_id: invoiceId,
         });
@@ -68,8 +67,11 @@ export async function GET(
         }
 
         const invoiceCompanyId = (data as any)?.invoice?.company_id ?? null;
+        const currentMembership = membershipList.find(
+            (m) => m.company_id === invoiceCompanyId
+        );
 
-        if (!invoiceCompanyId || !allowedCompanyIds.includes(invoiceCompanyId)) {
+        if (!invoiceCompanyId || !currentMembership || !canManageInvoices(currentMembership.role)) {
             return new NextResponse("Acceso denegado a esta factura", { status: 403 });
         }
 

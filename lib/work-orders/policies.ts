@@ -1,5 +1,12 @@
 export type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed" | "cancelled";
-export type WorkOrderRole = "owner" | "admin" | "tech" | "viewer" | null;
+export type WorkOrderRole =
+    | "owner"
+    | "admin"
+    | "office_staff"
+    | "accountant"
+    | "tech"
+    | "viewer"
+    | null;
 
 export function allowedStatusesForRole(
     role: WorkOrderRole,

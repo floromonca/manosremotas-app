@@ -6,6 +6,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { MR_THEME } from "../../../lib/theme";
+import { canManageInvoices } from "../../../lib/security/roles";
 
 type Invoice = {
     invoice_id: string;
@@ -21,7 +22,6 @@ type Invoice = {
 
 type QuickFilter = "all" | "drafts" | "unpaid" | "paid";
 
-const INVOICE_ACCESS_ROLES = ["owner", "admin", "office_staff"];
 const PAGE_SIZE = 25;
 
 export default function InvoicesPage() {
@@ -40,7 +40,7 @@ export default function InvoicesPage() {
     const [quickFilter, setQuickFilter] = useState<QuickFilter>("unpaid");
 
     const canAccessInvoices = useMemo(() => {
-        return !!myRole && INVOICE_ACCESS_ROLES.includes(myRole);
+        return canManageInvoices(myRole);
     }, [myRole]);
 
     useEffect(() => {

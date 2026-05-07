@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useAuthState } from "./useAuthState";
 
-type Role = "owner" | "admin" | "tech" | "viewer";
+type Role = "owner" | "admin" | "office_staff" | "accountant" | "tech" | "viewer";
 
 type MembershipRow = {
   company_id: string;
