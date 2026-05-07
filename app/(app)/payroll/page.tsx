@@ -27,6 +27,20 @@ type TimeEntryRow = {
     work_order_id?: string | null;
 };
 
+type MemberRow = {
+    user_id: string;
+    full_name: string | null;
+    role: string | null;
+};
+
+type PayRateRow = {
+    user_id: string;
+    hourly_rate: number | null;
+    currency_code: string | null;
+    effective_from: string | null;
+    created_at: string | null;
+};
+
 type PayrollRow = PayrollRpcRow & {
     work_order_hours: number;
     unassigned_hours: number;
@@ -151,10 +165,10 @@ function rangeLabel(startDate: string, endDate: string) {
     return `${formatter.format(start)} - ${formatter.format(end)}`;
 }
 
-function statusFor(row: PayrollRow) {
+function statusFor(row: PayrollRow, showRateIssue: boolean) {
     if (Number(row.running_hours ?? 0) > 0) return "On shift";
-    if (row.hourly_rate == null) return "Missing rate";
     if (Number(row.visible_hours ?? 0) <= 0) return "No hours";
+    if (showRateIssue && row.hourly_rate == null) return "Missing rate";
     return "Ready";
 }
 
@@ -207,14 +221,75 @@ export default function PayrollPage() {
             let payrollRows: PayrollRpcRow[] = [];
 
             if (isAdmin) {
-                const { data, error } = await supabase.rpc("get_team_payroll_summary", {
-                    p_company_id: companyId,
-                    p_start_date: startDate,
-                    p_end_date: endDate,
+                const [{ data: members, error: membersError }, { data: shifts, error: shiftsError }, { data: rates, error: ratesError }] =
+                    await Promise.all([
+                        supabase
+                            .from("company_members")
+                            .select("user_id, full_name, role")
+                            .eq("company_id", companyId)
+                            .eq("active", true),
+                        supabase
+                            .from("shifts")
+                            .select("user_id, check_in_at, check_out_at")
+                            .eq("company_id", companyId)
+                            .lt("check_in_at", bounds.endIso)
+                            .or(`check_out_at.is.null,check_out_at.gt.${bounds.startIso}`),
+                        supabase
+                            .from("member_pay_rates")
+                            .select("user_id, hourly_rate, currency_code, effective_from, created_at")
+                            .eq("company_id", companyId)
+                            .lte("effective_from", endDate)
+                            .or(`effective_to.is.null,effective_to.gte.${startDate}`),
+                    ]);
+
+                if (membersError) throw membersError;
+                if (shiftsError) throw shiftsError;
+                if (ratesError) throw ratesError;
+
+                const shiftsByUser = new Map<string, TimeEntryRow[]>();
+                ((shifts ?? []) as TimeEntryRow[]).forEach((shift) => {
+                    shiftsByUser.set(shift.user_id, [...(shiftsByUser.get(shift.user_id) ?? []), shift]);
                 });
 
-                if (error) throw error;
-                payrollRows = (data as PayrollRpcRow[]) ?? [];
+                const rateByUser = new Map<string, PayRateRow>();
+                ((rates ?? []) as PayRateRow[]).forEach((rate) => {
+                    const current = rateByUser.get(rate.user_id);
+                    const currentDate = current?.effective_from ?? current?.created_at ?? "";
+                    const nextDate = rate.effective_from ?? rate.created_at ?? "";
+
+                    if (!current || nextDate >= currentDate) {
+                        rateByUser.set(rate.user_id, rate);
+                    }
+                });
+
+                payrollRows = ((members ?? []) as MemberRow[]).map((member) => {
+                    const memberShifts = shiftsByUser.get(member.user_id) ?? [];
+                    const closedHours = memberShifts
+                        .filter((row) => row.check_out_at)
+                        .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
+                    const runningHours = memberShifts
+                        .filter((row) => !row.check_out_at)
+                        .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
+                    const visibleHours = Math.round((closedHours + runningHours) * 100) / 100;
+                    const payRate = rateByUser.get(member.user_id);
+                    const hourlyRate =
+                        payRate?.hourly_rate != null ? Number(payRate.hourly_rate) : null;
+
+                    return {
+                        user_id: member.user_id,
+                        full_name: member.full_name,
+                        role: member.role,
+                        closed_hours: Math.round(closedHours * 100) / 100,
+                        running_hours: Math.round(runningHours * 100) / 100,
+                        visible_hours: visibleHours,
+                        hourly_rate: hourlyRate,
+                        currency_code: payRate?.currency_code ?? "CAD",
+                        estimated_pay_closed:
+                            hourlyRate != null ? Math.round(closedHours * hourlyRate * 100) / 100 : null,
+                        estimated_pay_visible:
+                            hourlyRate != null ? Math.round(visibleHours * hourlyRate * 100) / 100 : null,
+                    };
+                });
             } else {
                 const [{ data: member, error: memberError }, { data: shifts, error: shiftsError }] =
                     await Promise.all([
@@ -336,7 +411,7 @@ export default function PayrollPage() {
                 acc.workOrders += Number(row.work_order_hours ?? 0);
                 acc.unassigned += Number(row.unassigned_hours ?? 0);
                 acc.pay += row.hourly_rate == null ? 0 : Number(row.estimated_pay_visible ?? 0);
-                if (row.hourly_rate == null) acc.missingRates += 1;
+                if (Number(row.visible_hours ?? 0) > 0 && row.hourly_rate == null) acc.missingRates += 1;
                 if (Number(row.running_hours ?? 0) > 0) acc.onShift += 1;
                 return acc;
             },
@@ -391,13 +466,13 @@ export default function PayrollPage() {
                 Number(row.unassigned_hours ?? 0).toFixed(2),
             ];
 
-            if (!isAdmin) return [...base, statusFor(row)];
+            if (!isAdmin) return [...base, statusFor(row, false)];
 
             return [
                 ...base,
                 row.hourly_rate != null ? formatMoney(row.hourly_rate, row.currency_code) : "Rate not set",
                 row.hourly_rate != null ? formatMoney(row.estimated_pay_visible, row.currency_code) : "Rate not set",
-                statusFor(row),
+                statusFor(row, isAdmin),
             ];
         });
 
@@ -546,7 +621,7 @@ export default function PayrollPage() {
 
                             <tbody>
                                 {sortedRows.map((row, index) => {
-                                    const status = statusFor(row);
+                                    const status = statusFor(row, isAdmin);
                                     const memberName = row.full_name?.trim() || "Unnamed member";
                                     const canOpenMember = isAdmin;
 
