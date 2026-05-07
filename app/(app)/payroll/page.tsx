@@ -6,6 +6,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { MR_THEME } from "@/lib/theme";
+import styles from "./payroll.module.css";
 
 type PayrollRpcRow = {
     user_id: string;
@@ -48,6 +49,11 @@ type PayrollRow = PayrollRpcRow & {
 };
 
 type PeriodPreset = "this_week" | "last_week" | "this_month" | "custom";
+
+type PayrollFlag = {
+    label: string;
+    tone: "info" | "warning" | "danger" | "neutral";
+};
 
 function padDatePart(value: number) {
     return String(value).padStart(2, "0");
@@ -170,6 +176,36 @@ function statusFor(row: PayrollRow, showRateIssue: boolean) {
     if (Number(row.visible_hours ?? 0) <= 0) return "No hours";
     if (showRateIssue && row.hourly_rate == null) return "Missing rate";
     return "Ready";
+}
+
+function payrollFlagsFor(row: PayrollRow, isAdmin: boolean): PayrollFlag[] {
+    const shiftHours = Number(row.visible_hours ?? 0);
+    const runningHours = Number(row.running_hours ?? 0);
+    const workOrderHours = Number(row.work_order_hours ?? 0);
+    const unassignedHours = Number(row.unassigned_hours ?? 0);
+    const flags: PayrollFlag[] = [];
+
+    if (runningHours > 0) {
+        flags.push({ label: "Open shift", tone: "info" });
+    }
+
+    if (workOrderHours > shiftHours + 0.1) {
+        flags.push({ label: "WO time exceeds shift", tone: "danger" });
+    }
+
+    if (shiftHours > 0 && unassignedHours >= 2 && unassignedHours / shiftHours >= 0.35) {
+        flags.push({ label: "High unassigned time", tone: "warning" });
+    }
+
+    if (isAdmin && shiftHours > 0 && row.hourly_rate == null) {
+        flags.push({ label: "Missing rate", tone: "warning" });
+    }
+
+    if (shiftHours === 0) {
+        flags.push({ label: "No hours", tone: "neutral" });
+    }
+
+    return flags;
 }
 
 export default function PayrollPage() {
@@ -442,6 +478,7 @@ export default function PayrollPage() {
                   "Unassigned hours",
                   "Hourly rate",
                   "Estimated pay",
+                  "Flags",
                   "Status",
               ]
             : [
@@ -452,6 +489,7 @@ export default function PayrollPage() {
                   "Total shift hours",
                   "Work order hours",
                   "Unassigned hours",
+                  "Flags",
                   "Status",
               ];
 
@@ -464,6 +502,7 @@ export default function PayrollPage() {
                 Number(row.visible_hours ?? 0).toFixed(2),
                 Number(row.work_order_hours ?? 0).toFixed(2),
                 Number(row.unassigned_hours ?? 0).toFixed(2),
+                payrollFlagsFor(row, isAdmin).map((flag) => flag.label).join("; "),
             ];
 
             if (!isAdmin) return [...base, statusFor(row, false)];
@@ -603,7 +642,7 @@ export default function PayrollPage() {
                 ) : sortedRows.length === 0 ? (
                     <div style={emptyStateStyle}>No payroll time found for this period.</div>
                 ) : (
-                    <div style={tableWrapStyle}>
+                    <div className={styles.desktopTable} style={tableWrapStyle}>
                         <table style={tableStyle}>
                             <thead>
                                 <tr style={{ background: "#f8fafc" }}>
@@ -615,6 +654,7 @@ export default function PayrollPage() {
                                     <th style={thStyleRight}>Unassigned</th>
                                     {isAdmin ? <th style={thStyleRight}>Rate</th> : null}
                                     {isAdmin ? <th style={thStyleRight}>Estimated Pay</th> : null}
+                                    <th style={thStyle}>Flags</th>
                                     <th style={thStyle}>Status</th>
                                 </tr>
                             </thead>
@@ -624,6 +664,7 @@ export default function PayrollPage() {
                                     const status = statusFor(row, isAdmin);
                                     const memberName = row.full_name?.trim() || "Unnamed member";
                                     const canOpenMember = isAdmin;
+                                    const flags = payrollFlagsFor(row, isAdmin);
 
                                     return (
                                         <tr key={row.user_id} style={{ background: index % 2 === 0 ? "#fff" : "#fafafa" }}>
@@ -671,6 +712,19 @@ export default function PayrollPage() {
                                                 </td>
                                             ) : null}
                                             <td style={tdStyle}>
+                                                {flags.length > 0 ? (
+                                                    <div style={flagListStyle}>
+                                                        {flags.map((flag) => (
+                                                            <span key={flag.label} style={flagBadgeStyle(flag.tone)}>
+                                                                {flag.label}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <span style={microTextStyle}>-</span>
+                                                )}
+                                            </td>
+                                            <td style={tdStyle}>
                                                 <span style={statusBadgeStyle(status)}>{status}</span>
                                             </td>
                                         </tr>
@@ -680,7 +734,100 @@ export default function PayrollPage() {
                         </table>
                     </div>
                 )}
+
+                {!loading && sortedRows.length > 0 ? (
+                    <div className={styles.mobileCards} style={mobileCardsStyle}>
+                        {sortedRows.map((row) => {
+                            const status = statusFor(row, isAdmin);
+                            const memberName = row.full_name?.trim() || "Unnamed member";
+                            const flags = payrollFlagsFor(row, isAdmin);
+
+                            return (
+                                <article key={`${row.user_id}-mobile`} style={mobileCardStyle}>
+                                    <div style={mobileCardHeaderStyle}>
+                                        <div style={{ minWidth: 0 }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (isAdmin) router.push(`/settings/team/${row.user_id}`);
+                                                }}
+                                                disabled={!isAdmin}
+                                                style={{
+                                                    ...mobileNameButtonStyle,
+                                                    cursor: isAdmin ? "pointer" : "default",
+                                                    textDecoration: isAdmin ? "underline" : "none",
+                                                }}
+                                            >
+                                                {memberName}
+                                            </button>
+                                            <div style={mobileSubheadStyle}>{humanRole(row.role)}</div>
+                                        </div>
+
+                                        <span style={statusBadgeStyle(status)}>{status}</span>
+                                    </div>
+
+                                    <div style={mobileMetricGridStyle}>
+                                        <MobileMetric label="Shift" value={formatHours(row.visible_hours)} />
+                                        <MobileMetric label="Running" value={formatHours(row.running_hours)} />
+                                        <MobileMetric label="Work Orders" value={formatHours(row.work_order_hours)} hint={`${row.work_order_count} WO`} />
+                                        <MobileMetric label="Unassigned" value={formatHours(row.unassigned_hours)} />
+                                        {isAdmin ? (
+                                            <MobileMetric
+                                                label="Rate"
+                                                value={row.hourly_rate == null ? "Not set" : formatMoney(row.hourly_rate, row.currency_code)}
+                                            />
+                                        ) : null}
+                                        {isAdmin ? (
+                                            <MobileMetric
+                                                label="Estimated Pay"
+                                                value={row.hourly_rate == null ? "Not set" : formatMoney(row.estimated_pay_visible, row.currency_code)}
+                                                emphasis
+                                            />
+                                        ) : null}
+                                    </div>
+
+                                    {flags.length > 0 ? (
+                                        <div style={mobileFlagsStyle}>
+                                            {flags.map((flag) => (
+                                                <span key={flag.label} style={flagBadgeStyle(flag.tone)}>
+                                                    {flag.label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </article>
+                            );
+                        })}
+                    </div>
+                ) : null}
             </section>
+        </div>
+    );
+}
+
+function MobileMetric({
+    label,
+    value,
+    hint,
+    emphasis,
+}: {
+    label: string;
+    value: string;
+    hint?: string;
+    emphasis?: boolean;
+}) {
+    return (
+        <div style={mobileMetricStyle}>
+            <div style={mobileMetricLabelStyle}>{label}</div>
+            <div
+                style={{
+                    ...mobileMetricValueStyle,
+                    color: emphasis ? "#065f46" : MR_THEME.colors.textPrimary,
+                }}
+            >
+                {value}
+            </div>
+            {hint ? <div style={microTextStyle}>{hint}</div> : null}
         </div>
     );
 }
@@ -987,6 +1134,129 @@ const microTextStyle: CSSProperties = {
     fontSize: 11,
     color: MR_THEME.colors.textSecondary,
 };
+
+const mobileCardsStyle: CSSProperties = {
+    display: "none",
+};
+
+const mobileCardStyle: CSSProperties = {
+    border: `1px solid ${MR_THEME.colors.border}`,
+    borderRadius: MR_THEME.radius.control,
+    background: "#ffffff",
+    padding: 14,
+    display: "grid",
+    gap: 12,
+};
+
+const mobileCardHeaderStyle: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+};
+
+const mobileNameButtonStyle: CSSProperties = {
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    margin: 0,
+    color: MR_THEME.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: 900,
+    textAlign: "left",
+    overflowWrap: "anywhere",
+};
+
+const mobileSubheadStyle: CSSProperties = {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: 800,
+    color: MR_THEME.colors.textSecondary,
+};
+
+const mobileMetricGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: 10,
+};
+
+const mobileMetricStyle: CSSProperties = {
+    border: `1px solid ${MR_THEME.colors.border}`,
+    borderRadius: 10,
+    background: "#f8fafc",
+    padding: 10,
+    minWidth: 0,
+};
+
+const mobileMetricLabelStyle: CSSProperties = {
+    fontSize: 11,
+    fontWeight: 900,
+    color: MR_THEME.colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    marginBottom: 6,
+};
+
+const mobileMetricValueStyle: CSSProperties = {
+    fontSize: 18,
+    lineHeight: 1.15,
+    fontWeight: 900,
+    color: MR_THEME.colors.textPrimary,
+    overflowWrap: "anywhere",
+};
+
+const flagListStyle: CSSProperties = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+};
+
+const mobileFlagsStyle: CSSProperties = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 6,
+    paddingTop: 2,
+};
+
+function flagBadgeStyle(tone: PayrollFlag["tone"]): CSSProperties {
+    const colorMap = {
+        info: {
+            background: "#eff6ff",
+            border: "#bfdbfe",
+            color: "#1d4ed8",
+        },
+        warning: {
+            background: "#fffbeb",
+            border: "#fde68a",
+            color: "#92400e",
+        },
+        danger: {
+            background: "#fef2f2",
+            border: "#fecaca",
+            color: "#991b1b",
+        },
+        neutral: {
+            background: "#f3f4f6",
+            border: "#e5e7eb",
+            color: "#374151",
+        },
+    }[tone];
+
+    return {
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "5px 9px",
+        borderRadius: 999,
+        background: colorMap.background,
+        border: `1px solid ${colorMap.border}`,
+        color: colorMap.color,
+        fontSize: 11,
+        fontWeight: 900,
+        lineHeight: 1,
+        whiteSpace: "nowrap",
+    };
+}
 
 function statusBadgeStyle(status: string): CSSProperties {
     if (status === "On shift") {

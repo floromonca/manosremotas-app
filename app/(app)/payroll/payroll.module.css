@@ -1,0 +1,18 @@
+.desktopTable {
+  display: block;
+}
+
+.mobileCards {
+  display: none !important;
+}
+
+@media (max-width: 820px) {
+  .desktopTable {
+    display: none !important;
+  }
+
+  .mobileCards {
+    display: grid !important;
+    gap: 12px;
+  }
+}
