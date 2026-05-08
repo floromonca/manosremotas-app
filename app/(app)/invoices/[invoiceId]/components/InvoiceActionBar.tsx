@@ -2,9 +2,12 @@
 
 import type { CSSProperties } from "react";
 import { MR_THEME } from "@/lib/theme";
+import { buildInvoicePdfFileName } from "@/lib/invoiceFileNames";
 
 type Props = {
     invoiceId: string;
+    invoiceNumber?: string | null;
+    customerName?: string | null;
     fromWorkOrder: string | null;
     hasInvoice: boolean;
     isDraft: boolean;
@@ -18,6 +21,8 @@ type Props = {
 
 export default function InvoiceActionBar({
     invoiceId,
+    invoiceNumber,
+    customerName,
     fromWorkOrder,
     hasInvoice,
     isDraft,
@@ -30,6 +35,7 @@ export default function InvoiceActionBar({
 }: Props) {
     const showSendButton = hasInvoice && (isDraft || canResend);
     const showRecordPaymentButton = hasInvoice && canRecordPayment && !isDraft;
+    const pdfFileName = buildInvoicePdfFileName({ invoiceNumber, customerName });
 
     const actionButtonBase: CSSProperties = {
         width: "100%",
@@ -83,14 +89,13 @@ export default function InvoiceActionBar({
                 {hasInvoice ? (
                     <a
                         href={`/api/invoices/${invoiceId}/pdf`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        download={pdfFileName}
                         style={{
                             ...actionButtonBase,
                             border: `1px solid ${MR_THEME.colors.textPrimary}`,
                             background: MR_THEME.colors.textPrimary,
                         }}
-                        title="Open invoice PDF"
+                        title="Download invoice PDF"
                     >
                         Download PDF
                     </a>

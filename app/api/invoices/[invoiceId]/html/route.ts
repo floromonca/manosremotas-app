@@ -3,6 +3,7 @@ import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
 import { renderInvoiceHtml } from "../../../../../lib/invoices";
 import { canManageInvoices } from "../../../../../lib/security/roles";
+import { buildInvoicePdfFileName } from "../../../../../lib/invoiceFileNames";
 
 
 type MembershipRow = {
@@ -73,6 +74,8 @@ export async function GET(
     }
 
     const invoiceCompanyId = (data as any)?.invoice?.company_id ?? null;
+    const invoiceNumber = (data as any)?.invoice?.invoice_number ?? null;
+    const customerName = (data as any)?.invoice?.customer_name ?? null;
     const currentMembership = membershipList.find(
       (m) => m.company_id === invoiceCompanyId
     );
@@ -108,6 +111,10 @@ export async function GET(
       showCustomerEmail: settings?.show_customer_email_on_invoice ?? true,
       showCustomerPhone: settings?.show_customer_phone_on_invoice ?? true,
     });
+    const pdfFileName = buildInvoicePdfFileName({
+      invoiceNumber,
+      customerName,
+    });
 
 
     const actionBarHtml = `
@@ -118,7 +125,7 @@ export async function GET(
     <div class="mr-topbar-actions">
       <button type="button" id="mr-send-btn" onclick="sendInvoice()">Send Invoice</button>
 
-      <a href="${origin}/api/invoices/${invoiceId}/pdf" target="_blank" rel="noopener">
+      <a href="${origin}/api/invoices/${invoiceId}/pdf" download="${pdfFileName}">
         <button type="button">Download PDF</button>
       </a>
 

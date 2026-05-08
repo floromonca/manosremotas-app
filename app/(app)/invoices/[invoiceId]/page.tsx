@@ -857,6 +857,8 @@ export default function InvoicePage() {
                                 <InvoiceActionBar
 
                                     invoiceId={invoiceId}
+                                    invoiceNumber={inv?.invoice_number}
+                                    customerName={inv?.customer_name}
                                     fromWorkOrder={fromWorkOrder}
                                     hasInvoice={!!inv}
                                     isDraft={isDraft}

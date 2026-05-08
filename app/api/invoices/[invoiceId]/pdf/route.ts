@@ -5,6 +5,7 @@ import { createServerSupabase } from "../../../../../lib/supabase/server";
 import { supabaseAdmin } from "../../../../../lib/supabaseAdmin";
 import { renderInvoiceHtml } from "../../../../../lib/invoices";
 import { canManageInvoices } from "../../../../../lib/security/roles";
+import { buildInvoicePdfFileName } from "../../../../../lib/invoiceFileNames";
 
 export const runtime = "nodejs";
 
@@ -67,6 +68,8 @@ export async function GET(
         }
 
         const invoiceCompanyId = (data as any)?.invoice?.company_id ?? null;
+        const invoiceNumber = (data as any)?.invoice?.invoice_number ?? null;
+        const customerName = (data as any)?.invoice?.customer_name ?? null;
         const currentMembership = membershipList.find(
             (m) => m.company_id === invoiceCompanyId
         );
@@ -136,12 +139,16 @@ export async function GET(
                 left: "10mm",
             },
         });
+        const pdfFileName = buildInvoicePdfFileName({
+            invoiceNumber,
+            customerName,
+        });
 
         return new NextResponse(new Uint8Array(pdfBuffer), {
             status: 200,
             headers: {
                 "Content-Type": "application/pdf",
-                "Content-Disposition": `inline; filename="invoice-${invoiceId}.pdf"`,
+                "Content-Disposition": `inline; filename="${pdfFileName}"; filename*=UTF-8''${encodeURIComponent(pdfFileName)}`,
                 "Cache-Control": "no-store, private",
             },
         });
