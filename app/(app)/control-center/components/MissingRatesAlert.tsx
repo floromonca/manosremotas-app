@@ -26,35 +26,74 @@ export default function MissingRatesAlert({
                 border: `1px solid ${MR_THEME.colors.warning}`,
                 borderRadius: MR_THEME.radius.card,
                 background: "#fffbeb",
-                padding: 18,
-                marginBottom: 20,
+                padding: "12px 14px",
             }}
         >
             <div
                 style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    marginBottom: 8,
-                    color: "#92400e",
+                    display: "grid",
+                    gridTemplateColumns: "auto minmax(0, 1fr) auto",
+                    gap: 10,
+                    alignItems: "center",
                 }}
             >
-                ⚠ {missingRates.length} technicians without hourly rate
-            </div>
+                <span
+                    aria-hidden="true"
+                    style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        background: MR_THEME.colors.warning + "18",
+                        color: MR_THEME.colors.warning,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 15,
+                        fontWeight: 900,
+                    }}
+                >
+                    !
+                </span>
 
-            <div
-                style={{
-                    fontSize: 14,
-                    color: "#78350f",
-                    marginBottom: 10,
-                }}
-            >
-                These technicians do not have an hourly rate configured.
-            </div>
+                <div style={{ minWidth: 0 }}>
+                    <div
+                        style={{
+                            fontSize: 14,
+                            fontWeight: 850,
+                            color: "#92400e",
+                            lineHeight: 1.3,
+                        }}
+                    >
+                        {missingRates.length} technician{missingRates.length === 1 ? "" : "s"} without hourly rate
+                    </div>
 
-            <ul style={{ margin: 0, paddingLeft: 18 }}>
-                {missingRates.slice(0, 5).map((tech) => (
-                    <li key={tech.user_id} style={{ marginBottom: 6 }}>
+                    <div
+                        style={{
+                            marginTop: 2,
+                            fontSize: 13,
+                            color: "#78350f",
+                            lineHeight: 1.35,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        Configure rates before payroll or job costing.
+                    </div>
+                </div>
+
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        flexWrap: "wrap",
+                    }}
+                >
+                    {missingRates.slice(0, 2).map((tech) => (
                         <button
+                            key={tech.user_id}
                             type="button"
                             onClick={() => onOpenTechnician(tech.user_id)}
                             style={{
@@ -64,29 +103,43 @@ export default function MissingRatesAlert({
                                 margin: 0,
                                 color: "#92400e",
                                 cursor: "pointer",
-                                fontSize: 14,
-                                fontWeight: 600,
+                                fontSize: 13,
+                                fontWeight: 800,
                                 textDecoration: "underline",
+                                whiteSpace: "nowrap",
                             }}
                         >
                             {tech.full_name || "Unnamed technician"}
                         </button>
-                    </li>
-                ))}
-            </ul>
+                    ))}
 
-            {missingRates.length > 5 ? (
-                <div
-                    style={{
-                        marginTop: 8,
-                        fontSize: 13,
-                        color: "#78350f",
-                        fontWeight: 600,
-                    }}
-                >
-                    + {missingRates.length - 5} more technicians
+                    {missingRates.length > 2 ? (
+                        <span
+                            style={{
+                                fontSize: 12,
+                                color: "#78350f",
+                                fontWeight: 800,
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            +{missingRates.length - 2} more
+                        </span>
+                    ) : null}
                 </div>
-            ) : null}
+            </div>
+
+            <style jsx>{`
+                @media (max-width: 760px) {
+                    section > div {
+                        grid-template-columns: auto minmax(0, 1fr) !important;
+                    }
+
+                    section > div > div:last-child {
+                        grid-column: 1 / -1;
+                        justify-content: flex-start !important;
+                    }
+                }
+            `}</style>
         </section>
     );
 }

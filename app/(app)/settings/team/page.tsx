@@ -11,7 +11,7 @@ import {
     getWeekShiftSummaryForUser,
     formatDurationHHMMSS,
 } from "../../../../lib/supabase/shifts";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 
 type MemberRow = {
@@ -47,6 +47,7 @@ export default function TeamPage() {
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [members, setMembers] = useState<MemberRow[]>([]);
     const [memberStats, setMemberStats] = useState<
@@ -186,6 +187,7 @@ export default function TeamPage() {
         : filteredMembers.slice(0, INITIAL_MEMBER_ROWS);
 
     const hasMoreThanInitialMembers = filteredMembers.length > INITIAL_MEMBER_ROWS;
+    const cameFromControlCenter = searchParams.get("from") === "control-center";
 
 
     const createInvite = useCallback(async () => {
@@ -310,6 +312,26 @@ export default function TeamPage() {
                             flexWrap: "wrap",
                         }}
                     >
+                        {cameFromControlCenter ? (
+                            <button
+                                type="button"
+                                onClick={() => router.push("/control-center")}
+                                style={{
+                                    height: 42,
+                                    padding: "0 16px",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    background: MR_THEME.colors.cardBg,
+                                    color: MR_THEME.colors.primary,
+                                    cursor: "pointer",
+                                    fontWeight: 800,
+                                    fontSize: 14,
+                                }}
+                            >
+                                ← Back to Control Center
+                            </button>
+                        ) : null}
+
                         <button
                             type="button"
                             onClick={() => setInviteModalOpen(true)}

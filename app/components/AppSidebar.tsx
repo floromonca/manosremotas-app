@@ -14,11 +14,11 @@ type SidebarItemProps = {
 };
 
 const SIDEBAR = {
-    bg: "#0f172a",
-    border: "#1e293b",
-    text: "#cbd5e1",
-    textMuted: "#94a3b8",
-    activeText: "#ffffff",
+    bg: MR_THEME.colors.cardBg,
+    border: MR_THEME.colors.border,
+    text: MR_THEME.colors.textSecondary,
+    textMuted: MR_THEME.colors.textMuted,
+    activeText: MR_THEME.colors.primary,
 };
 
 function SidebarItem({ href, label, isActive, onNavigate }: SidebarItemProps) {
@@ -28,9 +28,10 @@ function SidebarItem({ href, label, isActive, onNavigate }: SidebarItemProps) {
         borderRadius: MR_THEME.radius.control,
         textDecoration: "none",
         fontWeight: isActive ? 800 : 700,
-        background: isActive ? MR_THEME.colors.primary : "transparent",
+        background: isActive ? MR_THEME.colors.primarySoft : "transparent",
         color: isActive ? SIDEBAR.activeText : SIDEBAR.text,
-        border: isActive ? `1px solid ${MR_THEME.colors.primaryHover}` : "1px solid transparent",
+        border: isActive ? `1px solid ${MR_THEME.colors.primarySurface}` : "1px solid transparent",
+        boxShadow: isActive ? MR_THEME.shadows.card : "none",
     };
 
     return (
@@ -55,7 +56,7 @@ export default function AppSidebar({ onNavigate }: Props) {
             style={{
                 width: 220,
                 background: SIDEBAR.bg,
-                color: SIDEBAR.activeText,
+                color: MR_THEME.colors.textPrimary,
                 padding: 20,
                 display: "flex",
                 flexDirection: "column",
@@ -70,8 +71,8 @@ export default function AppSidebar({ onNavigate }: Props) {
                         margin: 0,
                         fontSize: 19,
                         fontWeight: 900,
-                        letterSpacing: -0.3,
-                        color: SIDEBAR.activeText,
+                        letterSpacing: 0,
+                        color: MR_THEME.colors.textPrimary,
                     }}
                 >
                     ManosRemotas
@@ -148,7 +149,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                         style={{
                             height: 1,
                             margin: "6px 0",
-                            background: SIDEBAR.border,
+                            background: MR_THEME.colors.border,
                         }}
                     />
 

@@ -8,6 +8,8 @@ type KpiCardProps = {
     value: string;
     onClick?: () => void;
     accentColor?: string;
+    statusText?: string;
+    icon?: React.ReactNode;
 };
 
 export default function KpiCard({
@@ -15,97 +17,180 @@ export default function KpiCard({
     value,
     onClick,
     accentColor,
+    statusText,
+    icon,
 }: KpiCardProps) {
     const clickable = !!onClick;
+    const accent = accentColor || MR_THEME.colors.borderStrong;
+    const CardElement = clickable ? "button" : "div";
 
     return (
-        <div
-            onClick={onClick}
-            style={{
-                padding: "14px 14px 12px",
-                border: `1px solid ${MR_THEME.colors.border}`,
-                borderRadius: 14,
-                background: MR_THEME.colors.cardBg,
-                cursor: clickable ? "pointer" : "default",
-                transition: "transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease",
-                boxShadow: MR_THEME.shadows.cardSoft,
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-                minHeight: 84,
-                position: "relative",
-                overflow: "hidden",
-            }}
-            onMouseEnter={(e) => {
-                if (!clickable) return;
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow = MR_THEME.shadows.card;
-                e.currentTarget.style.borderColor = MR_THEME.colors.borderStrong;
-            }}
-            onMouseLeave={(e) => {
-                if (!clickable) return;
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = MR_THEME.shadows.cardSoft;
-                e.currentTarget.style.borderColor = MR_THEME.colors.border;
-            }}
-        >
-            <div
+        <>
+            <CardElement
+                className="kpiCard"
+                type={clickable ? "button" : undefined}
+                onClick={onClick}
+                aria-label={clickable ? `Open ${title}` : undefined}
                 style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 3,
-                    background: accentColor || MR_THEME.colors.border,
+                    border: `1px solid ${MR_THEME.colors.border}`,
+                    borderRadius: MR_THEME.radius.card,
+                    background: MR_THEME.colors.cardBg,
+                    cursor: clickable ? "pointer" : "default",
+                    transition: "transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease",
+                    boxShadow: MR_THEME.shadows.cardSoft,
+                    position: "relative",
+                    overflow: "hidden",
+                    appearance: "none",
                 }}
-            />
-
-            <div
-                style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: MR_THEME.colors.textSecondary,
-                    lineHeight: 1.25,
-                    paddingTop: 2,
+                onMouseEnter={(e) => {
+                    if (!clickable) return;
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                    e.currentTarget.style.boxShadow = MR_THEME.shadows.dropdown;
+                    e.currentTarget.style.borderColor = accent;
+                }}
+                onMouseLeave={(e) => {
+                    if (!clickable) return;
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = MR_THEME.shadows.cardSoft;
+                    e.currentTarget.style.borderColor = MR_THEME.colors.border;
                 }}
             >
-                {title}
-            </div>
-
-            <div
-                style={{
-                    display: "flex",
-                    alignItems: "flex-end",
-                    justifyContent: "space-between",
-                    gap: 8,
-                }}
-            >
-                <div
-                    style={{
-                        fontSize: 30,
-                        lineHeight: 1,
-                        fontWeight: 800,
-                        color: MR_THEME.colors.textPrimary,
-                        letterSpacing: "-0.03em",
-                    }}
-                >
-                    {value}
+                <div className="kpiIconWrap" style={{ background: `${accent}18`, color: accent }}>
+                    {icon || "•"}
                 </div>
 
+                <div className="kpiContent">
+                    <div className="kpiTitle">{title}</div>
+
+                    {statusText ? (
+                        <div className="kpiStatus" style={{ color: accent }}>
+                            {statusText}
+                        </div>
+                    ) : null}
+                </div>
+
+                <div className="kpiValue">{value}</div>
+
                 {clickable ? (
-                    <div
-                        style={{
-                            fontSize: 12,
-                            color: MR_THEME.colors.textSecondary,
-                            fontWeight: 800,
-                            lineHeight: 1,
-                            paddingBottom: 3,
-                        }}
-                    >
-                        →
+                    <div className="kpiChevron" aria-hidden="true">
+                        ›
                     </div>
                 ) : null}
-            </div>
-        </div>
+            </CardElement>
+
+            <style jsx>{`
+                .kpiCard {
+                    width: 100%;
+                    min-width: 0;
+                    min-height: 156px;
+                    padding: 18px;
+                    text-align: left;
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) auto;
+                    grid-template-rows: auto 1fr auto;
+                    gap: 14px 12px;
+                }
+
+                .kpiIconWrap {
+                    width: 44px;
+                    height: 44px;
+                    border-radius: ${MR_THEME.radius.modal}px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 22px;
+                    font-weight: 900;
+                }
+
+                .kpiContent {
+                    grid-column: 1 / -1;
+                    align-self: end;
+                    display: grid;
+                    gap: 14px;
+                }
+
+                .kpiTitle {
+                    font-size: 16px;
+                    font-weight: 850;
+                    color: ${MR_THEME.colors.textPrimary};
+                    line-height: 1.35;
+                }
+
+                .kpiStatus {
+                    font-size: 13px;
+                    font-weight: 800;
+                    line-height: 1.3;
+                }
+
+                .kpiValue {
+                    grid-column: 1 / -1;
+                    font-size: 36px;
+                    line-height: 0.95;
+                    font-weight: 900;
+                    color: ${MR_THEME.colors.textPrimary};
+                    letter-spacing: 0;
+                }
+
+                .kpiChevron {
+                    grid-column: 2;
+                    grid-row: 1;
+                    color: ${MR_THEME.colors.textSecondary};
+                    font-size: 24px;
+                    font-weight: 500;
+                    line-height: 1;
+                    padding-top: 8px;
+                }
+
+                @media (max-width: 680px) {
+                    .kpiCard {
+                        min-height: 76px;
+                        padding: 12px;
+                        grid-template-columns: auto minmax(0, 1fr) auto auto;
+                        grid-template-rows: auto;
+                        align-items: center;
+                        gap: 10px;
+                    }
+
+                    .kpiIconWrap {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: ${MR_THEME.radius.control}px;
+                    }
+
+                    .kpiContent {
+                        grid-column: auto;
+                        align-self: center;
+                        gap: 3px;
+                        min-width: 0;
+                    }
+
+                    .kpiTitle {
+                        font-size: 14px;
+                        line-height: 1.25;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                    }
+
+                    .kpiStatus {
+                        font-size: 12px;
+                    }
+
+                    .kpiValue {
+                        grid-column: auto;
+                        font-size: 28px;
+                        line-height: 1;
+                        white-space: nowrap;
+                    }
+
+                    .kpiChevron {
+                        grid-column: auto;
+                        grid-row: auto;
+                        padding-top: 0;
+                        font-size: 22px;
+                    }
+                }
+            `}</style>
+        </>
     );
 }

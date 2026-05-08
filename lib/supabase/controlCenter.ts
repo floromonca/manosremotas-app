@@ -6,6 +6,8 @@ export type ControlCenterKpis = {
   techniciansWorking: number;
   delayedOrders: number;
   readyToInvoice: number;
+  invoiceCountThisMonth?: number;
+  paymentsReceivedThisMonth?: number;
 };
 
 export type AttentionLists = {
@@ -95,11 +97,42 @@ export async function fetchControlCenterKpis(
     readyToInvoice = resolvedIds.filter((id) => !invoiced.has(id)).length;
   }
 
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthFirstDay = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const firstDayIso = firstDay.toISOString().slice(0, 10);
+  const nextMonthFirstDayIso = nextMonthFirstDay.toISOString().slice(0, 10);
+
+  const { count: invoiceCountThisMonth, error: e6 } = await supabase
+    .from("invoices")
+    .select("invoice_id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .gte("issue_date", firstDayIso)
+    .lt("issue_date", nextMonthFirstDayIso);
+
+  if (e6) throw e6;
+
+  const { data: paymentRows, error: e7 } = await supabase
+    .from("invoice_payments")
+    .select("amount")
+    .eq("company_id", companyId)
+    .gte("payment_date", firstDayIso)
+    .lt("payment_date", nextMonthFirstDayIso);
+
+  if (e7) throw e7;
+
+  const paymentsReceivedThisMonth = (paymentRows ?? []).reduce(
+    (sum, row: any) => sum + Number(row.amount || 0),
+    0,
+  );
+
   return {
     activeWorkOrders: activeCount ?? 0,
     techniciansWorking,
     delayedOrders: delayedCount ?? 0,
     readyToInvoice,
+    invoiceCountThisMonth: invoiceCountThisMonth ?? 0,
+    paymentsReceivedThisMonth,
   };
 }
 

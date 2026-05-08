@@ -19,6 +19,7 @@ export default function OperationalShiftCard({
 }: OperationalShiftCardProps) {
     return (
         <div
+            className="operationalShiftCard"
             style={{
                 background: MR_THEME.colors.cardBg,
                 border: `1px solid ${MR_THEME.colors.border}`,
@@ -30,7 +31,7 @@ export default function OperationalShiftCard({
                 gap: 18,
             }}
         >
-            <div>
+            <div className="operationalShiftHeader">
                 <h2
                     style={{
                         margin: 0,
@@ -55,6 +56,7 @@ export default function OperationalShiftCard({
             </div>
 
             <div
+                className="operationalShiftStatus"
                 style={{
                     display: "inline-flex",
                     alignSelf: "flex-start",
@@ -74,6 +76,7 @@ export default function OperationalShiftCard({
             </div>
 
             <div
+                className="operationalShiftDetails"
                 style={{
                     display: "flex",
                     flexDirection: "column",
@@ -104,6 +107,7 @@ export default function OperationalShiftCard({
             </div>
 
             <div
+                className="operationalShiftActions"
                 style={{
                     display: "flex",
                     gap: 10,
@@ -146,6 +150,52 @@ export default function OperationalShiftCard({
                     </button>
                 )}
             </div>
+
+            <style jsx>{`
+                @media (max-width: 720px) {
+                    .operationalShiftCard {
+                        padding: 14px !important;
+                        gap: 12px !important;
+                        display: grid !important;
+                        grid-template-columns: minmax(0, 1fr) auto !important;
+                        align-items: center !important;
+                    }
+
+                    .operationalShiftHeader {
+                        min-width: 0;
+                    }
+
+                    .operationalShiftHeader h2 {
+                        font-size: 18px !important;
+                    }
+
+                    .operationalShiftHeader p {
+                        display: none !important;
+                    }
+
+                    .operationalShiftStatus {
+                        grid-column: 1;
+                        grid-row: 2;
+                        align-self: start !important;
+                    }
+
+                    .operationalShiftDetails {
+                        display: none !important;
+                    }
+
+                    .operationalShiftActions {
+                        grid-column: 2;
+                        grid-row: 1 / span 2;
+                        justify-content: flex-end !important;
+                    }
+
+                    .operationalShiftActions button {
+                        min-height: 38px;
+                        padding: 8px 12px !important;
+                        white-space: nowrap;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

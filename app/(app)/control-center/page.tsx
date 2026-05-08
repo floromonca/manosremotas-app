@@ -21,6 +21,7 @@ import MissingRatesAlert from "./components/MissingRatesAlert";
 import AttentionTodayCard from "./components/AttentionTodayCard";
 import OperationalShiftCard from "./components/OperationalShiftCard";
 import TeamStatusTodayCard from "./components/TeamStatusTodayCard";
+import QuickActionsCard from "./components/QuickActionsCard";
 
 type MissingRateAlert = {
     user_id: string;
@@ -345,6 +346,11 @@ export default function ControlCenterPage() {
         router.push(url);
     };
 
+    const fromControlCenter = (path: string) => {
+        const separator = path.includes("?") ? "&" : "?";
+        return `${path}${separator}from=control-center`;
+    };
+
     const revenueMonthLabel = loading
         ? "…"
         : `$${revenueMonth.toLocaleString(undefined, {
@@ -357,7 +363,7 @@ export default function ControlCenterPage() {
             style={{
                 minHeight: "100vh",
                 background: "#f8fafc",
-                padding: 24,
+                padding: "20px 24px 40px",
             }}
         >
             <div
@@ -366,50 +372,64 @@ export default function ControlCenterPage() {
                     margin: "0 auto",
                     display: "flex",
                     flexDirection: "column",
-                    gap: 28,
+                    gap: 24,
                 }}
             >
                 <ControlCenterHeader
                     companyName={companyName}
-                    onOpenWorkOrders={() => go("/work-orders")}
-                    onOpenInvoices={() => go("/invoices")}
+                    onOpenWorkOrders={() => go(fromControlCenter("/work-orders"))}
+                    onOpenInvoices={() => go(fromControlCenter("/invoices"))}
                 />
 
                 <ControlCenterKpisSection
                     loading={loading}
                     kpis={kpis}
                     revenueMonthLabel={revenueMonthLabel}
-                    onOpenWorkOrders={() => go("/work-orders")}
-                    onOpenInvoices={() => go("/invoices")}
+                    unassignedWorkOrders={lists.unassigned.length}
+                    onOpenWorkOrders={() => go(fromControlCenter("/work-orders"))}
+                    onOpenInvoices={() => go(fromControlCenter("/invoices"))}
+                    onOpenUnassignedWorkOrders={() => go(fromControlCenter("/work-orders?filter=unassigned"))}
+                    onOpenActiveWorkOrders={() => go(fromControlCenter("/work-orders?section=active_work"))}
+                    onOpenTechniciansWorking={() => go(fromControlCenter("/settings/team"))}
+                    onOpenDelayedOrders={() => go(fromControlCenter("/work-orders?filter=delayed"))}
+                    onOpenReadyToInvoice={() => go(fromControlCenter("/work-orders?filter=ready_to_invoice"))}
                 />
                 {!loadingAlerts ? (
                     <MissingRatesAlert
                         missingRates={missingRates}
-                        onOpenTechnician={(userId) => go(`/settings/team/${userId}`)}
+                        onOpenTechnician={(userId) => go(fromControlCenter(`/settings/team/${userId}`))}
                     />
                 ) : null}
-                <TeamStatusTodayCard
-                    rows={teamStatus}
-                    loading={teamStatusLoading}
-                    onCloseShift={handleCloseTeamShift}
-                />
                 <section className="controlCenterBottomGrid">
+                    <TeamStatusTodayCard
+                        rows={teamStatus}
+                        loading={teamStatusLoading}
+                        onCloseShift={handleCloseTeamShift}
+                    />
 
                     <AttentionTodayCard
                         lists={lists}
-                        onOpenWorkOrders={() => go("/work-orders")}
-                        onOpenInvoices={() => go("/invoices")}
+                        onOpenWorkOrders={() => go(fromControlCenter("/work-orders"))}
+                        onOpenInvoices={() => go(fromControlCenter("/invoices"))}
                     />
 
-                    <OperationalShiftCard
-                        openShift={openShift}
-                        shiftBusy={shiftBusy}
-                        onCheckIn={handleCheckIn}
-                        onCheckOut={handleCheckOut}
+                    <QuickActionsCard
+                        onCreateWorkOrder={() => go(fromControlCenter("/work-orders"))}
+                        onAddCustomer={() => go(fromControlCenter("/customers"))}
+                        onOpenInvoices={() => go(fromControlCenter("/invoices"))}
+                        onAddTechnician={() => go(fromControlCenter("/settings/team"))}
                     />
                 </section>
 
+                <OperationalShiftCard
+                    openShift={openShift}
+                    shiftBusy={shiftBusy}
+                    onCheckIn={handleCheckIn}
+                    onCheckOut={handleCheckOut}
+                />
+
                 <div
+                    className="controlCenterFooterNote"
                     style={{
                         fontSize: 13,
                         color: "#64748b",
@@ -422,14 +442,30 @@ export default function ControlCenterPage() {
                 <style jsx>{`
     .controlCenterBottomGrid {
         display: grid;
-        grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
-        gap: 24px;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
         align-items: start;
     }
 
     @media (max-width: 1100px) {
         .controlCenterBottomGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 820px) {
+        .controlCenterBottomGrid {
             grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 720px) {
+        div[style*="padding: 20px 24px 40px"] {
+            padding: 16px 12px 32px !important;
+        }
+
+        .controlCenterFooterNote {
+            display: none !important;
         }
     }
 `}</style>

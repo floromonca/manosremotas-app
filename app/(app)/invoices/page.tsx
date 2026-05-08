@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
@@ -26,6 +26,7 @@ const PAGE_SIZE = 25;
 
 export default function InvoicesPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, authLoading } = useAuthState();
     const { companyId, myRole, isLoadingCompany } = useActiveCompany();
 
@@ -176,6 +177,7 @@ export default function InvoicesPage() {
 
     const activeCurrency =
         filteredInvoices[0]?.currency_code || invoices[0]?.currency_code || "CAD";
+    const cameFromControlCenter = searchParams.get("from") === "control-center";
 
     return (
         <main
@@ -215,9 +217,21 @@ export default function InvoicesPage() {
                             </p>
                         </div>
 
-                        <button type="button" onClick={loadInvoices} style={secondaryButtonStyle}>
-                            Refresh
-                        </button>
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            {cameFromControlCenter ? (
+                                <button
+                                    type="button"
+                                    onClick={() => router.push("/control-center")}
+                                    style={secondaryButtonStyle}
+                                >
+                                    ← Back to Control Center
+                                </button>
+                            ) : null}
+
+                            <button type="button" onClick={loadInvoices} style={secondaryButtonStyle}>
+                                Refresh
+                            </button>
+                        </div>
                     </div>
                 </section>
 

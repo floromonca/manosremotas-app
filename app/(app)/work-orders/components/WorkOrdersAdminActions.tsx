@@ -1,6 +1,3 @@
-"use client";
-
-import { useRouter } from "next/navigation";
 import { MR_THEME } from "../../../../lib/theme";
 
 type WorkOrdersAdminActionsProps = {
@@ -14,8 +11,6 @@ export default function WorkOrdersAdminActions({
     onToggleNewWO,
     onRefresh,
 }: WorkOrdersAdminActionsProps) {
-    const router = useRouter();
-
     return (
         <div
             style={{
@@ -48,7 +43,7 @@ export default function WorkOrdersAdminActions({
             <div
                 style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: "1fr",
                     gap: MR_THEME.spacing.sm,
                     width: "100%",
                     minWidth: 0,
@@ -72,26 +67,6 @@ export default function WorkOrdersAdminActions({
                     }}
                 >
                     Refresh
-                </button>
-
-                <button
-                    type="button"
-                    onClick={() => router.replace("/control-center")}
-                    style={{
-                        minWidth: 0,
-                        minHeight: 40,
-                        padding: "10px 12px",
-                        borderRadius: MR_THEME.radius.control,
-                        border: `1px solid ${MR_THEME.colors.border}`,
-                        background: MR_THEME.colors.cardBg,
-                        color: MR_THEME.colors.primary,
-                        cursor: "pointer",
-                        fontWeight: 700,
-                        fontSize: 14,
-                        lineHeight: 1.2,
-                    }}
-                >
-                    Control
                 </button>
             </div>
         </div>

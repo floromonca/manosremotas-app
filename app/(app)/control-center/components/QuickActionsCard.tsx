@@ -1,41 +1,45 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { MR_THEME } from "../../../../lib/theme";
 
-type AttentionLists = {
-    unassigned: { job_type: string; work_order_id: string }[];
-    inProgressOld: { job_type: string; work_order_id: string }[];
-    completedNotInvoiced: { job_type: string; work_order_id: string }[];
-};
-
-type AttentionTodayCardProps = {
-    lists: AttentionLists;
-    onOpenWorkOrders: () => void;
+type QuickActionsCardProps = {
+    onCreateWorkOrder: () => void;
+    onAddCustomer: () => void;
     onOpenInvoices: () => void;
+    onAddTechnician: () => void;
 };
 
-export default function AttentionTodayCard({ lists }: AttentionTodayCardProps) {
-    const router = useRouter();
-    const rows = [
+export default function QuickActionsCard({
+    onCreateWorkOrder,
+    onAddCustomer,
+    onOpenInvoices,
+    onAddTechnician,
+}: QuickActionsCardProps) {
+    const actions = [
         {
-            label: "Unassigned Work Orders",
-            count: lists.unassigned.length,
-            tone: "danger" as const,
-            onOpen: () => router.push("/work-orders?filter=unassigned"),
+            label: "Create Work Order",
+            marker: "+",
+            color: MR_THEME.colors.primary,
+            onClick: onCreateWorkOrder,
         },
         {
-            label: "In Progress Too Long",
-            count: lists.inProgressOld.length,
-            tone: "warning" as const,
-            onOpen: () => router.push("/work-orders?filter=delayed"),
+            label: "Add Customer",
+            marker: "C",
+            color: MR_THEME.colors.info,
+            onClick: onAddCustomer,
         },
         {
-            label: "Completed, Not Invoiced",
-            count: lists.completedNotInvoiced.length,
-            tone: "info" as const,
-            onOpen: () => router.push("/work-orders?filter=ready_to_invoice"),
+            label: "Go to Invoices",
+            marker: "$",
+            color: MR_THEME.colors.success,
+            onClick: onOpenInvoices,
+        },
+        {
+            label: "Add Technician",
+            marker: "T",
+            color: MR_THEME.colors.primaryHover,
+            onClick: onAddTechnician,
         },
     ];
 
@@ -66,38 +70,27 @@ export default function AttentionTodayCard({ lists }: AttentionTodayCardProps) {
                         color: MR_THEME.colors.textPrimary,
                     }}
                 >
-                    Attention Today
+                    Quick Actions
                 </h2>
 
-                <button
-                    type="button"
-                    onClick={() => router.push("/work-orders?filter=unassigned")}
+                <span
+                    aria-hidden="true"
                     style={{
-                        border: "none",
-                        background: "transparent",
-                        color: MR_THEME.colors.primary,
-                        fontSize: 13,
-                        fontWeight: 800,
-                        cursor: "pointer",
-                        padding: 0,
-                        whiteSpace: "nowrap",
+                        color: MR_THEME.colors.textSecondary,
+                        fontSize: 22,
+                        lineHeight: 1,
                     }}
                 >
-                    View all alerts →
-                </button>
+                    ›
+                </span>
             </div>
 
-            <div
-                style={{
-                    display: "grid",
-                    gap: 2,
-                }}
-            >
-                {rows.map((row, index) => (
+            <div style={{ display: "grid", gap: 2 }}>
+                {actions.map((action, index) => (
                     <button
-                        key={row.label}
+                        key={action.label}
                         type="button"
-                        onClick={row.onOpen}
+                        onClick={action.onClick}
                         style={{
                             width: "100%",
                             border: "none",
@@ -117,8 +110,8 @@ export default function AttentionTodayCard({ lists }: AttentionTodayCardProps) {
                                 width: 26,
                                 height: 26,
                                 borderRadius: 999,
-                                background: `${toneColor(row.tone)}18`,
-                                color: toneColor(row.tone),
+                                background: `${action.color}18`,
+                                color: action.color,
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
@@ -126,7 +119,7 @@ export default function AttentionTodayCard({ lists }: AttentionTodayCardProps) {
                                 fontWeight: 900,
                             }}
                         >
-                            !
+                            {action.marker}
                         </span>
 
                         <span
@@ -140,35 +133,22 @@ export default function AttentionTodayCard({ lists }: AttentionTodayCardProps) {
                                 fontWeight: 800,
                             }}
                         >
-                            {row.label}
+                            {action.label}
                         </span>
 
                         <span
+                            aria-hidden="true"
                             style={{
-                                minWidth: 28,
-                                height: 24,
-                                padding: "0 8px",
-                                borderRadius: 999,
-                                background: `${toneColor(row.tone)}14`,
-                                color: toneColor(row.tone),
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 12,
-                                fontWeight: 900,
+                                color: MR_THEME.colors.textSecondary,
+                                fontSize: 18,
+                                lineHeight: 1,
                             }}
                         >
-                            {row.count}
+                            ›
                         </span>
                     </button>
                 ))}
             </div>
         </div>
     );
-}
-
-function toneColor(tone: "danger" | "warning" | "info") {
-    if (tone === "danger") return MR_THEME.colors.danger;
-    if (tone === "warning") return MR_THEME.colors.warning;
-    return MR_THEME.colors.info;
 }

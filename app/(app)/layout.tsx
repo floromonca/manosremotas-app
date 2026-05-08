@@ -112,7 +112,7 @@ export default function AppShellLayout({
                         style={{
                             height: "100vh",
                             width: 280,
-                            background: "#1e293b",
+                            background: MR_THEME.colors.cardBg,
                             boxShadow: "0 8px 30px rgba(15, 23, 42, 0.22)",
                         }}
                     >

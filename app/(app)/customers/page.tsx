@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
@@ -19,12 +19,14 @@ const ADMIN_CUSTOMER_ROLES = ["owner", "admin", "office_staff"];
 
 export default function CustomersPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
 
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
+    const cameFromControlCenter = searchParams.get("from") === "control-center";
 
     const canAccessCustomers = useMemo(() => {
         return !!myRole && ADMIN_CUSTOMER_ROLES.includes(myRole);
@@ -245,22 +247,51 @@ export default function CustomersPage() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleNewCustomer}
+                    <div
                         style={{
-                            padding: "12px 16px",
-                            borderRadius: MR_THEME.radius.control,
-                            border: `1px solid ${MR_THEME.colors.primary}`,
-                            background: MR_THEME.colors.primary,
-                            color: "#ffffff",
-                            cursor: "pointer",
-                            fontWeight: 800,
-                            boxShadow: MR_THEME.shadows.cardSoft,
-                            whiteSpace: "nowrap",
+                            display: "flex",
+                            gap: 10,
+                            flexWrap: "wrap",
+                            justifyContent: "flex-end",
                         }}
                     >
-                        + New Customer
-                    </button>
+                        {cameFromControlCenter ? (
+                            <button
+                                type="button"
+                                onClick={() => router.push("/control-center")}
+                                style={{
+                                    padding: "12px 16px",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    background: MR_THEME.colors.cardBg,
+                                    color: MR_THEME.colors.primary,
+                                    cursor: "pointer",
+                                    fontWeight: 800,
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                ← Back to Control Center
+                            </button>
+                        ) : null}
+
+                        <button
+                            type="button"
+                            onClick={handleNewCustomer}
+                            style={{
+                                padding: "12px 16px",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.primary}`,
+                                background: MR_THEME.colors.primary,
+                                color: "#ffffff",
+                                cursor: "pointer",
+                                fontWeight: 800,
+                                boxShadow: MR_THEME.shadows.cardSoft,
+                                whiteSpace: "nowrap",
+                            }}
+                        >
+                            + New Customer
+                        </button>
+                    </div>
                 </section>
                 {customers.length > 0 ? (
                     <section

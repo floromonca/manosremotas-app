@@ -14,7 +14,8 @@ type TeamStatusTodayCardProps = {
     ) => Promise<void>;
 };
 
-const INITIAL_VISIBLE_ROWS = 6;
+const COMPACT_VISIBLE_ROWS = 5;
+type TeamStatusFilter = "all" | "on_shift" | "off_shift" | "stale";
 
 export default function TeamStatusTodayCard({
     rows,
@@ -22,6 +23,7 @@ export default function TeamStatusTodayCard({
     onCloseShift,
 }: TeamStatusTodayCardProps) {
     const [showAll, setShowAll] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<TeamStatusFilter>("all");
 
     const sortedRows = useMemo(() => {
         return [...rows].sort((a, b) => {
@@ -34,14 +36,21 @@ export default function TeamStatusTodayCard({
         });
     }, [rows]);
 
+    const filteredRows = useMemo(() => {
+        if (activeFilter === "on_shift") return sortedRows.filter((r) => r.is_on_shift);
+        if (activeFilter === "off_shift") return sortedRows.filter((r) => !r.is_on_shift);
+        if (activeFilter === "stale") return sortedRows.filter((r) => isStaleShift(r.check_in_at));
+        return sortedRows;
+    }, [activeFilter, sortedRows]);
+
     const visibleRows = showAll
-        ? sortedRows
-        : sortedRows.slice(0, INITIAL_VISIBLE_ROWS);
+        ? filteredRows
+        : filteredRows.slice(0, COMPACT_VISIBLE_ROWS);
 
     const onShiftCount = rows.filter((r) => r.is_on_shift).length;
     const staleCount = rows.filter((r) => isStaleShift(r.check_in_at)).length;
     const offShiftCount = rows.length - onShiftCount;
-    const hasMoreRows = sortedRows.length > INITIAL_VISIBLE_ROWS;
+    const hasMoreRows = filteredRows.length > COMPACT_VISIBLE_ROWS;
 
     return (
         <div
@@ -53,17 +62,47 @@ export default function TeamStatusTodayCard({
                 boxShadow: MR_THEME.shadows.cardSoft,
             }}
         >
-            <div style={{ marginBottom: 14 }}>
+            <div
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "center",
+                    marginBottom: 14,
+                }}
+            >
                 <h2
                     style={{
                         margin: 0,
-                        fontSize: 20,
+                        fontSize: 16,
                         fontWeight: 800,
                         color: MR_THEME.colors.textPrimary,
                     }}
                 >
                     Team Status Today
                 </h2>
+
+                {hasMoreRows ? (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setActiveFilter("all");
+                            setShowAll((current) => !current);
+                        }}
+                        style={{
+                            border: "none",
+                            background: "transparent",
+                            color: MR_THEME.colors.primary,
+                            fontSize: 13,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            padding: 0,
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {showAll ? "Show less" : "View full team →"}
+                    </button>
+                ) : null}
             </div>
 
             {loading ? (
@@ -84,12 +123,85 @@ export default function TeamStatusTodayCard({
                             alignItems: "center",
                         }}
                     >
-                        <SummaryPill label="On shift" value={onShiftCount} tone="success" />
-                        <SummaryPill label="Off shift" value={offShiftCount} tone="neutral" />
-                        <SummaryPill label="Stale" value={staleCount} tone="warning" />
+                        <SummaryPill
+                            label="On shift"
+                            value={onShiftCount}
+                            tone="success"
+                            active={activeFilter === "on_shift"}
+                            onClick={() => {
+                                setActiveFilter((current) => {
+                                    const next = current === "on_shift" ? "all" : "on_shift";
+                                    setShowAll(next !== "all");
+                                    return next;
+                                });
+                            }}
+                        />
+                        <SummaryPill
+                            label="Off shift"
+                            value={offShiftCount}
+                            tone="neutral"
+                            active={activeFilter === "off_shift"}
+                            onClick={() => {
+                                setActiveFilter((current) => {
+                                    const next = current === "off_shift" ? "all" : "off_shift";
+                                    setShowAll(next !== "all");
+                                    return next;
+                                });
+                            }}
+                        />
+                        <SummaryPill
+                            label="Stale"
+                            value={staleCount}
+                            tone="warning"
+                            active={activeFilter === "stale"}
+                            onClick={() => {
+                                setActiveFilter((current) => {
+                                    const next = current === "stale" ? "all" : "stale";
+                                    setShowAll(next !== "all");
+                                    return next;
+                                });
+                            }}
+                        />
                     </div>
 
-                    <div style={{ display: "grid", gap: 10 }}>
+                    {activeFilter !== "all" ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setActiveFilter("all");
+                                setShowAll(true);
+                            }}
+                            style={{
+                                justifySelf: "start",
+                                border: "none",
+                                background: "transparent",
+                                color: MR_THEME.colors.primary,
+                                cursor: "pointer",
+                                fontSize: 12,
+                                fontWeight: 800,
+                                padding: 0,
+                            }}
+                        >
+                            Show all technicians
+                        </button>
+                    ) : null}
+
+                    <div
+                        className={`teamStatusRows ${showAll || activeFilter !== "all" ? "teamStatusRowsOpen" : ""}`}
+                        style={{ display: "grid", gap: 8 }}
+                    >
+                        {visibleRows.length === 0 ? (
+                            <div
+                                style={{
+                                    padding: "10px 0",
+                                    color: MR_THEME.colors.textSecondary,
+                                    fontSize: 13,
+                                }}
+                            >
+                                No technicians in this group.
+                            </div>
+                        ) : null}
+
                         {visibleRows.map((r) => {
                             const elapsed = formatElapsed(r.check_in_at);
                             const stale = isStaleShift(r.check_in_at);
@@ -97,20 +209,33 @@ export default function TeamStatusTodayCard({
                             return (
                                 <div
                                     key={r.user_id}
+                                    className="teamStatusRow"
                                     style={{
                                         display: "grid",
-                                        gridTemplateColumns: "minmax(0, 1fr) auto",
+                                        gridTemplateColumns: "auto minmax(0, 1fr) auto",
                                         gap: 10,
                                         alignItems: "center",
-                                        padding: "8px 0",
+                                        padding: "7px 0",
                                         borderBottom: `1px solid ${MR_THEME.colors.border}`,
                                         background: "transparent",
                                     }}
                                 >
+                                    <span
+                                        style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: 999,
+                                            background: r.is_on_shift
+                                                ? MR_THEME.colors.success
+                                                : MR_THEME.colors.primary,
+                                            opacity: r.is_on_shift ? 1 : 0.85,
+                                        }}
+                                    />
+
                                     <div style={{ minWidth: 0 }}>
                                         <div
                                             style={{
-                                                fontSize: 14,
+                                                fontSize: 13,
                                                 fontWeight: 800,
                                                 color: MR_THEME.colors.textPrimary,
                                                 overflow: "hidden",
@@ -122,8 +247,9 @@ export default function TeamStatusTodayCard({
                                         </div>
 
                                         <div
+                                            className="teamStatusMeta"
                                             style={{
-                                                marginTop: 4,
+                                                marginTop: 3,
                                                 display: "flex",
                                                 gap: 8,
                                                 flexWrap: "wrap",
@@ -136,20 +262,10 @@ export default function TeamStatusTodayCard({
 
                                             {r.is_on_shift && r.check_in_at ? (
                                                 <>
-                                                    <span>•</span>
                                                     <span>
-                                                        Started at{" "}
-                                                        <strong
-                                                            style={{
-                                                                color: MR_THEME.colors.textPrimary,
-                                                            }}
-                                                        >
-                                                            {formatTime(r.check_in_at)}
-                                                        </strong>
+                                                        Since {formatTime(r.check_in_at)}
                                                     </span>
-                                                    <span>•</span>
                                                     <span>
-                                                        In shift{" "}
                                                         <strong
                                                             style={{
                                                                 color: stale
@@ -168,7 +284,6 @@ export default function TeamStatusTodayCard({
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span>•</span>
                                                     <span>No active shift</span>
                                                 </>
                                             )}
@@ -176,6 +291,7 @@ export default function TeamStatusTodayCard({
                                     </div>
 
                                     <div
+                                        className="teamStatusActions"
                                         style={{
                                             display: "flex",
                                             gap: 6,
@@ -212,7 +328,7 @@ export default function TeamStatusTodayCard({
                                             style={{
                                                 fontSize: 12,
                                                 fontWeight: 700,
-                                                padding: "5px 8px",
+                                                padding: "4px 8px",
                                                 borderRadius: 999,
                                                 background: r.is_on_shift
                                                     ? MR_THEME.colors.success + "22"
@@ -230,35 +346,38 @@ export default function TeamStatusTodayCard({
                             );
                         })}
                     </div>
-
-                    {hasMoreRows ? (
-                        <button
-                            type="button"
-                            onClick={() => setShowAll((current) => !current)}
-                            style={{
-                                justifySelf: "start",
-                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                background: MR_THEME.colors.cardBg,
-                                color: MR_THEME.colors.textPrimary,
-                                borderRadius: MR_THEME.radius.control,
-                                padding: "8px 12px",
-                                fontSize: 13,
-                                fontWeight: 800,
-                                cursor: "pointer",
-                            }}
-                        >
-                            {showAll
-                                ? "Show fewer"
-                                : `Show all ${sortedRows.length} technicians`}
-                        </button>
-                    ) : null}
                 </div>
             )}
 
             <style jsx>{`
                 @media (max-width: 720px) {
-                    div[style*="grid-template-columns"] {
-                        grid-template-columns: 1fr !important;
+                    .teamStatusRows {
+                        display: none !important;
+                    }
+
+                    .teamStatusRowsOpen {
+                        display: grid !important;
+                        gap: 4px !important;
+                    }
+
+                    .teamStatusRow {
+                        grid-template-columns: auto minmax(0, 1fr) !important;
+                        gap: 8px !important;
+                        padding: 9px 0 !important;
+                    }
+
+                    .teamStatusRow:nth-of-type(n + 4) {
+                        display: none !important;
+                    }
+
+                    .teamStatusMeta {
+                        gap: 5px !important;
+                    }
+
+                    .teamStatusActions {
+                        grid-column: 2;
+                        justify-content: flex-start !important;
+                        gap: 8px !important;
                     }
                 }
             `}</style>
@@ -270,10 +389,14 @@ function SummaryPill({
     label,
     value,
     tone,
+    active,
+    onClick,
 }: {
     label: string;
     value: number;
     tone: "success" | "warning" | "neutral";
+    active?: boolean;
+    onClick?: () => void;
 }) {
     const color =
         tone === "success"
@@ -283,23 +406,27 @@ function SummaryPill({
                 : MR_THEME.colors.textSecondary;
 
     return (
-        <div
+        <button
+            type="button"
+            onClick={onClick}
             style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 6,
                 padding: "6px 10px",
                 borderRadius: 999,
-                border: `1px solid ${MR_THEME.colors.border}`,
-                background: color + "12",
+                border: `1px solid ${active ? color : MR_THEME.colors.border}`,
+                background: active ? color + "20" : color + "12",
                 color,
                 fontSize: 12,
                 fontWeight: 800,
+                cursor: onClick ? "pointer" : "default",
+                boxShadow: active ? MR_THEME.shadows.card : "none",
             }}
         >
             <span>{label}</span>
             <strong>{value}</strong>
-        </div>
+        </button>
     );
 }
 

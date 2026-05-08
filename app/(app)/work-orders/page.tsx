@@ -118,6 +118,8 @@ function WorkOrdersPageInner() {
 
 
     const { woFilter, setWoFilterAndUrl } = useUrlWoFilter();
+    const cameFromControlCenter = searchParams.get("from") === "control-center";
+    const adminSectionParam = searchParams.get("section");
 
     const [rows, setRows] = useState<WorkOrder[]>([]);
     const [loadingWO, setLoadingWO] = useState(false);
@@ -158,8 +160,18 @@ function WorkOrdersPageInner() {
 
         if (woFilter === "ready_to_invoice") {
             setAdminActiveSection("ready_to_invoice");
+            return;
         }
-    }, [woFilter]);
+
+        if (
+            adminSectionParam === "needs_attention" ||
+            adminSectionParam === "active_work" ||
+            adminSectionParam === "ready_to_invoice" ||
+            adminSectionParam === "history"
+        ) {
+            setAdminActiveSection(adminSectionParam);
+        }
+    }, [woFilter, adminSectionParam]);
 
     const [newJobType, setNewJobType] = useState("");
     const [newDesc, setNewDesc] = useState("");
@@ -1187,6 +1199,32 @@ function WorkOrdersPageInner() {
                                 isTechView={isTechView}
                                 companyName={companyName}
                             />
+
+                            {cameFromControlCenter ? (
+                                <button
+                                    type="button"
+                                    onClick={() => router.push("/control-center")}
+                                    style={{
+                                        marginTop: 16,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        gap: 8,
+                                        minHeight: 38,
+                                        padding: "9px 13px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.primary,
+                                        cursor: "pointer",
+                                        fontSize: 13,
+                                        fontWeight: 850,
+                                        boxShadow: MR_THEME.shadows.card,
+                                    }}
+                                >
+                                    ← Back to Control Center
+                                </button>
+                            ) : null}
 
                         </header>
 
