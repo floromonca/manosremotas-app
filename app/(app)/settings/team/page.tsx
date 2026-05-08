@@ -11,7 +11,7 @@ import {
     getWeekShiftSummaryForUser,
     formatDurationHHMMSS,
 } from "../../../../lib/supabase/shifts";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 
 type MemberRow = {
@@ -47,7 +47,6 @@ export default function TeamPage() {
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
     const router = useRouter();
-    const searchParams = useSearchParams();
 
     const [members, setMembers] = useState<MemberRow[]>([]);
     const [memberStats, setMemberStats] = useState<
@@ -68,7 +67,14 @@ export default function TeamPage() {
     const [ok, setOk] = useState<string | null>(null);
     const [memberSearch, setMemberSearch] = useState("");
     const [inviteModalOpen, setInviteModalOpen] = useState(false);
+    const [cameFromControlCenter, setCameFromControlCenter] = useState(false);
 
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        setCameFromControlCenter(
+            new URLSearchParams(window.location.search).get("from") === "control-center"
+        );
+    }, []);
 
 
     const refresh = useCallback(async () => {
@@ -187,7 +193,6 @@ export default function TeamPage() {
         : filteredMembers.slice(0, INITIAL_MEMBER_ROWS);
 
     const hasMoreThanInitialMembers = filteredMembers.length > INITIAL_MEMBER_ROWS;
-    const cameFromControlCenter = searchParams.get("from") === "control-center";
 
 
     const createInvite = useCallback(async () => {

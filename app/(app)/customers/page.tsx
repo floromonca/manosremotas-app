@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
@@ -19,14 +19,20 @@ const ADMIN_CUSTOMER_ROLES = ["owner", "admin", "office_staff"];
 
 export default function CustomersPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
 
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
-    const cameFromControlCenter = searchParams.get("from") === "control-center";
+    const [cameFromControlCenter, setCameFromControlCenter] = useState(false);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        setCameFromControlCenter(
+            new URLSearchParams(window.location.search).get("from") === "control-center"
+        );
+    }, []);
 
     const canAccessCustomers = useMemo(() => {
         return !!myRole && ADMIN_CUSTOMER_ROLES.includes(myRole);

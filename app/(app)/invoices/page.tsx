@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
@@ -26,7 +26,6 @@ const PAGE_SIZE = 25;
 
 export default function InvoicesPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { user, authLoading } = useAuthState();
     const { companyId, myRole, isLoadingCompany } = useActiveCompany();
 
@@ -39,6 +38,14 @@ export default function InvoicesPage() {
     const [search, setSearch] = useState("");
     const [customerFilter, setCustomerFilter] = useState("all");
     const [quickFilter, setQuickFilter] = useState<QuickFilter>("unpaid");
+    const [cameFromControlCenter, setCameFromControlCenter] = useState(false);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        setCameFromControlCenter(
+            new URLSearchParams(window.location.search).get("from") === "control-center"
+        );
+    }, []);
 
     const canAccessInvoices = useMemo(() => {
         return canManageInvoices(myRole);
@@ -177,7 +184,6 @@ export default function InvoicesPage() {
 
     const activeCurrency =
         filteredInvoices[0]?.currency_code || invoices[0]?.currency_code || "CAD";
-    const cameFromControlCenter = searchParams.get("from") === "control-center";
 
     return (
         <main
