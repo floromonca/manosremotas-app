@@ -12,6 +12,7 @@ type CompanyForm = {
     company_email: string;
     company_phone: string;
     company_website: string;
+    logo_url: string;
     address_line_1: string;
     address_line_2: string;
     city: string;
@@ -28,6 +29,7 @@ const EMPTY_FORM: CompanyForm = {
     company_email: "",
     company_phone: "",
     company_website: "",
+    logo_url: "",
     address_line_1: "",
     address_line_2: "",
     city: "",
@@ -47,6 +49,7 @@ export default function ControlCenterCompanyPage() {
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [okMsg, setOkMsg] = useState("");
     const [role, setRole] = useState<string | null>(null);
@@ -106,6 +109,7 @@ export default function ControlCenterCompanyPage() {
                         company_email,
                         company_phone,
                         company_website,
+                        logo_url,
                         address_line_1,
                         address_line_2,
                         city,
@@ -132,6 +136,7 @@ export default function ControlCenterCompanyPage() {
                         company_email: row.company_email ?? "",
                         company_phone: row.company_phone ?? "",
                         company_website: row.company_website ?? "",
+                        logo_url: row.logo_url ?? "",
                         address_line_1: row.address_line_1 ?? "",
                         address_line_2: row.address_line_2 ?? "",
                         city: row.city ?? "",
@@ -207,6 +212,7 @@ export default function ControlCenterCompanyPage() {
                 company_email: form.company_email.trim() || null,
                 company_phone: form.company_phone.trim() || null,
                 company_website: form.company_website.trim() || null,
+                logo_url: form.logo_url.trim() || null,
                 address_line_1: form.address_line_1.trim() || null,
                 address_line_2: form.address_line_2.trim() || null,
                 city: form.city.trim() || null,
@@ -251,6 +257,96 @@ export default function ControlCenterCompanyPage() {
             setErrorMsg(e?.message ?? String(e));
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleLogoUpload = async (file: File | null) => {
+        if (!file || !companyId) return;
+
+        const allowedTypes = ["image/png", "image/jpeg", "image/webp"];
+        const maxBytes = 2 * 1024 * 1024;
+
+        if (!allowedTypes.includes(file.type)) {
+            setErrorMsg("Logo must be a PNG, JPG, or WebP image.");
+            return;
+        }
+
+        if (file.size > maxBytes) {
+            setErrorMsg("Logo must be 2 MB or smaller.");
+            return;
+        }
+
+        setUploadingLogo(true);
+        setErrorMsg("");
+        setOkMsg("");
+
+        try {
+            const ext =
+                file.type === "image/png"
+                    ? "png"
+                    : file.type === "image/webp"
+                        ? "webp"
+                        : "jpg";
+            const safeRandomId =
+                typeof window !== "undefined" &&
+                    window.crypto &&
+                    typeof window.crypto.randomUUID === "function"
+                    ? window.crypto.randomUUID()
+                    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+            const filePath = `${companyId}/${safeRandomId}.${ext}`;
+
+            const { error: uploadError } = await supabase.storage
+                .from("company-logos")
+                .upload(filePath, file, {
+                    cacheControl: "3600",
+                    upsert: false,
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: publicUrlData } = supabase.storage
+                .from("company-logos")
+                .getPublicUrl(filePath);
+
+            const publicUrl = publicUrlData.publicUrl;
+
+            const { error: updateError } = await supabase
+                .from("companies")
+                .update({ logo_url: publicUrl })
+                .eq("company_id", companyId);
+
+            if (updateError) throw updateError;
+
+            setForm((prev) => ({ ...prev, logo_url: publicUrl }));
+            setOkMsg("Logo uploaded successfully.");
+        } catch (e: any) {
+            setErrorMsg(e?.message ?? "Could not upload logo.");
+        } finally {
+            setUploadingLogo(false);
+        }
+    };
+
+    const handleRemoveLogo = async () => {
+        if (!companyId) return;
+
+        setUploadingLogo(true);
+        setErrorMsg("");
+        setOkMsg("");
+
+        try {
+            const { error } = await supabase
+                .from("companies")
+                .update({ logo_url: null })
+                .eq("company_id", companyId);
+
+            if (error) throw error;
+
+            setForm((prev) => ({ ...prev, logo_url: "" }));
+            setOkMsg("Logo removed.");
+        } catch (e: any) {
+            setErrorMsg(e?.message ?? "Could not remove logo.");
+        } finally {
+            setUploadingLogo(false);
         }
     };
 
@@ -396,6 +492,13 @@ export default function ControlCenterCompanyPage() {
                             title="Company Information"
                             description="Basic business identity and public contact details."
                         >
+                            <LogoUploader
+                                logoUrl={form.logo_url}
+                                uploading={uploadingLogo}
+                                onUpload={handleLogoUpload}
+                                onRemove={handleRemoveLogo}
+                            />
+
                             <TwoColumnGrid>
                                 <Field
                                     label="Company Name"
@@ -680,6 +783,157 @@ function SectionCard({
 
 function TwoColumnGrid({ children }: { children: React.ReactNode }) {
     return <div className="mr-company-field-grid">{children}</div>;
+}
+
+function LogoUploader({
+    logoUrl,
+    uploading,
+    onUpload,
+    onRemove,
+}: {
+    logoUrl: string;
+    uploading: boolean;
+    onUpload: (file: File | null) => void;
+    onRemove: () => void;
+}) {
+    return (
+        <div
+            style={{
+                display: "grid",
+                gridTemplateColumns: "96px minmax(0, 1fr)",
+                gap: 16,
+                alignItems: "center",
+                padding: 14,
+                marginBottom: 18,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                borderRadius: MR_THEME.radius.control,
+                background: MR_THEME.colors.cardBgSoft,
+            }}
+        >
+            <div
+                style={{
+                    width: 96,
+                    height: 72,
+                    borderRadius: MR_THEME.radius.control,
+                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                    background: "#ffffff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                }}
+            >
+                {logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={logoUrl}
+                        alt="Company logo"
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                        }}
+                    />
+                ) : (
+                    <span
+                        style={{
+                            fontSize: 12,
+                            color: MR_THEME.colors.textSecondary,
+                            fontWeight: 800,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                        }}
+                    >
+                        Logo
+                    </span>
+                )}
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+                <div
+                    style={{
+                        fontSize: 13,
+                        fontWeight: 800,
+                        color: MR_THEME.colors.textPrimary,
+                        marginBottom: 4,
+                    }}
+                >
+                    Company logo
+                </div>
+
+                <div
+                    style={{
+                        fontSize: 12,
+                        color: MR_THEME.colors.textSecondary,
+                        lineHeight: 1.45,
+                        marginBottom: 10,
+                    }}
+                >
+                    Used on invoice HTML, PDF, and customer-facing documents.
+                </div>
+
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 10,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                    }}
+                >
+                    <label
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: 40,
+                            padding: "0 14px",
+                            borderRadius: MR_THEME.radius.control,
+                            border: `1px solid ${MR_THEME.colors.primary}`,
+                            background: uploading ? MR_THEME.colors.cardBgSoft : MR_THEME.colors.primary,
+                            color: uploading ? MR_THEME.colors.textSecondary : "#ffffff",
+                            cursor: uploading ? "not-allowed" : "pointer",
+                            fontWeight: 800,
+                            fontSize: 13,
+                        }}
+                    >
+                        {uploading ? "Uploading..." : logoUrl ? "Replace logo" : "Upload logo"}
+                        <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={uploading}
+                            onChange={(event) => {
+                                const file = event.target.files?.[0] ?? null;
+                                onUpload(file);
+                                event.currentTarget.value = "";
+                            }}
+                            style={{ display: "none" }}
+                        />
+                    </label>
+
+                    {logoUrl ? (
+                        <button
+                            type="button"
+                            onClick={onRemove}
+                            disabled={uploading}
+                            style={{
+                                minHeight: 40,
+                                padding: "0 14px",
+                                borderRadius: MR_THEME.radius.control,
+                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                background: "#ffffff",
+                                color: MR_THEME.colors.textPrimary,
+                                cursor: uploading ? "not-allowed" : "pointer",
+                                fontWeight: 800,
+                                fontSize: 13,
+                            }}
+                        >
+                            Remove
+                        </button>
+                    ) : null}
+                </div>
+            </div>
+        </div>
+    );
 }
 
 function Field({
