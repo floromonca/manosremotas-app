@@ -86,7 +86,7 @@ export async function GET(
 
     const { data: settings, error: settingsError } = await supabaseAdmin
       .from("company_settings")
-      .select("show_customer_email_on_invoice, show_customer_phone_on_invoice, payment_instructions, invoice_footer_note")
+      .select("show_customer_email_on_invoice, show_customer_phone_on_invoice, payment_instructions, invoice_footer_note, country_code")
       .eq("company_id", invoiceCompanyId)
       .maybeSingle();
 
@@ -103,6 +103,11 @@ export async function GET(
         invoice_footer:
           settings?.invoice_footer_note ??
           (data as any).company?.invoice_footer ??
+          null,
+        country_code:
+          settings?.country_code ??
+          (data as any).company?.country_code ??
+          (data as any).company?.country ??
           null,
       },
     };

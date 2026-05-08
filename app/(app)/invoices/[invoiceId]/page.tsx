@@ -15,6 +15,7 @@ import InvoiceItemsSection from "./components/InvoiceItemsSection";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../../hooks/useAuthState";
 import { canManageInvoices } from "../../../../lib/security/roles";
+import { formatTaxSummaryLabel, preTaxLineAmount } from "../../../../lib/invoiceTax";
 
 
 async function getDefaultTaxRate(companyId: string) {
@@ -55,6 +56,8 @@ type InvoiceRow = {
     invoice_date?: string | null;
     due_date?: string | null;
     currency_code: string | null;
+    tax_name?: string | null;
+    tax_rate?: number | null;
     subtotal: number | null;
     tax_total: number | null;
     total: number | null;
@@ -258,7 +261,7 @@ export default function InvoicePage() {
             const { data: invData, error: invErr } = await supabase
                 .from("invoices")
                 .select(
-                    "invoice_id, company_id, invoice_number, status, customer_name, customer_phone, customer_email, billing_address, invoice_date, due_date, currency_code, subtotal, tax_total, total, balance_due, deposit_required, created_at"
+                    "invoice_id, company_id, invoice_number, status, customer_name, customer_phone, customer_email, billing_address, invoice_date, due_date, currency_code, tax_name, tax_rate, subtotal, tax_total, total, balance_due, deposit_required, created_at"
                 )
                 .eq("company_id", companyId)
                 .eq("invoice_id", invoiceId)
@@ -421,17 +424,19 @@ export default function InvoicePage() {
         const rows = (items as any[]) ?? [];
 
         const subtotalFromLines = rows.reduce(
-            (acc, it) => acc + Number(it.line_subtotal ?? 0),
+            (acc, it) => acc + preTaxLineAmount(it.qty, it.unit_price, it.line_subtotal),
             0
         );
         const taxFromLines = rows.reduce(
-            (acc, it) => acc + Number(it.line_tax ?? 0),
+            (acc, it) => {
+                const fallbackTax =
+                    preTaxLineAmount(it.qty, it.unit_price, it.line_subtotal) *
+                    Number(it.tax_rate ?? 0);
+                return acc + Number(it.line_tax ?? fallbackTax);
+            },
             0
         );
-        const totalFromLines = rows.reduce(
-            (acc, it) => acc + Number(it.line_total ?? 0),
-            0
-        );
+        const totalFromLines = subtotalFromLines + taxFromLines;
 
         const hasStoredSubtotal = inv?.subtotal != null;
         const hasStoredTax = inv?.tax_total != null;
@@ -470,6 +475,11 @@ export default function InvoicePage() {
     const paymentsTotal = useMemo(() => {
         return payments.reduce((acc, p) => acc + Number(p.amount ?? 0), 0);
     }, [payments]);
+
+    const taxSummaryLabel = useMemo(
+        () => formatTaxSummaryLabel(inv?.tax_name, inv?.tax_rate),
+        [inv?.tax_name, inv?.tax_rate],
+    );
 
     const currentBalance = Number(inv?.balance_due ?? totals.balance ?? 0);
     const canRecordPayment = !!inv?.invoice_id && currentBalance > 0;
@@ -920,6 +930,7 @@ export default function InvoicePage() {
                             showCustomerPhone={invoicePreferences.show_customer_phone_on_invoice}
                             compactView={invoicePreferences.compact_invoice_view}
                             totals={totals}
+                            taxLabel={taxSummaryLabel}
                             depositRequired={depositRequired}
                             paymentsTotal={paymentsTotal}
                             onChangeBillingEmail={setBillingEmail}

@@ -12,6 +12,7 @@ type CompanyForm = {
     company_email: string;
     company_phone: string;
     company_website: string;
+    tax_registration: string;
     logo_url: string;
     address_line_1: string;
     address_line_2: string;
@@ -29,6 +30,7 @@ const EMPTY_FORM: CompanyForm = {
     company_email: "",
     company_phone: "",
     company_website: "",
+    tax_registration: "",
     logo_url: "",
     address_line_1: "",
     address_line_2: "",
@@ -109,6 +111,7 @@ export default function ControlCenterCompanyPage() {
                         company_email,
                         company_phone,
                         company_website,
+                        tax_registration,
                         logo_url,
                         address_line_1,
                         address_line_2,
@@ -136,6 +139,7 @@ export default function ControlCenterCompanyPage() {
                         company_email: row.company_email ?? "",
                         company_phone: row.company_phone ?? "",
                         company_website: row.company_website ?? "",
+                        tax_registration: (row as any).tax_registration ?? "",
                         logo_url: row.logo_url ?? "",
                         address_line_1: row.address_line_1 ?? "",
                         address_line_2: row.address_line_2 ?? "",
@@ -212,6 +216,7 @@ export default function ControlCenterCompanyPage() {
                 company_email: form.company_email.trim() || null,
                 company_phone: form.company_phone.trim() || null,
                 company_website: form.company_website.trim() || null,
+                tax_registration: form.tax_registration.trim() || null,
                 logo_url: form.logo_url.trim() || null,
                 address_line_1: form.address_line_1.trim() || null,
                 address_line_2: form.address_line_2.trim() || null,
@@ -519,6 +524,12 @@ export default function ControlCenterCompanyPage() {
                                     label="Website"
                                     value={form.company_website}
                                     onChange={(v) => setField("company_website", v)}
+                                />
+                                <Field
+                                    label="Tax Registration Number"
+                                    value={form.tax_registration}
+                                    onChange={(v) => setField("tax_registration", v)}
+                                    helper="For Canada, enter the GST/HST number if registered. For the United States, enter the applicable Tax ID or Sales Tax Permit number if used by your business."
                                 />
                             </TwoColumnGrid>
                         </SectionCard>

@@ -25,14 +25,11 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
-    const [cameFromControlCenter, setCameFromControlCenter] = useState(false);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        setCameFromControlCenter(
-            new URLSearchParams(window.location.search).get("from") === "control-center"
-        );
-    }, []);
+    const [cameFromControlCenter] = useState(
+        () =>
+            typeof window !== "undefined" &&
+            new URLSearchParams(window.location.search).get("from") === "control-center",
+    );
 
     const canAccessCustomers = useMemo(() => {
         return !!myRole && ADMIN_CUSTOMER_ROLES.includes(myRole);

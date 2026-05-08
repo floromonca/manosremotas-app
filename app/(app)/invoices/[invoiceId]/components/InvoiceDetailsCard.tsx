@@ -39,6 +39,7 @@ type Props = {
     showCustomerPhone: boolean;
     compactView: boolean;
     totals: Totals;
+    taxLabel: string;
     depositRequired: number;
     paymentsTotal: number;
     onChangeBillingEmail: (value: string) => void;
@@ -57,6 +58,7 @@ export default function InvoiceDetailsCard({
     showCustomerPhone,
     compactView,
     totals,
+    taxLabel,
     depositRequired,
     paymentsTotal,
     onChangeBillingEmail,
@@ -399,7 +401,7 @@ export default function InvoiceDetailsCard({
                             </div>
 
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                                <span>Tax</span>
+                                <span>{taxLabel || "Tax"}</span>
                                 <strong style={{ color: "#111827" }}>
                                     {money(taxAmount, inv.currency_code)}
                                 </strong>

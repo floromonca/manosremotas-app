@@ -1,12 +1,48 @@
 // lib/invoices.ts
 import { supabase } from "./supabaseClient";
+import {
+  formatTaxSummaryLabel,
+  preTaxLineAmount,
+  taxRegistrationLabel,
+} from "./invoiceTax";
 
 // Fallbacks (si no hay tax_profile default o no se puede leer por RLS)
 const FALLBACK_TAX_RATE_CA = 0.13; // Canadá (ON HST)
 const FALLBACK_TAX_RATE_CO = 0.19; // Colombia (IVA)
 
-export async function getDefaultTaxRate(companyId: string): Promise<number> {
-  // Fuente oficial: public.companies.tax_rate_default
+type DefaultTaxProfile = {
+  taxProfileId: string | null;
+  taxName: string | null;
+  taxRate: number;
+};
+
+export async function getDefaultTaxProfile(companyId: string): Promise<DefaultTaxProfile> {
+  const { data: taxProfile, error: taxProfileError } = await supabase
+    .from("tax_profiles")
+    .select("tax_profile_id, tax_name, rate")
+    .eq("company_id", companyId)
+    .eq("is_default", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!taxProfileError && taxProfile) {
+    const rawRate = Number((taxProfile as any).rate ?? 0);
+    const taxRate = rawRate > 1 ? rawRate / 100 : rawRate;
+
+    if (Number.isFinite(taxRate) && taxRate >= 0 && taxRate <= 1) {
+      return {
+        taxProfileId: (taxProfile as any).tax_profile_id ?? null,
+        taxName: (taxProfile as any).tax_name ?? null,
+        taxRate,
+      };
+    }
+  }
+
+  if (taxProfileError) {
+    console.log("⚠️ No pude leer tax_profiles (RLS?):", taxProfileError.message);
+  }
+
   const { data, error } = await supabase
     .from("companies")
     .select("tax_rate_default")
@@ -15,13 +51,28 @@ export async function getDefaultTaxRate(companyId: string): Promise<number> {
 
   if (error) {
     console.log("⚠️ No pude leer companies.tax_rate_default (RLS?):", error.message);
-    return FALLBACK_TAX_RATE_CA;
+    return {
+      taxProfileId: null,
+      taxName: null,
+      taxRate: FALLBACK_TAX_RATE_CA,
+    };
   }
 
   const rate = Number((data as any)?.tax_rate_default ?? FALLBACK_TAX_RATE_CA);
-  if (Number.isFinite(rate) && rate >= 0 && rate <= 1) return rate;
+  const taxRate = rate > 1 ? rate / 100 : rate;
 
-  return FALLBACK_TAX_RATE_CA;
+  return {
+    taxProfileId: null,
+    taxName: null,
+    taxRate:
+      Number.isFinite(taxRate) && taxRate >= 0 && taxRate <= 1
+        ? taxRate
+        : FALLBACK_TAX_RATE_CA,
+  };
+}
+
+export async function getDefaultTaxRate(companyId: string): Promise<number> {
+  return (await getDefaultTaxProfile(companyId)).taxRate;
 }
 
 /**
@@ -105,8 +156,9 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
   }
 
   // 1.3) Leer tax rate default (sin INSERT)
-  const defaultTaxRate = await getDefaultTaxRate(companyId);
-  console.log("🧾 defaultTaxRate resolved:", defaultTaxRate);
+  const defaultTaxProfile = await getDefaultTaxProfile(companyId);
+  const defaultTaxRate = defaultTaxProfile.taxRate;
+  console.log("🧾 defaultTaxProfile resolved:", defaultTaxProfile);
 
   // 2) Crear invoice (solo si no existe)
   if (!invoiceId) {
@@ -159,6 +211,9 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 
         invoice_date: invoiceDate.toISOString().slice(0, 10),
         due_date: dueDate.toISOString().slice(0, 10),
+        tax_profile_id: defaultTaxProfile.taxProfileId,
+        tax_name: defaultTaxProfile.taxName,
+        tax_rate: defaultTaxRate,
         status: "draft",
       })
       .select("invoice_id")
@@ -336,6 +391,7 @@ type InvoiceHtmlData = {
     province?: string | null;
     postal_code?: string | null;
     country?: string | null;
+    country_code?: string | null;
     phone?: string | null;
     email?: string | null;
     website?: string | null;
@@ -500,11 +556,34 @@ export function renderInvoiceHtml(
 
   const status = statusMeta(invoice.status);
 
-  const subtotal = Number(invoice.subtotal ?? 0);
-  const taxTotal = Number(invoice.tax_total ?? 0);
-  const total = Number(invoice.total ?? 0);
+  const computedSubtotal =
+    Math.round(
+      items.reduce(
+        (acc, item) =>
+          acc + preTaxLineAmount(item.qty, item.unit_price, item.line_subtotal),
+        0,
+      ) * 100,
+    ) / 100;
+  const computedTaxTotal =
+    Math.round(
+      items.reduce((acc, item) => {
+        const fallbackTax =
+          preTaxLineAmount(item.qty, item.unit_price, item.line_subtotal) *
+          Number(item.tax_rate ?? 0);
+        return acc + Number(item.line_tax ?? fallbackTax);
+      }, 0) * 100,
+    ) / 100;
+
+  const subtotal = Number(invoice.subtotal ?? computedSubtotal);
+  const taxTotal = Number(invoice.tax_total ?? computedTaxTotal);
+  const total = Number(invoice.total ?? subtotal + taxTotal);
   const balanceDue = Number(invoice.balance_due ?? total);
   const depositRequired = Number(invoice.deposit_required ?? 0);
+  const taxLabel = formatTaxSummaryLabel(invoice.tax_name, invoice.tax_rate);
+  const companyTaxRegistration = String(company.tax_registration ?? "").trim();
+  const companyTaxRegistrationLabel = taxRegistrationLabel(
+    company.country || company.country_code,
+  );
 
   const paymentsReceived =
     payments.length > 0
@@ -527,7 +606,7 @@ export function renderInvoiceHtml(
           <td class="desc">${escHtml(item.description || "")}</td>
           <td class="num">${Number(item.qty ?? 0)}${item.uom ? ` ${escHtml(item.uom)}` : ""}</td>
           <td class="num">${moneyHtml(item.unit_price, currency)}${item.uom ? ` / ${escHtml(item.uom)}` : ""}</td>
-          <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
+          <td class="num strong">${moneyHtml(preTaxLineAmount(item.qty, item.unit_price, item.line_subtotal), currency)}</td>
         </tr>
       `;
       })
@@ -591,7 +670,7 @@ export function renderInvoiceHtml(
           <td class="desc">${escHtml(item.description || "")}</td>
           <td class="num">${Number(item.qty ?? 0)}${item.uom ? ` ${escHtml(item.uom)}` : ""}</td>
           <td class="num">${moneyHtml(item.unit_price, currency)}${item.uom ? ` / ${escHtml(item.uom)}` : ""}</td>
-          <td class="num strong">${moneyHtml(item.line_total, currency)}</td>
+          <td class="num strong">${moneyHtml(preTaxLineAmount(item.qty, item.unit_price, item.line_subtotal), currency)}</td>
         </tr>
       `;
             })
@@ -1301,7 +1380,7 @@ tr{
         ${company.phone ? `<div>${escHtml(company.phone)}</div>` : ""}
         ${company.email ? `<div>${escHtml(company.email)}</div>` : ""}
         ${company.website ? `<div>${escHtml(company.website)}</div>` : ""}
-        ${company.tax_registration ? `<div><strong>Tax Registration:</strong> ${escHtml(company.tax_registration)}</div>` : ""}
+        ${companyTaxRegistration ? `<div><strong>${escHtml(companyTaxRegistrationLabel)}:</strong> ${escHtml(companyTaxRegistration)}</div>` : ""}
       </div>
     </div>
 
@@ -1355,7 +1434,7 @@ tr{
       ? `<div><strong>Invoice Type:</strong> Period Billing</div>`
       : (workOrderDisplay ? `<div><strong>Work Order:</strong> ${escHtml(workOrderDisplay)}</div>` : "")
     }
-    ${invoice.tax_name ? `<div><strong>Tax:</strong> ${escHtml(invoice.tax_name)}</div>` : ""}
+    ${taxLabel !== "Tax" ? `<div><strong>Tax:</strong> ${escHtml(taxLabel)}</div>` : ""}
   </div>
 </div>
 
@@ -1403,7 +1482,7 @@ tr{
       </div>
 
       <div class="totals-row">
-        <span>Tax</span>
+        <span>${escHtml(taxLabel)}</span>
         <span>${moneyHtml(taxTotal, currency)}</span>
       </div>
 

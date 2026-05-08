@@ -38,14 +38,11 @@ export default function InvoicesPage() {
     const [search, setSearch] = useState("");
     const [customerFilter, setCustomerFilter] = useState("all");
     const [quickFilter, setQuickFilter] = useState<QuickFilter>("unpaid");
-    const [cameFromControlCenter, setCameFromControlCenter] = useState(false);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-        setCameFromControlCenter(
-            new URLSearchParams(window.location.search).get("from") === "control-center"
-        );
-    }, []);
+    const [cameFromControlCenter] = useState(
+        () =>
+            typeof window !== "undefined" &&
+            new URLSearchParams(window.location.search).get("from") === "control-center",
+    );
 
     const canAccessInvoices = useMemo(() => {
         return canManageInvoices(myRole);

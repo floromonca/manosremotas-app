@@ -1,5 +1,7 @@
 "use client";
 
+import { preTaxLineAmount } from "../../../../../lib/invoiceTax";
+
 type InvoiceItemRowType = {
     invoice_item_id: string;
     description: string | null;
@@ -51,11 +53,11 @@ export default function InvoiceItemRow({
     const unitPriceLabel = uomLabel ? `Unit Price / ${uomLabel}` : "Unit Price";
 
 
-    const fallbackSub = qtyN * unitN;
+    const fallbackSub = preTaxLineAmount(qtyN, unitN);
     const fallbackTax = fallbackSub * taxN;
     const fallbackTotal = fallbackSub + fallbackTax;
 
-    const subtotal = item.line_subtotal ?? fallbackSub;
+    const subtotal = preTaxLineAmount(item.qty, item.unit_price, item.line_subtotal);
     const tax = item.line_tax ?? fallbackTax;
     const total = item.line_total ?? fallbackTotal;
 
@@ -173,7 +175,7 @@ export default function InvoiceItemRow({
                             fontWeight: 800,
                         }}
                     >
-                        Line Total
+                        Amount
                     </div>
 
                     <div
@@ -184,7 +186,7 @@ export default function InvoiceItemRow({
                             color: "#111827",
                         }}
                     >
-                        {money(total, currencyCode)}
+                        {money(subtotal, currencyCode)}
                     </div>
 
                     <div
@@ -195,9 +197,9 @@ export default function InvoiceItemRow({
                             lineHeight: 1.5,
                         }}
                     >
-                        Subtotal: {money(subtotal, currencyCode)}
-                        <br />
                         Tax: {money(tax, currencyCode)}
+                        <br />
+                        Line total: {money(total, currencyCode)}
                     </div>
                 </div>
             </div>
