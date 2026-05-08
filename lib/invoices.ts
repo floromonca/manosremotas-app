@@ -704,11 +704,21 @@ body{
   align-items:start;
 }
 
+.brand-block{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  text-align:center;
+  width:100%;
+  max-width:340px;
+  margin:0 auto;
+}
+
 .logo{
-  max-width:210px;
-  max-height:78px;
+  max-width:300px;
+  max-height:108px;
   object-fit:contain;
-  margin-bottom:10px;
+  margin-bottom:14px;
 }
 
 .brand-name{
@@ -1050,8 +1060,8 @@ tr{
   }
 
   .logo{
-    max-width:170px;
-    max-height:60px;
+    max-width:250px;
+    max-height:92px;
   }
 
   .brand-name{
@@ -1244,6 +1254,15 @@ tr{
     grid-template-columns:1fr;
   }
 
+  .brand-block{
+    max-width:280px;
+  }
+
+  .logo{
+    max-width:230px;
+    max-height:84px;
+  }
+
   .summary{
     justify-content:stretch;
   }
@@ -1273,7 +1292,7 @@ tr{
 <div class="page ${isPeriodInvoice ? "period-mode" : ""}">
 
   <div class="topbar">
-    <div>
+    <div class="brand-block">
       ${company.logo_url ? `<img class="logo" src="${escHtml(company.logo_url)}" alt="Company logo" />` : ""}
       <h1 class="brand-name">${escHtml(companyDisplayName)}</h1>
 
