@@ -705,10 +705,10 @@ body{
 }
 
 .logo{
-  max-width:140px;
-  max-height:70px;
+  max-width:210px;
+  max-height:78px;
   object-fit:contain;
-  margin-bottom:6px;
+  margin-bottom:10px;
 }
 
 .brand-name{
@@ -1050,8 +1050,8 @@ tr{
   }
 
   .logo{
-    max-width:108px;
-    max-height:52px;
+    max-width:170px;
+    max-height:60px;
   }
 
   .brand-name{
