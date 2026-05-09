@@ -12,6 +12,7 @@ type WorkOrder = {
 };
 
 type Props = {
+    compactDesktop?: boolean;
     currentWork: WorkOrder | null;
     currentWorkMessage: string;
     openShift: boolean;
@@ -23,6 +24,7 @@ type Props = {
 };
 
 export default function CurrentWorkCard({
+    compactDesktop = false,
     currentWork,
     currentWorkMessage,
     openShift,
@@ -38,7 +40,7 @@ export default function CurrentWorkCard({
                 border: `1px solid ${MR_THEME.colors.border}`,
                 borderRadius: MR_THEME.radius.card,
                 background: MR_THEME.colors.cardBg,
-                padding: MR_THEME.layout.cardPadding,
+                padding: compactDesktop ? 16 : MR_THEME.layout.cardPadding,
                 boxShadow: MR_THEME.shadows.card,
             }}
         >
@@ -49,7 +51,7 @@ export default function CurrentWorkCard({
                     letterSpacing: "0.08em",
                     color: MR_THEME.colors.textMuted,
                     fontWeight: 800,
-                    marginBottom: 8,
+                    marginBottom: compactDesktop ? 5 : 8,
                 }}
             >
                 Current Work
@@ -57,10 +59,10 @@ export default function CurrentWorkCard({
 
             <div
                 style={{
-                    fontSize: 24,
+                    fontSize: compactDesktop ? 21 : 24,
                     fontWeight: 900,
                     color: MR_THEME.colors.textPrimary,
-                    marginBottom: 8,
+                    marginBottom: compactDesktop ? 5 : 8,
                 }}
             >
                 {currentWork ? "Active work order" : "No active work"}
@@ -68,9 +70,9 @@ export default function CurrentWorkCard({
 
             <div
                 style={{
-                    fontSize: 14,
+                    fontSize: compactDesktop ? 13 : 14,
                     color: MR_THEME.colors.textSecondary,
-                    marginBottom: 16,
+                    marginBottom: compactDesktop ? 10 : 16,
                     lineHeight: 1.5,
                 }}
             >
@@ -80,11 +82,11 @@ export default function CurrentWorkCard({
             {currentWork ? (
                 <div
                     style={{
-                        padding: 14,
+                        padding: compactDesktop ? 12 : 14,
                         borderRadius: MR_THEME.radius.control,
                         border: `1px solid ${MR_THEME.colors.border}`,
                         background: MR_THEME.colors.cardBgSoft,
-                        marginBottom: 14,
+                        marginBottom: compactDesktop ? 10 : 14,
                     }}
                 >
                     <div
@@ -118,11 +120,14 @@ export default function CurrentWorkCard({
                 </div>
             ) : null}
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: compactDesktop ? 8 : 10, flexWrap: "wrap" }}>
                 {currentWork ? (
                     <button
                         onClick={() => onResumeWork(currentWork.work_order_id)}
-                        style={primaryButton}
+                        style={{
+                            ...primaryButton,
+                            padding: compactDesktop ? "8px 12px" : primaryButton.padding,
+                        }}
                     >
                         Open work order
                     </button>
@@ -134,6 +139,7 @@ export default function CurrentWorkCard({
                         disabled={shiftBusy || loading || !companyId}
                         style={{
                             ...secondaryButton,
+                            padding: compactDesktop ? "8px 12px" : secondaryButton.padding,
                             opacity: shiftBusy || loading || !companyId ? 0.7 : 1,
                             cursor:
                                 shiftBusy || loading || !companyId

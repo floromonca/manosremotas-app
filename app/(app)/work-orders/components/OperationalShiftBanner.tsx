@@ -7,6 +7,7 @@ type Props = {
     canOperate: boolean;
     onRefreshShift: () => void;
     onGoCheckIn: () => void;
+    compactDesktop?: boolean;
 };
 
 export default function OperationalShiftBanner({
@@ -14,12 +15,13 @@ export default function OperationalShiftBanner({
     canOperate,
     onRefreshShift,
     onGoCheckIn,
+    compactDesktop = false,
 }: Props) {
     return (
         <div
             style={{
-                marginBottom: 18,
-                padding: "12px 14px",
+                marginBottom: compactDesktop ? 14 : 18,
+                padding: compactDesktop ? "10px 12px" : "12px 14px",
                 borderRadius: MR_THEME.radius.card,
                 border: `1px solid ${canOperate ? "#bbf7d0" : "#fed7aa"}`,
                 background: canOperate ? "#ecfdf5" : "#fff7ed",
@@ -30,7 +32,7 @@ export default function OperationalShiftBanner({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: 12,
+                gap: compactDesktop ? 10 : 12,
                 flexWrap: "wrap",
                 boxShadow: MR_THEME.shadows.cardSoft,
             }}
@@ -49,11 +51,11 @@ export default function OperationalShiftBanner({
                 )}
             </div>
 
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: compactDesktop ? 8 : 10, flexWrap: "wrap" }}>
                 <button
                     onClick={onRefreshShift}
                     style={{
-                        padding: "8px 12px",
+                        padding: compactDesktop ? "7px 11px" : "8px 12px",
                         borderRadius: MR_THEME.radius.control,
                         border: `1px solid ${canOperate ? "#86efac" : "#fdba74"}`,
                         background: MR_THEME.colors.cardBg,
@@ -70,7 +72,7 @@ export default function OperationalShiftBanner({
                     <button
                         onClick={onGoCheckIn}
                         style={{
-                            padding: "8px 12px",
+                            padding: compactDesktop ? "7px 11px" : "8px 12px",
                             borderRadius: MR_THEME.radius.control,
                             border: `1px solid ${MR_THEME.colors.textPrimary}`,
                             background: MR_THEME.colors.textPrimary,

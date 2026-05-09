@@ -5,12 +5,14 @@ import { MR_THEME } from "../../../../lib/theme";
 
 type ControlCenterHeaderProps = {
     companyName?: string | null;
+    compactDesktop?: boolean;
     onOpenWorkOrders: () => void;
     onOpenInvoices: () => void;
 };
 
 export default function ControlCenterHeader({
     companyName,
+    compactDesktop = false,
     onOpenWorkOrders,
     onOpenInvoices,
 }: ControlCenterHeaderProps) {
@@ -20,7 +22,7 @@ export default function ControlCenterHeader({
             style={{
                 display: "grid",
                 gridTemplateColumns: "minmax(0, 1fr) auto",
-                gap: 16,
+                gap: compactDesktop ? 12 : 16,
                 alignItems: "start",
             }}
         >
@@ -31,7 +33,7 @@ export default function ControlCenterHeader({
                             fontSize: 13,
                             fontWeight: 800,
                             color: MR_THEME.colors.primary,
-                            marginBottom: 8,
+                            marginBottom: compactDesktop ? 5 : 8,
                             lineHeight: 1.2,
                         }}
                     >
@@ -41,7 +43,7 @@ export default function ControlCenterHeader({
                     <h1
                         style={{
                             margin: 0,
-                            fontSize: 34,
+                            fontSize: compactDesktop ? 30 : 34,
                             lineHeight: 1.1,
                             fontWeight: 900,
                             color: MR_THEME.colors.textPrimary,
@@ -53,9 +55,9 @@ export default function ControlCenterHeader({
 
                     <p
                         style={{
-                            margin: "8px 0 0",
+                            margin: compactDesktop ? "6px 0 0" : "8px 0 0",
                             color: MR_THEME.colors.textSecondary,
-                            fontSize: 15,
+                            fontSize: compactDesktop ? 14 : 15,
                             lineHeight: 1.5,
                             maxWidth: 720,
                         }}
@@ -69,7 +71,7 @@ export default function ControlCenterHeader({
                 className="controlCenterHeaderActions"
                 style={{
                     display: "flex",
-                    gap: 10,
+                    gap: compactDesktop ? 8 : 10,
                     alignItems: "center",
                     justifyContent: "flex-end",
                     flexWrap: "wrap",
@@ -79,14 +81,14 @@ export default function ControlCenterHeader({
                     type="button"
                     onClick={onOpenWorkOrders}
                     style={{
-                        minHeight: 40,
-                        padding: "10px 14px",
+                        minHeight: compactDesktop ? 36 : 40,
+                        padding: compactDesktop ? "8px 12px" : "10px 14px",
                         borderRadius: MR_THEME.radius.control,
                         border: `1px solid ${MR_THEME.colors.primary}`,
                         background: MR_THEME.colors.primary,
                         color: "#ffffff",
                         cursor: "pointer",
-                        fontSize: 14,
+                        fontSize: compactDesktop ? 13 : 14,
                         fontWeight: 800,
                         boxShadow: "0 1px 2px rgba(37, 99, 235, 0.18)",
                         whiteSpace: "nowrap",
@@ -99,14 +101,14 @@ export default function ControlCenterHeader({
                     type="button"
                     onClick={onOpenInvoices}
                     style={{
-                        minHeight: 40,
-                        padding: "10px 14px",
+                        minHeight: compactDesktop ? 36 : 40,
+                        padding: compactDesktop ? "8px 12px" : "10px 14px",
                         borderRadius: MR_THEME.radius.control,
                         border: `1px solid ${MR_THEME.colors.border}`,
                         background: MR_THEME.colors.cardBg,
                         color: MR_THEME.colors.primaryHover,
                         cursor: "pointer",
-                        fontSize: 14,
+                        fontSize: compactDesktop ? 13 : 14,
                         fontWeight: 800,
                         boxShadow: MR_THEME.shadows.card,
                         whiteSpace: "nowrap",

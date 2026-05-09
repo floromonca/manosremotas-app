@@ -45,6 +45,7 @@ function MyDayContent() {
     const [shiftMsg, setShiftMsg] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
     const [mounted, setMounted] = useState(false);
+    const [isCompactDesktop, setIsCompactDesktop] = useState(false);
     const [prettyDate, setPrettyDate] = useState("");
     const [shiftElapsed, setShiftElapsed] = useState("00:00:00");
     const [todayShiftSummary, setTodayShiftSummary] = useState<ShiftSummary | null>(null);
@@ -55,6 +56,17 @@ function MyDayContent() {
     useEffect(() => {
         setMounted(true);
         setPrettyDate(new Date().toLocaleDateString());
+    }, []);
+
+    useEffect(() => {
+        const updateDensity = () => {
+            setIsCompactDesktop(window.innerWidth >= 900);
+        };
+
+        updateDensity();
+        window.addEventListener("resize", updateDensity);
+
+        return () => window.removeEventListener("resize", updateDensity);
     }, []);
 
     useEffect(() => {
@@ -273,13 +285,13 @@ function MyDayContent() {
                 width: "100%",
                 maxWidth: 1180,
                 margin: "0 auto",
-                padding: "8px 16px 32px 16px",
+                padding: isCompactDesktop ? "6px 12px 28px" : "8px 16px 32px 16px",
             }}
         >
             <div
                 style={{
-                    marginBottom: 14,
-                    paddingBottom: 14,
+                    marginBottom: isCompactDesktop ? 12 : 14,
+                    paddingBottom: isCompactDesktop ? 10 : 14,
                     borderBottom: `1px solid ${MR_THEME.colors.border}`,
                 }}
             >
@@ -291,7 +303,7 @@ function MyDayContent() {
                             letterSpacing: "0.06em",
                             textTransform: "uppercase",
                             color: MR_THEME.colors.textSecondary,
-                            marginBottom: 8,
+                            marginBottom: isCompactDesktop ? 5 : 8,
                         }}
                     >
                         {prettyDate}
@@ -300,7 +312,7 @@ function MyDayContent() {
 
                 <h1
                     style={{
-                        fontSize: 34,
+                        fontSize: isCompactDesktop ? 30 : 34,
                         lineHeight: 1.05,
                         fontWeight: 900,
                         letterSpacing: "-0.03em",
@@ -313,8 +325,8 @@ function MyDayContent() {
 
                 <div
                     style={{
-                        marginTop: 8,
-                        fontSize: 15,
+                        marginTop: isCompactDesktop ? 6 : 8,
+                        fontSize: isCompactDesktop ? 14 : 15,
                         color: MR_THEME.colors.textSecondary,
                         lineHeight: 1.5,
                         maxWidth: 760,
@@ -343,8 +355,9 @@ function MyDayContent() {
                 </div>
             ) : null}
 
-            <div style={{ display: "grid", gap: 18 }}>
+            <div style={{ display: "grid", gap: isCompactDesktop ? 12 : 18 }}>
                 <ShiftStatusCard
+                    compactDesktop={isCompactDesktop}
                     loading={loading}
                     companyId={companyId}
                     openShift={openShift}
@@ -360,6 +373,7 @@ function MyDayContent() {
                 />
 
                 <CurrentWorkCard
+                    compactDesktop={isCompactDesktop}
                     currentWork={currentWork}
                     currentWorkMessage={currentWorkMessage}
                     openShift={!!openShift}
@@ -371,6 +385,7 @@ function MyDayContent() {
                 />
 
                 <TodayAtAGlanceCard
+                    compactDesktop={isCompactDesktop}
                     loading={workOrdersLoading}
                     assignedCount={assignedCount}
                     inProgressCount={inProgressCount}
@@ -378,6 +393,7 @@ function MyDayContent() {
                 />
 
                 <RecentWorkOrdersCard
+                    compactDesktop={isCompactDesktop}
                     rows={recentWorkRows}
                     onOpenWorkOrder={(workOrderId) => router.push(`/work-orders/${workOrderId}`)}
                 />

@@ -93,7 +93,7 @@ export default function AppShellLayout({
         <div style={{ display: "flex", minHeight: "100vh", background: mainBg }}>
 
             {/* Sidebar desktop */}
-            {!isMobile && <AppSidebar />}
+            {!isMobile && <AppSidebar variant="desktop" />}
 
             {/* Sidebar mobile */}
             {isMobile && sidebarOpen && (
@@ -116,7 +116,7 @@ export default function AppShellLayout({
                             boxShadow: "0 8px 30px rgba(15, 23, 42, 0.22)",
                         }}
                     >
-                        <AppSidebar onNavigate={() => setSidebarOpen(false)} />
+                        <AppSidebar variant="mobile" onNavigate={() => setSidebarOpen(false)} />
                     </div>
                 </div>
             )}
@@ -124,14 +124,14 @@ export default function AppShellLayout({
             <main
                 style={{
                     flex: 1,
-                    padding: isMobile ? "12px 12px 32px" : "16px 24px 40px",
+                    padding: isMobile ? "12px 12px 32px" : "12px 20px 32px",
                     background: mainBg,
                 }}
             >
                 <div
                     style={{
                         width: "100%",
-                        margin: "0 0 18px",
+                        margin: isMobile ? "0 0 18px" : "0 0 14px",
                     }}
                 >
 
@@ -141,7 +141,7 @@ export default function AppShellLayout({
                             justifyContent: "space-between",
                             alignItems: "center",
                             gap: MR_THEME.spacing.md,
-                            padding: isMobile ? "10px 12px" : "12px 16px",
+                            padding: isMobile ? "10px 12px" : "10px 14px",
                             borderRadius: 0,
                             background: MR_THEME.colors.cardBg,
                             borderBottom: `1px solid ${MR_THEME.colors.border}`,
@@ -184,7 +184,7 @@ export default function AppShellLayout({
                                         letterSpacing: 1,
                                         textTransform: "uppercase",
                                         color: MR_THEME.colors.textMuted,
-                                        marginBottom: 2,
+                                        marginBottom: isMobile ? 2 : 1,
                                     }}
                                 >
                                     Company
@@ -192,7 +192,7 @@ export default function AppShellLayout({
 
                                 <div
                                     style={{
-                                        fontSize: 15,
+                                        fontSize: isMobile ? 15 : 14,
                                         fontWeight: 800,
                                         color: MR_THEME.colors.textPrimary,
                                         whiteSpace: "nowrap",
@@ -214,19 +214,19 @@ export default function AppShellLayout({
                                 style={{
                                     display: "flex",
                                     alignItems: "center",
-                                    gap: 10,
+                                    gap: isMobile ? 10 : 8,
                                     border: `1px solid ${MR_THEME.colors.border}`,
                                     background: MR_THEME.colors.cardBg,
                                     borderRadius: 999,
-                                    padding: "6px 10px 6px 6px",
+                                    padding: isMobile ? "6px 10px 6px 6px" : "5px 9px 5px 5px",
                                     cursor: "pointer",
                                     boxShadow: MR_THEME.shadows.cardSoft,
                                 }}
                             >
                                 <div
                                     style={{
-                                        width: 32,
-                                        height: 32,
+                                        width: isMobile ? 32 : 30,
+                                        height: isMobile ? 32 : 30,
                                         borderRadius: 999,
                                         background: MR_THEME.colors.primarySoft,
                                         color: MR_THEME.colors.primary,

@@ -25,6 +25,7 @@ export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
+    const [isCompactDesktop, setIsCompactDesktop] = useState(false);
     const [cameFromControlCenter] = useState(
         () =>
             typeof window !== "undefined" &&
@@ -96,6 +97,19 @@ export default function CustomersPage() {
         });
     }, [companyId, canAccessCustomers, loadCustomers]);
 
+    useEffect(() => {
+        const checkViewport = () => {
+            setIsCompactDesktop(window.innerWidth >= 900);
+        };
+
+        checkViewport();
+        window.addEventListener("resize", checkViewport);
+
+        return () => {
+            window.removeEventListener("resize", checkViewport);
+        };
+    }, []);
+
     async function handleNewCustomer() {
         if (!companyId) {
             alert("No active company selected");
@@ -131,7 +145,7 @@ export default function CustomersPage() {
                 style={{
                     minHeight: "100vh",
                     background: MR_THEME.colors.appBg,
-                    padding: "24px",
+                    padding: isCompactDesktop ? "16px 20px 32px" : "24px",
                 }}
             >
                 <div
@@ -152,7 +166,7 @@ export default function CustomersPage() {
             style={{
                 minHeight: "100vh",
                 background: MR_THEME.colors.appBg,
-                padding: "24px",
+                padding: isCompactDesktop ? "16px 20px 32px" : "24px",
             }}
         >
             <div
@@ -160,7 +174,7 @@ export default function CustomersPage() {
                     maxWidth: 1180,
                     margin: "0 auto",
                     display: "grid",
-                    gap: 18,
+                    gap: isCompactDesktop ? 12 : 18,
                 }}
             >
                 <section
@@ -169,10 +183,10 @@ export default function CustomersPage() {
                         borderRadius: MR_THEME.radius.card,
                         background: MR_THEME.colors.cardBg,
                         boxShadow: MR_THEME.shadows.card,
-                        padding: MR_THEME.layout.cardPadding,
+                        padding: isCompactDesktop ? 14 : MR_THEME.layout.cardPadding,
                         display: "grid",
                         gridTemplateColumns: "minmax(0, 1fr) auto",
-                        gap: 16,
+                        gap: isCompactDesktop ? 12 : 16,
                         alignItems: "center",
                     }}
                 >
@@ -184,7 +198,7 @@ export default function CustomersPage() {
                                 letterSpacing: 1,
                                 color: MR_THEME.colors.primary,
                                 fontWeight: 800,
-                                marginBottom: 8,
+                                marginBottom: isCompactDesktop ? 5 : 8,
                             }}
                         >
                             Customers
@@ -193,6 +207,7 @@ export default function CustomersPage() {
                         <h1
                             style={{
                                 ...MR_THEME.typography.pageTitle,
+                                fontSize: isCompactDesktop ? 22 : MR_THEME.typography.pageTitle.fontSize,
                                 margin: 0,
                                 color: MR_THEME.colors.textPrimary,
                             }}
@@ -202,7 +217,7 @@ export default function CustomersPage() {
 
                         <p
                             style={{
-                                margin: "8px 0 0",
+                                margin: isCompactDesktop ? "6px 0 0" : "8px 0 0",
                                 color: MR_THEME.colors.textSecondary,
                                 fontSize: 14,
                                 lineHeight: 1.5,
@@ -214,7 +229,7 @@ export default function CustomersPage() {
 
                         <div
                             style={{
-                                marginTop: 14,
+                                marginTop: isCompactDesktop ? 10 : 14,
                                 display: "flex",
                                 gap: 10,
                                 flexWrap: "wrap",
@@ -222,7 +237,7 @@ export default function CustomersPage() {
                         >
                             <span
                                 style={{
-                                    padding: "6px 10px",
+                                    padding: isCompactDesktop ? "5px 9px" : "6px 10px",
                                     borderRadius: 999,
                                     background: MR_THEME.colors.primarySoft,
                                     border: `1px solid ${MR_THEME.colors.border}`,
@@ -236,7 +251,7 @@ export default function CustomersPage() {
 
                             <span
                                 style={{
-                                    padding: "6px 10px",
+                                    padding: isCompactDesktop ? "5px 9px" : "6px 10px",
                                     borderRadius: 999,
                                     background: MR_THEME.colors.cardBgSoft,
                                     border: `1px solid ${MR_THEME.colors.border}`,
@@ -248,6 +263,28 @@ export default function CustomersPage() {
                                 {customers.length} customer{customers.length === 1 ? "" : "s"}
                             </span>
                         </div>
+
+                        {isCompactDesktop && customers.length > 0 ? (
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search customers"
+                                style={{
+                                    width: "min(520px, 100%)",
+                                    height: 38,
+                                    marginTop: 12,
+                                    padding: "0 12px",
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    borderRadius: MR_THEME.radius.control,
+                                    background: MR_THEME.colors.cardBgSoft,
+                                    color: MR_THEME.colors.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: 650,
+                                    boxSizing: "border-box",
+                                    outline: "none",
+                                }}
+                            />
+                        ) : null}
                     </div>
 
                     <div
@@ -263,7 +300,7 @@ export default function CustomersPage() {
                                 type="button"
                                 onClick={() => router.push("/control-center")}
                                 style={{
-                                    padding: "12px 16px",
+                                    padding: isCompactDesktop ? "9px 12px" : "12px 16px",
                                     borderRadius: MR_THEME.radius.control,
                                     border: `1px solid ${MR_THEME.colors.borderStrong}`,
                                     background: MR_THEME.colors.cardBg,
@@ -281,7 +318,7 @@ export default function CustomersPage() {
                             type="button"
                             onClick={handleNewCustomer}
                             style={{
-                                padding: "12px 16px",
+                                padding: isCompactDesktop ? "9px 12px" : "12px 16px",
                                 borderRadius: MR_THEME.radius.control,
                                 border: `1px solid ${MR_THEME.colors.primary}`,
                                 background: MR_THEME.colors.primary,
@@ -296,17 +333,17 @@ export default function CustomersPage() {
                         </button>
                     </div>
                 </section>
-                {customers.length > 0 ? (
+                {customers.length > 0 && !isCompactDesktop ? (
                     <section
                         style={{
                             border: `1px solid ${MR_THEME.colors.border}`,
                             borderRadius: MR_THEME.radius.card,
                             background: MR_THEME.colors.cardBg,
                             boxShadow: MR_THEME.shadows.card,
-                            padding: 16,
+                            padding: isCompactDesktop ? 12 : 16,
                         }}
                     >
-                        <div style={{ display: "grid", gap: 6 }}>
+                        <div style={{ display: "grid", gap: isCompactDesktop ? 4 : 6 }}>
                             <label
                                 style={{
                                     fontSize: 11,
@@ -325,13 +362,13 @@ export default function CustomersPage() {
                                 placeholder="Customer name, email, or phone"
                                 style={{
                                     width: "100%",
-                                    height: 44,
-                                    padding: "0 14px",
+                                    height: isCompactDesktop ? 38 : 44,
+                                    padding: isCompactDesktop ? "0 12px" : "0 14px",
                                     border: `1px solid ${MR_THEME.colors.borderStrong}`,
                                     borderRadius: MR_THEME.radius.control,
                                     background: MR_THEME.colors.cardBg,
                                     color: MR_THEME.colors.textPrimary,
-                                    fontSize: 14,
+                                    fontSize: isCompactDesktop ? 13 : 14,
                                     boxSizing: "border-box",
                                 }}
                             />
@@ -342,7 +379,7 @@ export default function CustomersPage() {
                 {loading ? (
                     <section
                         style={{
-                            padding: 18,
+                            padding: isCompactDesktop ? 14 : 18,
                             borderRadius: MR_THEME.radius.card,
                             border: `1px solid ${MR_THEME.colors.border}`,
                             background: MR_THEME.colors.cardBg,
@@ -358,7 +395,7 @@ export default function CustomersPage() {
                     <section
                         style={{
                             border: `1px dashed ${MR_THEME.colors.borderStrong}`,
-                            padding: 24,
+                            padding: isCompactDesktop ? 18 : 24,
                             borderRadius: MR_THEME.radius.card,
                             background: MR_THEME.colors.cardBg,
                             color: MR_THEME.colors.textSecondary,
@@ -385,7 +422,7 @@ export default function CustomersPage() {
                     <section
                         style={{
                             border: `1px dashed ${MR_THEME.colors.borderStrong}`,
-                            padding: 24,
+                            padding: isCompactDesktop ? 18 : 24,
                             borderRadius: MR_THEME.radius.card,
                             background: MR_THEME.colors.cardBg,
                             color: MR_THEME.colors.textSecondary,
@@ -400,50 +437,86 @@ export default function CustomersPage() {
                     <section
                         style={{
                             display: "grid",
-                            gap: 12,
+                            gap: isCompactDesktop ? 10 : 12,
                         }}
                     >
                         {filteredCustomers.map((customer) => (
                             <article
                                 key={customer.customer_id}
                                 style={{
-                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    border: `1px solid ${isCompactDesktop ? MR_THEME.colors.primarySurface : MR_THEME.colors.border}`,
                                     borderRadius: MR_THEME.radius.card,
-                                    background: MR_THEME.colors.cardBg,
-                                    boxShadow: MR_THEME.shadows.card,
-                                    padding: 14,
+                                    background: isCompactDesktop
+                                        ? "linear-gradient(90deg, #ffffff 0%, #f8fbff 100%)"
+                                        : MR_THEME.colors.cardBg,
+                                    boxShadow: isCompactDesktop ? MR_THEME.shadows.cardSoft : MR_THEME.shadows.card,
+                                    padding: isCompactDesktop ? 12 : 14,
                                     display: "grid",
                                     gridTemplateColumns: "minmax(0, 1fr) auto",
-                                    gap: 16,
+                                    gap: isCompactDesktop ? 12 : 16,
                                     alignItems: "center",
+                                    borderLeft: isCompactDesktop
+                                        ? `3px solid ${MR_THEME.colors.primarySurface}`
+                                        : `1px solid ${MR_THEME.colors.border}`,
                                 }}
                             >
                                 <div style={{ minWidth: 0 }}>
-                                    <div
-                                        style={{
-                                            fontWeight: 900,
-                                            fontSize: 18,
-                                            lineHeight: 1.2,
-                                            color: MR_THEME.colors.textPrimary,
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                        }}
-                                    >
-                                        {customer.name}
-                                    </div>
+                                    {isCompactDesktop ? (
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 10,
+                                                minWidth: 0,
+                                                flexWrap: "wrap",
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    fontWeight: 900,
+                                                    fontSize: 16,
+                                                    lineHeight: 1.2,
+                                                    color: MR_THEME.colors.textPrimary,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                    maxWidth: 300,
+                                                }}
+                                            >
+                                                {customer.name}
+                                            </div>
+                                            <CustomerMeta value={customer.email || "No email"} />
+                                            <CustomerMeta value={customer.phone || "No phone"} />
+                                        </div>
+                                    ) : (
+                                        <div
+                                            style={{
+                                                fontWeight: 900,
+                                                fontSize: 18,
+                                                lineHeight: 1.2,
+                                                color: MR_THEME.colors.textPrimary,
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            {customer.name}
+                                        </div>
+                                    )}
 
-                                    <div
-                                        style={{
-                                            marginTop: 10,
-                                            display: "grid",
-                                            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                            gap: 10,
-                                        }}
-                                    >
-                                        <InfoBlock label="Email" value={customer.email || "—"} />
-                                        <InfoBlock label="Phone" value={customer.phone || "—"} />
-                                    </div>
+                                    {!isCompactDesktop ? (
+                                        <div
+                                            style={{
+                                                marginTop: 10,
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                                                gap: 10,
+                                            }}
+                                        >
+                                            <InfoBlock label="Email" value={customer.email || "—"} />
+                                            <InfoBlock label="Phone" value={customer.phone || "—"} />
+                                        </div>
+                                    ) : null}
                                 </div>
 
                                 <Link
@@ -452,11 +525,11 @@ export default function CustomersPage() {
                                         display: "inline-flex",
                                         alignItems: "center",
                                         justifyContent: "center",
-                                        padding: "10px 14px",
+                                        padding: isCompactDesktop ? "8px 12px" : "10px 14px",
                                         borderRadius: MR_THEME.radius.control,
-                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                        background: MR_THEME.colors.cardBg,
-                                        color: MR_THEME.colors.textPrimary,
+                                        border: `1px solid ${isCompactDesktop ? MR_THEME.colors.primarySurface : MR_THEME.colors.borderStrong}`,
+                                        background: isCompactDesktop ? MR_THEME.colors.primarySoft : MR_THEME.colors.cardBg,
+                                        color: isCompactDesktop ? MR_THEME.colors.primary : MR_THEME.colors.textPrimary,
                                         textDecoration: "none",
                                         fontWeight: 800,
                                         whiteSpace: "nowrap",
@@ -534,5 +607,31 @@ function InfoBlock({ label, value }: { label: string; value: string }) {
                 {value}
             </div>
         </div>
+    );
+}
+
+function CustomerMeta({ value }: { value: string }) {
+    return (
+        <span
+            style={{
+                display: "inline-flex",
+                alignItems: "center",
+                minHeight: 28,
+                padding: "4px 9px",
+                borderRadius: MR_THEME.radius.pill,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                background: MR_THEME.colors.cardBg,
+                color: MR_THEME.colors.textSecondary,
+                fontSize: 13,
+                fontWeight: 750,
+                minWidth: 0,
+                maxWidth: 280,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+            }}
+        >
+            {value}
+        </span>
     );
 }

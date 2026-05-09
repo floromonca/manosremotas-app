@@ -6,6 +6,7 @@ import KpiCard from "./KpiCard";
 
 type ControlCenterKpisProps = {
     loading: boolean;
+    compactDesktop?: boolean;
     kpis: {
         activeWorkOrders: number;
         techniciansWorking: number;
@@ -27,6 +28,7 @@ type ControlCenterKpisProps = {
 
 export default function ControlCenterKpis({
     loading,
+    compactDesktop = false,
     kpis,
     revenueMonthLabel,
     unassignedWorkOrders = 0,
@@ -143,7 +145,7 @@ export default function ControlCenterKpis({
                 style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                    gap: 16,
+                    gap: compactDesktop ? 12 : 16,
                 }}
             >
                 {cards.map((card) => (
@@ -155,6 +157,7 @@ export default function ControlCenterKpis({
                             statusText={card.statusText}
                             icon={card.icon}
                             onClick={card.onClick}
+                            compactDesktop={compactDesktop}
                         />
                     </div>
                 ))}

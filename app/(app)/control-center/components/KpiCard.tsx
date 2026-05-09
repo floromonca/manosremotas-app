@@ -10,6 +10,7 @@ type KpiCardProps = {
     accentColor?: string;
     statusText?: string;
     icon?: React.ReactNode;
+    compactDesktop?: boolean;
 };
 
 export default function KpiCard({
@@ -19,6 +20,7 @@ export default function KpiCard({
     accentColor,
     statusText,
     icon,
+    compactDesktop = false,
 }: KpiCardProps) {
     const clickable = !!onClick;
     const accent = accentColor || MR_THEME.colors.borderStrong;
@@ -27,7 +29,7 @@ export default function KpiCard({
     return (
         <>
             <CardElement
-                className="kpiCard"
+                className={`kpiCard${compactDesktop ? " compactDesktop" : ""}`}
                 type={clickable ? "button" : undefined}
                 onClick={onClick}
                 aria-label={clickable ? `Open ${title}` : undefined}
@@ -139,6 +141,43 @@ export default function KpiCard({
                     font-weight: 500;
                     line-height: 1;
                     padding-top: 8px;
+                }
+
+                @media (min-width: 681px) {
+                    .kpiCard.compactDesktop {
+                        min-height: 128px;
+                        padding: 14px;
+                        gap: 9px 10px;
+                    }
+
+                    .kpiCard.compactDesktop .kpiIconWrap {
+                        width: 38px;
+                        height: 38px;
+                        border-radius: ${MR_THEME.radius.control}px;
+                        font-size: 19px;
+                    }
+
+                    .kpiCard.compactDesktop .kpiContent {
+                        gap: 8px;
+                    }
+
+                    .kpiCard.compactDesktop .kpiTitle {
+                        font-size: 14px;
+                        line-height: 1.25;
+                    }
+
+                    .kpiCard.compactDesktop .kpiStatus {
+                        font-size: 12px;
+                    }
+
+                    .kpiCard.compactDesktop .kpiValue {
+                        font-size: 30px;
+                    }
+
+                    .kpiCard.compactDesktop .kpiChevron {
+                        padding-top: 5px;
+                        font-size: 22px;
+                    }
                 }
 
                 @media (max-width: 680px) {

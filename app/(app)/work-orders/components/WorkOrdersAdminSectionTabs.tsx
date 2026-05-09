@@ -15,12 +15,14 @@ type WorkOrdersAdminSectionTabsProps = {
         readyToInvoice: number;
         history: number;
     };
+    compactDesktop?: boolean;
 };
 
 export default function WorkOrdersAdminSectionTabs({
     adminActiveSection,
     setAdminActiveSection,
     counts,
+    compactDesktop = false,
 }: WorkOrdersAdminSectionTabsProps) {
     const tabs: Array<{
         key: AdminSection;
@@ -53,11 +55,11 @@ export default function WorkOrdersAdminSectionTabs({
         <div
             style={{
                 display: "flex",
-                gap: 8,
+                gap: compactDesktop ? 7 : 8,
                 overflowX: "auto",
-                paddingTop: 2,
-                paddingBottom: 6,
-                marginBottom: 4,
+                paddingTop: compactDesktop ? 0 : 2,
+                paddingBottom: compactDesktop ? 4 : 6,
+                marginBottom: compactDesktop ? 2 : 4,
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",
@@ -72,7 +74,7 @@ export default function WorkOrdersAdminSectionTabs({
                         type="button"
                         onClick={() => setAdminActiveSection(tab.key)}
                         style={{
-                            padding: "10px 14px",
+                            padding: compactDesktop ? "8px 12px" : "10px 14px",
                             borderRadius: MR_THEME.radius.pill,
                             border: active
                                 ? `1px solid ${MR_THEME.colors.primary}`
@@ -85,7 +87,7 @@ export default function WorkOrdersAdminSectionTabs({
                                 : MR_THEME.colors.textSecondary,
                             cursor: "pointer",
                             fontWeight: 700,
-                            fontSize: 13,
+                            fontSize: compactDesktop ? 12 : 13,
                             whiteSpace: "nowrap",
                             flexShrink: 0,
                         }}

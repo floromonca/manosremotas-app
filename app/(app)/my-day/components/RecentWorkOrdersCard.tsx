@@ -12,11 +12,13 @@ type Row = {
 };
 
 type Props = {
+    compactDesktop?: boolean;
     rows: Row[];
     onOpenWorkOrder: (workOrderId: string) => void;
 };
 
 export default function RecentWorkOrdersCard({
+    compactDesktop = false,
     rows,
     onOpenWorkOrder,
 }: Props) {
@@ -26,7 +28,7 @@ export default function RecentWorkOrdersCard({
                 border: `1px solid ${MR_THEME.colors.border}`,
                 borderRadius: MR_THEME.radius.card,
                 background: MR_THEME.colors.cardBg,
-                padding: MR_THEME.layout.cardPadding,
+                padding: compactDesktop ? 16 : MR_THEME.layout.cardPadding,
                 boxShadow: MR_THEME.shadows.card,
             }}
         >
@@ -37,7 +39,7 @@ export default function RecentWorkOrdersCard({
                     letterSpacing: "0.08em",
                     color: MR_THEME.colors.textMuted,
                     fontWeight: 800,
-                    marginBottom: 10,
+                    marginBottom: compactDesktop ? 8 : 10,
                 }}
             >
                 Recent work orders
@@ -46,7 +48,7 @@ export default function RecentWorkOrdersCard({
             {rows.length === 0 ? (
                 <div
                     style={{
-                        padding: 12,
+                        padding: compactDesktop ? 10 : 12,
                         borderRadius: MR_THEME.radius.control,
                         border: `1px dashed ${MR_THEME.colors.border}`,
                         background: MR_THEME.colors.cardBgSoft,
@@ -57,19 +59,19 @@ export default function RecentWorkOrdersCard({
                     No recent work orders.
                 </div>
             ) : (
-                <div style={{ display: "grid", gap: 10 }}>
+                <div style={{ display: "grid", gap: compactDesktop ? 8 : 10 }}>
                     {rows.map((row) => (
                         <div
                             key={row.work_order_id}
                             style={{
-                                padding: 14,
+                                padding: compactDesktop ? 12 : 14,
                                 borderRadius: MR_THEME.radius.control,
                                 border: `1px solid ${MR_THEME.colors.border}`,
                                 background: MR_THEME.colors.cardBgSoft,
                                 display: "flex",
                                 justifyContent: "space-between",
                                 alignItems: "center",
-                                gap: 12,
+                                gap: compactDesktop ? 10 : 12,
                                 flexWrap: "wrap",
                             }}
                         >
@@ -106,8 +108,8 @@ export default function RecentWorkOrdersCard({
 
                             <button
                                 onClick={() => onOpenWorkOrder(row.work_order_id)}
-                                style={{
-                                    padding: "8px 12px",
+                                    style={{
+                                    padding: compactDesktop ? "7px 11px" : "8px 12px",
                                     borderRadius: MR_THEME.radius.control,
                                     border: `1px solid ${MR_THEME.colors.borderStrong}`,
                                     background: MR_THEME.colors.cardBg,

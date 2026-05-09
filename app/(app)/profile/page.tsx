@@ -42,6 +42,7 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState("");
     const [successMsg, setSuccessMsg] = useState("");
+    const [isCompactDesktop, setIsCompactDesktop] = useState(false);
 
     const [memberProfile, setMemberProfile] = useState<MembershipProfileRow | null>(null);
     const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false);
@@ -53,6 +54,17 @@ export default function ProfilePage() {
     const [openShift, setOpenShift] = useState<ShiftRow | null>(null);
     const [todaySummary, setTodaySummary] = useState<ShiftSummary | null>(null);
     const [weekSummary, setWeekSummary] = useState<ShiftSummary | null>(null);
+
+    useEffect(() => {
+        const updateDensity = () => {
+            setIsCompactDesktop(window.innerWidth >= 900);
+        };
+
+        updateDensity();
+        window.addEventListener("resize", updateDensity);
+
+        return () => window.removeEventListener("resize", updateDensity);
+    }, []);
 
     const refreshProfileData = useCallback(async (cid: string, uid: string) => {
         const [
@@ -201,11 +213,43 @@ export default function ProfilePage() {
         "Team member";
 
     return (
-        <div style={pageStyle}>
-            <header style={pageHeaderStyle}>
-                <div style={eyebrowStyle}>My account</div>
-                <h1 style={pageTitleStyle}>Profile</h1>
-                <p style={pageDescriptionStyle}>
+        <div
+            style={{
+                ...pageStyle,
+                maxWidth: isCompactDesktop ? 1040 : pageStyle.maxWidth,
+                padding: isCompactDesktop ? "6px 12px 28px" : pageStyle.padding,
+            }}
+        >
+            <header
+                style={{
+                    ...pageHeaderStyle,
+                    marginBottom: isCompactDesktop ? 14 : pageHeaderStyle.marginBottom,
+                    paddingBottom: isCompactDesktop ? 10 : pageHeaderStyle.paddingBottom,
+                }}
+            >
+                <div
+                    style={{
+                        ...eyebrowStyle,
+                        marginBottom: isCompactDesktop ? 5 : eyebrowStyle.marginBottom,
+                    }}
+                >
+                    My account
+                </div>
+                <h1
+                    style={{
+                        ...pageTitleStyle,
+                        fontSize: isCompactDesktop ? 30 : pageTitleStyle.fontSize,
+                    }}
+                >
+                    Profile
+                </h1>
+                <p
+                    style={{
+                        ...pageDescriptionStyle,
+                        margin: isCompactDesktop ? "6px 0 0" : pageDescriptionStyle.margin,
+                        fontSize: isCompactDesktop ? 14 : pageDescriptionStyle.fontSize,
+                    }}
+                >
                     Manage your account information and current work status.
                 </p>
             </header>
@@ -222,11 +266,33 @@ export default function ProfilePage() {
                 </div>
             ) : null}
 
-            <div style={contentGridStyle}>
-                <section style={cardStyle}>
-                    <div style={cardHeaderStyle}>
+            <div
+                style={{
+                    ...contentGridStyle,
+                    gap: isCompactDesktop ? 12 : contentGridStyle.gap,
+                }}
+            >
+                <section
+                    style={{
+                        ...cardStyle,
+                        padding: isCompactDesktop ? 16 : cardStyle.padding,
+                    }}
+                >
+                    <div
+                        style={{
+                            ...cardHeaderStyle,
+                            marginBottom: isCompactDesktop ? 12 : cardHeaderStyle.marginBottom,
+                        }}
+                    >
                         <div>
-                            <div style={sectionTitleStyle}>Account overview</div>
+                            <div
+                                style={{
+                                    ...sectionTitleStyle,
+                                    fontSize: isCompactDesktop ? 18 : sectionTitleStyle.fontSize,
+                                }}
+                            >
+                                Account overview
+                            </div>
                             <div style={sectionHintStyle}>Your basic profile information.</div>
                         </div>
 
@@ -291,6 +357,7 @@ export default function ProfilePage() {
                         </div>
                     ) : (
                         <ProfileOverview
+                            compactDesktop={isCompactDesktop}
                             profileName={profileName}
                             email={user?.email ?? "—"}
                             role={humanRole(memberProfile?.role ?? myRole)}
@@ -299,8 +366,20 @@ export default function ProfilePage() {
                     )}
                 </section>
 
-                <section style={cardStyle}>
-                    <div style={sectionTitleStyle}>Work status</div>
+                <section
+                    style={{
+                        ...cardStyle,
+                        padding: isCompactDesktop ? 16 : cardStyle.padding,
+                    }}
+                >
+                    <div
+                        style={{
+                            ...sectionTitleStyle,
+                            fontSize: isCompactDesktop ? 18 : sectionTitleStyle.fontSize,
+                        }}
+                    >
+                        Work status
+                    </div>
                     <div style={sectionHintStyle}>Your current shift and recent work time.</div>
 
                     {loading ? (
@@ -308,11 +387,17 @@ export default function ProfilePage() {
                             Loading work status...
                         </div>
                     ) : (
-                        <div style={statusListStyle}>
-                            <ProfileRow label="Active shift" value={openShift ? "Yes" : "No"} />
-                            <ProfileRow label="Worked today" value={workedTodayLabel} />
-                            <ProfileRow label="Worked this week" value={workedWeekLabel} />
+                        <div
+                            style={{
+                                ...statusListStyle,
+                                marginTop: isCompactDesktop ? 8 : statusListStyle.marginTop,
+                            }}
+                        >
+                            <ProfileRow compactDesktop={isCompactDesktop} label="Active shift" value={openShift ? "Yes" : "No"} />
+                            <ProfileRow compactDesktop={isCompactDesktop} label="Worked today" value={workedTodayLabel} />
+                            <ProfileRow compactDesktop={isCompactDesktop} label="Worked this week" value={workedWeekLabel} />
                             <ProfileRow
+                                compactDesktop={isCompactDesktop}
                                 label="Current status"
                                 value={openShift ? "Checked in" : "Off shift"}
                             />
@@ -320,11 +405,29 @@ export default function ProfilePage() {
                     )}
                 </section>
 
-                <section style={cardStyle}>
-                    <div style={sectionTitleStyle}>Account actions</div>
+                <section
+                    style={{
+                        ...cardStyle,
+                        padding: isCompactDesktop ? 16 : cardStyle.padding,
+                    }}
+                >
+                    <div
+                        style={{
+                            ...sectionTitleStyle,
+                            fontSize: isCompactDesktop ? 18 : sectionTitleStyle.fontSize,
+                        }}
+                    >
+                        Account actions
+                    </div>
                     <div style={sectionHintStyle}>Security and session options.</div>
 
-                    <div style={actionsListStyle}>
+                    <div
+                        style={{
+                            ...actionsListStyle,
+                            gap: isCompactDesktop ? 8 : actionsListStyle.gap,
+                            marginTop: isCompactDesktop ? 10 : actionsListStyle.marginTop,
+                        }}
+                    >
                         <button
                             type="button"
                             onClick={() => {
@@ -371,38 +474,81 @@ export default function ProfilePage() {
 }
 
 function ProfileOverview({
+    compactDesktop = false,
     profileName,
     email,
     role,
     companyName,
 }: {
+    compactDesktop?: boolean;
     profileName: string;
     email: string;
     role: string;
     companyName: string;
 }) {
     return (
-        <div style={profileOverviewStyle}>
-            <div style={avatarStyle}>
+        <div
+            style={{
+                ...profileOverviewStyle,
+                gap: compactDesktop ? 14 : profileOverviewStyle.gap,
+                alignItems: compactDesktop ? "center" : profileOverviewStyle.alignItems,
+            }}
+        >
+            <div
+                style={{
+                    ...avatarStyle,
+                    width: compactDesktop ? 56 : avatarStyle.width,
+                    height: compactDesktop ? 56 : avatarStyle.height,
+                    borderRadius: compactDesktop ? 18 : avatarStyle.borderRadius,
+                    fontSize: compactDesktop ? 23 : avatarStyle.fontSize,
+                }}
+            >
                 {profileName.slice(0, 1).toUpperCase()}
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={profileNameStyle}>{profileName}</div>
-                <div style={profileEmailStyle}>{email}</div>
+                <div
+                    style={{
+                        ...profileNameStyle,
+                        fontSize: compactDesktop ? 20 : profileNameStyle.fontSize,
+                    }}
+                >
+                    {profileName}
+                </div>
+                <div
+                    style={{
+                        ...profileEmailStyle,
+                        marginBottom: compactDesktop ? 10 : profileEmailStyle.marginBottom,
+                    }}
+                >
+                    {email}
+                </div>
 
                 <div style={profileMetaStyle}>
-                    <ProfileRow label="Role" value={role} />
-                    <ProfileRow label="Company" value={companyName} />
+                    <ProfileRow compactDesktop={compactDesktop} label="Role" value={role} />
+                    <ProfileRow compactDesktop={compactDesktop} label="Company" value={companyName} />
                 </div>
             </div>
         </div>
     );
 }
 
-function ProfileRow({ label, value }: { label: string; value: string }) {
+function ProfileRow({
+    compactDesktop = false,
+    label,
+    value,
+}: {
+    compactDesktop?: boolean;
+    label: string;
+    value: string;
+}) {
     return (
-        <div style={profileRowStyle}>
+        <div
+            style={{
+                ...profileRowStyle,
+                padding: compactDesktop ? "8px 0" : profileRowStyle.padding,
+            }}
+        >
             <span style={profileRowLabelStyle}>{label}</span>
             <span style={profileRowValueStyle}>{value}</span>
         </div>

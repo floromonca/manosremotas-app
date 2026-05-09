@@ -102,6 +102,7 @@ function WorkOrdersPageInner() {
     const [companyNameDraft, setCompanyNameDraft] = useState("");
     const [companyNameSaving, setCompanyNameSaving] = useState(false);
     const [companyNameMsg, setCompanyNameMsg] = useState<string | null>(null);
+    const [isCompactDesktop, setIsCompactDesktop] = useState(false);
 
 
 
@@ -112,6 +113,19 @@ function WorkOrdersPageInner() {
     const doAuth = useCallback(() => {
         router.replace("/auth");
     }, [router]);
+
+    useEffect(() => {
+        const checkViewport = () => {
+            setIsCompactDesktop(window.innerWidth >= 900);
+        };
+
+        checkViewport();
+        window.addEventListener("resize", checkViewport);
+
+        return () => {
+            window.removeEventListener("resize", checkViewport);
+        };
+    }, []);
 
     const { companyId, companyName, myRole, isLoadingCompany, refreshCompany } = useActiveCompany();
 
@@ -125,6 +139,7 @@ function WorkOrdersPageInner() {
     const [loadingWO, setLoadingWO] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
     const [workOrderSearch, setWorkOrderSearch] = useState("");
+    const [workOrderCustomerFilter, setWorkOrderCustomerFilter] = useState("all");
 
     type AuditItem = {
         changed_at: string | null;
@@ -642,12 +657,32 @@ function WorkOrdersPageInner() {
 
     const normalizedWorkOrderSearch = workOrderSearch.trim().toLowerCase();
     const hasWorkOrderSearch = normalizedWorkOrderSearch.length > 0;
+    const hasWorkOrderCustomerFilter = workOrderCustomerFilter !== "all";
+    const hasWorkOrderFilters = hasWorkOrderSearch || hasWorkOrderCustomerFilter;
+
+    const workOrderCustomerOptions = useMemo(() => {
+        return Array.from(
+            new Set(
+                rows
+                    .map((w) => (w.customer_name || "").trim())
+                    .filter(Boolean),
+            ),
+        ).sort((a, b) => a.localeCompare(b));
+    }, [rows]);
 
     const filterWorkOrdersBySearch = useCallback(
         (list: WorkOrder[]) => {
-            if (!normalizedWorkOrderSearch) return list;
+            let next = list;
 
-            return list.filter((w) => {
+            if (workOrderCustomerFilter !== "all") {
+                next = next.filter(
+                    (w) => (w.customer_name || "").trim() === workOrderCustomerFilter,
+                );
+            }
+
+            if (!normalizedWorkOrderSearch) return next;
+
+            return next.filter((w) => {
                 const assignedMember = members.find((m) => m.user_id === w.assigned_to);
                 const searchable = [
                     w.work_order_number,
@@ -671,7 +706,7 @@ function WorkOrdersPageInner() {
                 return searchable.includes(normalizedWorkOrderSearch);
             });
         },
-        [members, normalizedWorkOrderSearch],
+        [members, normalizedWorkOrderSearch, workOrderCustomerFilter],
     );
 
     const searchedTechInProgressRows = useMemo(
@@ -723,7 +758,7 @@ function WorkOrdersPageInner() {
 
     const searchSummaryLabel = isTechView
         ? `${filterWorkOrdersBySearch(techRows).length} of ${techRows.length} assigned orders`
-        : hasWorkOrderSearch
+        : hasWorkOrderFilters
             ? `${currentSearchMatchCount} of ${currentSearchScopeCount} in this section`
             : `${currentSearchScopeCount} in this section`;
 
@@ -735,8 +770,8 @@ function WorkOrdersPageInner() {
     ) => {
         const isExpanded = !!adminExpandedSections[sectionKey];
         const visibleRows =
-            hasWorkOrderSearch || isExpanded ? sectionRows : sectionRows.slice(0, 5);
-        const hasMore = !hasWorkOrderSearch && sectionRows.length > 5;
+            hasWorkOrderFilters || isExpanded ? sectionRows : sectionRows.slice(0, 5);
+        const hasMore = !hasWorkOrderFilters && sectionRows.length > 5;
 
         return (
             <section style={{ marginTop: 20 }}>
@@ -816,8 +851,8 @@ function WorkOrdersPageInner() {
                             fontSize: 14,
                         }}
                     >
-                        {hasWorkOrderSearch
-                            ? `No work orders match “${workOrderSearch.trim()}” in this section.`
+                        {hasWorkOrderFilters
+                            ? "No work orders match the current filters in this section."
                             : emptyMessage}
                     </div>
                 ) : (
@@ -1278,9 +1313,9 @@ function WorkOrdersPageInner() {
                     <>
                         <header
                             style={{
-                                marginBottom: 16,
-                                padding: "22px 22px 18px",
-                                borderRadius: 18,
+                                marginBottom: isCompactDesktop ? 10 : 16,
+                                padding: isCompactDesktop ? "14px 16px 12px" : "22px 22px 18px",
+                                borderRadius: isCompactDesktop ? 16 : 18,
                                 border: "1px solid #e5e7eb",
                                 background: "linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%)",
                                 boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
@@ -1289,6 +1324,7 @@ function WorkOrdersPageInner() {
                             <WorkOrdersPageHeader
                                 isTechView={isTechView}
                                 companyName={companyName}
+                                compactDesktop={isCompactDesktop}
                             />
 
                             {cameFromControlCenter ? (
@@ -1296,19 +1332,19 @@ function WorkOrdersPageInner() {
                                     type="button"
                                     onClick={() => router.push("/control-center")}
                                     style={{
-                                        marginTop: 16,
+                                        marginTop: isCompactDesktop ? 12 : 16,
                                         display: "inline-flex",
                                         alignItems: "center",
                                         justifyContent: "center",
                                         gap: 8,
-                                        minHeight: 38,
-                                        padding: "9px 13px",
+                                        minHeight: isCompactDesktop ? 34 : 38,
+                                        padding: isCompactDesktop ? "7px 11px" : "9px 13px",
                                         borderRadius: MR_THEME.radius.control,
                                         border: `1px solid ${MR_THEME.colors.border}`,
                                         background: MR_THEME.colors.cardBg,
                                         color: MR_THEME.colors.primary,
                                         cursor: "pointer",
-                                        fontSize: 13,
+                                        fontSize: isCompactDesktop ? 12 : 13,
                                         fontWeight: 850,
                                         boxShadow: MR_THEME.shadows.card,
                                     }}
@@ -1323,11 +1359,14 @@ function WorkOrdersPageInner() {
                             <div
                                 style={{
                                     display: "grid",
-                                    gridTemplateColumns: "1fr",
-                                    gap: MR_THEME.spacing.sm,
+                                    gridTemplateColumns: isCompactDesktop
+                                        ? "auto minmax(260px, 1fr) minmax(190px, 260px) auto"
+                                        : "1fr",
+                                    alignItems: isCompactDesktop ? "center" : undefined,
+                                    gap: isCompactDesktop ? 10 : MR_THEME.spacing.sm,
                                     width: "100%",
                                     maxWidth: "100%",
-                                    marginBottom: MR_THEME.spacing.md,
+                                    marginBottom: isCompactDesktop ? 10 : MR_THEME.spacing.md,
                                     overflow: "hidden",
                                 }}
                             >
@@ -1340,7 +1379,56 @@ function WorkOrdersPageInner() {
                                         readyToInvoice: adminReadyToInvoiceRows.length,
                                         history: adminHistoryRows.length,
                                     }}
+                                    compactDesktop={isCompactDesktop}
                                 />
+
+                                {isCompactDesktop ? (
+                                    <input
+                                        value={workOrderSearch}
+                                        onChange={(event) => setWorkOrderSearch(event.target.value)}
+                                        placeholder="Search work orders"
+                                        style={{
+                                            width: "100%",
+                                            minHeight: 36,
+                                            padding: "0 12px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontSize: 13,
+                                            fontWeight: 650,
+                                            outline: "none",
+                                            boxSizing: "border-box",
+                                        }}
+                                    />
+                                ) : null}
+
+                                {isCompactDesktop ? (
+                                    <select
+                                        value={workOrderCustomerFilter}
+                                        onChange={(event) => setWorkOrderCustomerFilter(event.target.value)}
+                                        style={{
+                                            width: "100%",
+                                            minHeight: 36,
+                                            padding: "0 12px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontSize: 13,
+                                            fontWeight: 650,
+                                            outline: "none",
+                                            boxSizing: "border-box",
+                                        }}
+                                    >
+                                        <option value="all">All customers</option>
+                                        {workOrderCustomerOptions.map((name) => (
+                                            <option key={name} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : null}
 
                                 <WorkOrdersAdminActions
                                     showNewWO={showNewWO}
@@ -1348,6 +1436,8 @@ function WorkOrdersPageInner() {
                                     onRefresh={() => {
                                         if (companyId) loadOrders(companyId);
                                     }}
+                                    compactDesktop={isCompactDesktop}
+                                    layout={isCompactDesktop ? "inline" : "stacked"}
                                 />
                             </div>
                         ) : null}
@@ -1824,18 +1914,19 @@ function WorkOrdersPageInner() {
                             </div>
                         ) : null}
 
-                        <section
-                            style={{
-                                marginBottom: 16,
-                                padding: 14,
-                                border: `1px solid ${MR_THEME.colors.border}`,
-                                borderRadius: MR_THEME.radius.card,
-                                background: MR_THEME.colors.cardBg,
-                                boxShadow: MR_THEME.shadows.card,
-                                display: "grid",
-                                gap: 10,
-                            }}
-                        >
+                        {!isCompactDesktop ? (
+                            <section
+                                style={{
+                                    marginBottom: 16,
+                                    padding: 14,
+                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                    borderRadius: MR_THEME.radius.card,
+                                    background: MR_THEME.colors.cardBg,
+                                    boxShadow: MR_THEME.shadows.card,
+                                    display: "grid",
+                                    gap: 10,
+                                }}
+                            >
                             <div
                                 style={{
                                     display: "flex",
@@ -1868,10 +1959,13 @@ function WorkOrdersPageInner() {
                                     </div>
                                 </div>
 
-                                {hasWorkOrderSearch ? (
+                                {hasWorkOrderFilters ? (
                                     <button
                                         type="button"
-                                        onClick={() => setWorkOrderSearch("")}
+                                        onClick={() => {
+                                            setWorkOrderSearch("");
+                                            setWorkOrderCustomerFilter("all");
+                                        }}
                                         style={{
                                             padding: "8px 11px",
                                             borderRadius: MR_THEME.radius.control,
@@ -1906,9 +2000,35 @@ function WorkOrdersPageInner() {
                                     boxSizing: "border-box",
                                 }}
                             />
-                        </section>
 
-                        <div style={{ marginBottom: 18 }}>
+                            <select
+                                value={workOrderCustomerFilter}
+                                onChange={(event) => setWorkOrderCustomerFilter(event.target.value)}
+                                style={{
+                                    width: "100%",
+                                    minHeight: 46,
+                                    padding: "0 14px",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    background: MR_THEME.colors.cardBg,
+                                    color: MR_THEME.colors.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: 650,
+                                    outline: "none",
+                                    boxSizing: "border-box",
+                                }}
+                            >
+                                <option value="all">All customers</option>
+                                {workOrderCustomerOptions.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
+                            </section>
+                        ) : null}
+
+                        <div style={{ marginBottom: isCompactDesktop ? 14 : 18 }}>
                             {/* ✅ BLOQUEO OPERATIVO: Banner (Jornada) */}
                             <OperationalShiftBanner
                                 shiftLoading={shiftLoading}
@@ -1917,6 +2037,7 @@ function WorkOrdersPageInner() {
                                     if (companyId) refreshShift(companyId);
                                 }}
                                 onGoCheckIn={() => router.replace("/control-center")}
+                                compactDesktop={isCompactDesktop}
                             />
                         </div>
 

@@ -11,6 +11,7 @@ type SidebarItemProps = {
     label: string;
     isActive: boolean;
     onNavigate?: () => void;
+    variant?: "desktop" | "mobile";
 };
 
 const SIDEBAR = {
@@ -21,13 +22,16 @@ const SIDEBAR = {
     activeText: MR_THEME.colors.primary,
 };
 
-function SidebarItem({ href, label, isActive, onNavigate }: SidebarItemProps) {
+function SidebarItem({ href, label, isActive, onNavigate, variant = "desktop" }: SidebarItemProps) {
+    const isDesktop = variant === "desktop";
+
     const itemStyle: CSSProperties = {
         display: "block",
-        padding: "10px 12px",
+        padding: isDesktop ? "8px 10px" : "10px 12px",
         borderRadius: MR_THEME.radius.control,
         textDecoration: "none",
         fontWeight: isActive ? 800 : 700,
+        fontSize: isDesktop ? 14 : undefined,
         background: isActive ? MR_THEME.colors.primarySoft : "transparent",
         color: isActive ? SIDEBAR.activeText : SIDEBAR.text,
         border: isActive ? `1px solid ${MR_THEME.colors.primarySurface}` : "1px solid transparent",
@@ -43,33 +47,35 @@ function SidebarItem({ href, label, isActive, onNavigate }: SidebarItemProps) {
 
 type Props = {
     onNavigate?: () => void;
+    variant?: "desktop" | "mobile";
 };
 
-export default function AppSidebar({ onNavigate }: Props) {
+export default function AppSidebar({ onNavigate, variant = "desktop" }: Props) {
     const pathname = usePathname();
     const { myRole } = useActiveCompany();
 
     const isAdmin = myRole === "owner" || myRole === "admin";
+    const isDesktop = variant === "desktop";
 
     return (
         <aside
             style={{
-                width: 220,
+                width: isDesktop ? 204 : 220,
                 background: SIDEBAR.bg,
                 color: MR_THEME.colors.textPrimary,
-                padding: 20,
+                padding: isDesktop ? 16 : 20,
                 display: "flex",
                 flexDirection: "column",
-                gap: 10,
+                gap: isDesktop ? 8 : 10,
                 borderRight: `1px solid ${SIDEBAR.border}`,
                 minHeight: "100vh",
             }}
         >
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: isDesktop ? 8 : 10 }}>
                 <h2
                     style={{
                         margin: 0,
-                        fontSize: 19,
+                        fontSize: isDesktop ? 18 : 19,
                         fontWeight: 900,
                         letterSpacing: 0,
                         color: MR_THEME.colors.textPrimary,
@@ -98,6 +104,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                     label="Control Center"
                     isActive={pathname.startsWith("/control-center")}
                     onNavigate={onNavigate}
+                    variant={variant}
                 />
             ) : null}
 
@@ -106,6 +113,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                 label="My Day"
                 isActive={pathname.startsWith("/my-day")}
                 onNavigate={onNavigate}
+                variant={variant}
             />
 
             <SidebarItem
@@ -113,6 +121,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                 label="Work Orders"
                 isActive={pathname.startsWith("/work-orders")}
                 onNavigate={onNavigate}
+                variant={variant}
             />
 
             <SidebarItem
@@ -120,6 +129,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                 label={isAdmin ? "Payroll" : "My Time"}
                 isActive={pathname.startsWith("/payroll")}
                 onNavigate={onNavigate}
+                variant={variant}
             />
 
             <SidebarItem
@@ -127,6 +137,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                 label="Profile"
                 isActive={pathname.startsWith("/profile")}
                 onNavigate={onNavigate}
+                variant={variant}
             />
 
             {isAdmin ? (
@@ -136,6 +147,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                         label="Customers"
                         isActive={pathname.startsWith("/customers")}
                         onNavigate={onNavigate}
+                        variant={variant}
                     />
 
                     <SidebarItem
@@ -143,6 +155,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                         label="Invoices"
                         isActive={pathname.startsWith("/invoices")}
                         onNavigate={onNavigate}
+                        variant={variant}
                     />
 
                     <div
@@ -158,6 +171,7 @@ export default function AppSidebar({ onNavigate }: Props) {
                         label="Settings"
                         isActive={pathname.startsWith("/settings")}
                         onNavigate={onNavigate}
+                        variant={variant}
                     />
                 </>
             ) : null}

@@ -38,11 +38,8 @@ export default function InvoicesPage() {
     const [search, setSearch] = useState("");
     const [customerFilter, setCustomerFilter] = useState("all");
     const [quickFilter, setQuickFilter] = useState<QuickFilter>("unpaid");
-    const [cameFromControlCenter] = useState(
-        () =>
-            typeof window !== "undefined" &&
-            new URLSearchParams(window.location.search).get("from") === "control-center",
-    );
+    const [isCompactDesktop, setIsCompactDesktop] = useState(false);
+    const [cameFromControlCenter, setCameFromControlCenter] = useState(false);
 
     const canAccessInvoices = useMemo(() => {
         return canManageInvoices(myRole);
@@ -63,6 +60,25 @@ export default function InvoicesPage() {
             return;
         }
     }, [authLoading, user, isLoadingCompany, canAccessInvoices, router]);
+
+    useEffect(() => {
+        const checkViewport = () => {
+            setIsCompactDesktop(window.innerWidth >= 900);
+        };
+
+        checkViewport();
+        window.addEventListener("resize", checkViewport);
+
+        return () => {
+            window.removeEventListener("resize", checkViewport);
+        };
+    }, []);
+
+    useEffect(() => {
+        setCameFromControlCenter(
+            new URLSearchParams(window.location.search).get("from") === "control-center"
+        );
+    }, []);
 
     const loadInvoices = useCallback(async () => {
         if (!companyId) {
@@ -181,17 +197,37 @@ export default function InvoicesPage() {
 
     const activeCurrency =
         filteredInvoices[0]?.currency_code || invoices[0]?.currency_code || "CAD";
+    const compactHeroCardStyle = {
+        ...heroCardStyle,
+        padding: isCompactDesktop ? 14 : heroCardStyle.padding,
+    };
+    const compactShellCardStyle = {
+        ...shellCardStyle,
+        padding: isCompactDesktop ? 12 : shellCardStyle.padding,
+    };
+    const compactInputStyle = {
+        ...inputStyle,
+        height: isCompactDesktop ? 38 : inputStyle.height,
+        padding: isCompactDesktop ? "0 12px" : inputStyle.padding,
+        fontSize: isCompactDesktop ? 13 : inputStyle.fontSize,
+    };
+    const compactSecondaryButtonStyle = {
+        ...secondaryButtonStyle,
+        height: isCompactDesktop ? 36 : secondaryButtonStyle.height,
+        padding: isCompactDesktop ? "0 12px" : secondaryButtonStyle.padding,
+        fontSize: isCompactDesktop ? 13 : undefined,
+    };
 
     return (
         <main
             style={{
                 minHeight: "100%",
                 background: MR_THEME.colors.appBg,
-                padding: "24px",
+                padding: isCompactDesktop ? "16px 20px 32px" : "24px",
             }}
         >
-            <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gap: 16 }}>
-                <section style={heroCardStyle}>
+            <div style={{ maxWidth: 1180, margin: "0 auto", display: "grid", gap: isCompactDesktop ? 12 : 16 }}>
+                <section style={compactHeroCardStyle}>
                     <div className="invoiceHero">
                         <div style={{ minWidth: 0 }}>
                             <div style={eyebrowStyle}>Invoices</div>
@@ -199,6 +235,7 @@ export default function InvoicesPage() {
                             <h1
                                 style={{
                                     ...MR_THEME.typography.pageTitle,
+                                    fontSize: isCompactDesktop ? 22 : MR_THEME.typography.pageTitle.fontSize,
                                     margin: 0,
                                     color: MR_THEME.colors.textPrimary,
                                 }}
@@ -209,10 +246,10 @@ export default function InvoicesPage() {
                             <p
                                 style={{
                                     color: MR_THEME.colors.textSecondary,
-                                    fontSize: 14,
-                                    lineHeight: 1.6,
+                                    fontSize: isCompactDesktop ? 13 : 14,
+                                    lineHeight: isCompactDesktop ? 1.45 : 1.6,
                                     maxWidth: 760,
-                                    margin: "8px 0 0",
+                                    margin: isCompactDesktop ? "6px 0 0" : "8px 0 0",
                                 }}
                             >
                                 Review invoice status, outstanding balances, payment progress,
@@ -225,13 +262,13 @@ export default function InvoicesPage() {
                                 <button
                                     type="button"
                                     onClick={() => router.push("/control-center")}
-                                    style={secondaryButtonStyle}
+                                    style={compactSecondaryButtonStyle}
                                 >
                                     ← Back to Control Center
                                 </button>
                             ) : null}
 
-                            <button type="button" onClick={loadInvoices} style={secondaryButtonStyle}>
+                            <button type="button" onClick={loadInvoices} style={compactSecondaryButtonStyle}>
                                 Refresh
                             </button>
                         </div>
@@ -252,8 +289,19 @@ export default function InvoicesPage() {
                     />
                 </section>
 
-                <section style={shellCardStyle}>
-                    <div style={{ display: "grid", gap: 16 }}>
+                <section
+                    style={
+                        isCompactDesktop
+                            ? {
+                                padding: 0,
+                                border: "none",
+                                background: "transparent",
+                                boxShadow: "none",
+                            }
+                            : compactShellCardStyle
+                    }
+                >
+                    <div className="invoiceFilterBar">
                         <div className="quickTabs">
                             <QuickTab
                                 active={quickFilter === "unpaid"}
@@ -277,37 +325,35 @@ export default function InvoicesPage() {
                             />
                         </div>
 
-                        <div className="filterGrid">
-                            <div style={{ display: "grid", gap: 6 }}>
-                                <label style={filterLabelStyle}>Search</label>
-                                <input
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Invoice number, customer, status"
-                                    style={inputStyle}
-                                />
-                            </div>
+                        <div className="invoiceSearchControl">
+                            <label className="invoiceFilterLabel" style={filterLabelStyle}>Search</label>
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search invoices"
+                                style={compactInputStyle}
+                            />
+                        </div>
 
-                            <div style={{ display: "grid", gap: 6 }}>
-                                <label style={filterLabelStyle}>Customer</label>
-                                <select
-                                    value={customerFilter}
-                                    onChange={(e) => setCustomerFilter(e.target.value)}
-                                    style={inputStyle}
-                                >
-                                    <option value="all">All customers</option>
-                                    {customerOptions.map((name) => (
-                                        <option key={name} value={name}>
-                                            {name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
+                        <div className="invoiceCustomerControl">
+                            <label className="invoiceFilterLabel" style={filterLabelStyle}>Customer</label>
+                            <select
+                                value={customerFilter}
+                                onChange={(e) => setCustomerFilter(e.target.value)}
+                                style={compactInputStyle}
+                            >
+                                <option value="all">All customers</option>
+                                {customerOptions.map((name) => (
+                                    <option key={name} value={name}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                 </section>
 
-                <section style={shellCardStyle}>
+                <section style={compactShellCardStyle}>
                     {loading ? (
                         <StateCard message="Loading invoices..." />
                     ) : !companyId ? (
@@ -507,10 +553,25 @@ export default function InvoicesPage() {
                     align-items: center;
                 }
 
-                .filterGrid {
-                    display: grid;
-                    grid-template-columns: minmax(260px, 1.3fr) minmax(220px, 0.9fr);
-                    gap: 12px;
+                .invoiceFilterBar {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    flex-wrap: wrap;
+                }
+
+                .invoiceSearchControl {
+                    flex: 1 1 340px;
+                    min-width: 240px;
+                }
+
+                .invoiceCustomerControl {
+                    flex: 0 1 260px;
+                    min-width: 210px;
+                }
+
+                .invoiceFilterLabel {
+                    display: none;
                 }
 
                 .mobileList {
@@ -527,8 +588,20 @@ export default function InvoicesPage() {
                         grid-template-columns: 1fr;
                     }
 
-                    .filterGrid {
+                    .invoiceFilterBar {
+                        display: grid;
                         grid-template-columns: 1fr;
+                        gap: 12px;
+                    }
+
+                    .invoiceSearchControl,
+                    .invoiceCustomerControl {
+                        min-width: 0;
+                    }
+
+                    .invoiceFilterLabel {
+                        display: block;
+                        margin-bottom: 6px;
                     }
 
                     .quickTabs button {

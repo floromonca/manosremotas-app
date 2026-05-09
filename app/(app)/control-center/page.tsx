@@ -56,6 +56,7 @@ export default function ControlCenterPage() {
     const [teamStatus, setTeamStatus] = useState<TeamStatusTodayRow[]>([]);
     const [teamStatusLoading, setTeamStatusLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [isCompactDesktop, setIsCompactDesktop] = useState(false);
     const [prettyDate, setPrettyDate] = useState("");
     const [openShift, setOpenShift] = useState<ShiftRow | null>(null);
     const [shiftLoading, setShiftLoading] = useState(false);
@@ -66,6 +67,17 @@ export default function ControlCenterPage() {
     useEffect(() => {
         setMounted(true);
         setPrettyDate(new Date().toLocaleDateString());
+    }, []);
+
+    useEffect(() => {
+        const updateDensity = () => {
+            setIsCompactDesktop(window.innerWidth >= 900);
+        };
+
+        updateDensity();
+        window.addEventListener("resize", updateDensity);
+
+        return () => window.removeEventListener("resize", updateDensity);
     }, []);
     useEffect(() => {
         if (!companyId) return;
@@ -360,10 +372,11 @@ export default function ControlCenterPage() {
 
     return (
         <div
+            className="controlCenterPageShell"
             style={{
                 minHeight: "100vh",
                 background: "#f8fafc",
-                padding: "20px 24px 40px",
+                padding: isCompactDesktop ? "16px 20px 32px" : "20px 24px 40px",
             }}
         >
             <div
@@ -372,16 +385,18 @@ export default function ControlCenterPage() {
                     margin: "0 auto",
                     display: "flex",
                     flexDirection: "column",
-                    gap: 24,
+                    gap: isCompactDesktop ? 14 : 24,
                 }}
             >
                 <ControlCenterHeader
                     companyName={companyName}
+                    compactDesktop={isCompactDesktop}
                     onOpenWorkOrders={() => go(fromControlCenter("/work-orders"))}
                     onOpenInvoices={() => go(fromControlCenter("/invoices"))}
                 />
 
                 <ControlCenterKpisSection
+                    compactDesktop={isCompactDesktop}
                     loading={loading}
                     kpis={kpis}
                     revenueMonthLabel={revenueMonthLabel}
@@ -443,7 +458,7 @@ export default function ControlCenterPage() {
     .controlCenterBottomGrid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 16px;
+        gap: 12px;
         align-items: start;
     }
 
@@ -460,7 +475,7 @@ export default function ControlCenterPage() {
     }
 
     @media (max-width: 720px) {
-        div[style*="padding: 20px 24px 40px"] {
+        .controlCenterPageShell {
             padding: 16px 12px 32px !important;
         }
 
