@@ -40,6 +40,7 @@ type Props = {
     compactView: boolean;
     totals: Totals;
     taxLabel: string;
+    taxCurrencyWarning?: string;
     depositRequired: number;
     paymentsTotal: number;
     onChangeBillingEmail: (value: string) => void;
@@ -59,6 +60,7 @@ export default function InvoiceDetailsCard({
     compactView,
     totals,
     taxLabel,
+    taxCurrencyWarning,
     depositRequired,
     paymentsTotal,
     onChangeBillingEmail,
@@ -155,6 +157,24 @@ export default function InvoiceDetailsCard({
                                 }}
                             >
                                 <b style={{ color: "#111827" }}>Billing address:</b> {inv.billing_address}
+                            </div>
+                        ) : null}
+
+                        {taxCurrencyWarning ? (
+                            <div
+                                style={{
+                                    marginTop: 8,
+                                    padding: "10px 12px",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.warning}`,
+                                    background: "#fff7ed",
+                                    color: "#9a3412",
+                                    fontSize: 13,
+                                    fontWeight: 800,
+                                    lineHeight: 1.45,
+                                }}
+                            >
+                                {taxCurrencyWarning}
                             </div>
                         ) : null}
                     </div>

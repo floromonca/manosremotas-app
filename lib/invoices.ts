@@ -1,6 +1,7 @@
 // lib/invoices.ts
 import { supabase } from "./supabaseClient";
 import {
+  formatTaxRegistrationNumber,
   formatTaxSummaryLabel,
   preTaxLineAmount,
   taxRegistrationLabel,
@@ -121,13 +122,30 @@ export async function createInvoiceFromWorkOrder(workOrderId: string) {
 
   if (companyErr) throw companyErr;
 
+  const { data: settingsRow, error: settingsErr } = await supabase
+    .from("company_settings")
+    .select("currency_code, payment_terms_days")
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  if (settingsErr) {
+    console.log("⚠️ No pude leer company_settings para invoice defaults:", settingsErr.message);
+  }
+
   const currencyCode =
-    (companyRow as any)?.currency_code &&
-      String((companyRow as any).currency_code).trim()
-      ? String((companyRow as any).currency_code).trim().toUpperCase()
+    String((settingsRow as any)?.currency_code ?? "").trim() ||
+      String((companyRow as any)?.currency_code ?? "").trim()
+      ? String(
+        String((settingsRow as any)?.currency_code ?? "").trim() ||
+        String((companyRow as any)?.currency_code ?? "").trim(),
+      ).toUpperCase()
       : "CAD";
 
-  const paymentTermsRaw = Number((companyRow as any)?.payment_terms_days ?? 30);
+  const paymentTermsRaw = Number(
+    (settingsRow as any)?.payment_terms_days ??
+    (companyRow as any)?.payment_terms_days ??
+    30,
+  );
   const paymentTerms =
     Number.isInteger(paymentTermsRaw) && paymentTermsRaw >= 0
       ? paymentTermsRaw
@@ -369,6 +387,7 @@ type InvoiceHtmlData = {
     customer_phone?: string | null;
     customer_email?: string | null;
     billing_address?: string | null;
+    customer_billing_address?: string | null;
     tax_profile_id?: string | null;
     tax_name?: string | null;
     tax_rate?: number | null;
@@ -428,22 +447,52 @@ function escHtml(value: string | null | undefined) {
     .replaceAll("'", "&#039;");
 }
 
-function joinCompanyAddress(company?: InvoiceHtmlData["company"]) {
-  const cityProvince = [company?.city, company?.province]
-    .filter(Boolean)
-    .map((part) => escHtml(String(part)))
-    .join(", ");
+function formatCountryName(country: string | null | undefined) {
+  const raw = String(country ?? "").trim();
+  const normalized = raw.toLowerCase();
 
-  const postalCountry = [company?.postal_code, company?.country]
-    .filter(Boolean)
-    .map((part) => escHtml(String(part)))
-    .join(" ");
+  if (normalized === "ca" || normalized === "canada") return "Canada";
+  if (
+    normalized === "us" ||
+    normalized === "usa" ||
+    normalized === "united states" ||
+    normalized === "united states of america"
+  ) {
+    return "United States";
+  }
+
+  return raw;
+}
+
+function formatNorthAmericanPhone(phone: string | null | undefined) {
+  const raw = String(phone ?? "").trim();
+  const digits = raw.replace(/\D/g, "");
+
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+
+  return raw;
+}
+
+function joinCompanyAddress(company?: InvoiceHtmlData["company"]) {
+  const city = String(company?.city ?? "").trim();
+  const province = String(company?.province ?? "").trim();
+  const postalCode = String(company?.postal_code ?? "").trim();
+
+  const cityProvince = [city, province].filter(Boolean).join(", ");
+  const localityLine = [cityProvince, postalCode].filter(Boolean).join(" ");
+  const country = formatCountryName(company?.country || company?.country_code);
 
   return [
     company?.address_line1 ? escHtml(company.address_line1) : null,
     company?.address_line2 ? escHtml(company.address_line2) : null,
-    cityProvince || null,
-    postalCountry || null,
+    localityLine ? escHtml(localityLine) : null,
+    country ? escHtml(country) : null,
   ]
     .filter(Boolean)
     .join("<br/>");
@@ -584,6 +633,13 @@ export function renderInvoiceHtml(
   const companyTaxRegistrationLabel = taxRegistrationLabel(
     company.country || company.country_code,
   );
+  const formattedCompanyTaxRegistration = formatTaxRegistrationNumber(
+    companyTaxRegistration,
+    company.country || company.country_code,
+  );
+  const customerBillingAddress = String(invoice.customer_billing_address ?? "").trim();
+  const companyPhoneDisplay = formatNorthAmericanPhone(company.phone);
+  const customerPhoneDisplay = formatNorthAmericanPhone(invoice.customer_phone);
 
   const paymentsReceived =
     payments.length > 0
@@ -765,7 +821,7 @@ html,body{
 }
 
 body{
-  padding:14px;
+  padding:6px 14px 14px;
 }
 
 .page{
@@ -776,58 +832,71 @@ body{
 /* HEADER */
 
 .topbar{
-  display:grid;
-  grid-template-columns:1.2fr 0.8fr;
-  gap:14px;
-  margin-bottom:10px;
-  align-items:start;
+  display:flex;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:8px;
+  align-items:flex-start;
 }
 
 .brand-block{
   display:flex;
-  flex-direction:column;
   align-items:center;
-  text-align:center;
+  gap:14px;
+  text-align:left;
   width:100%;
-  max-width:340px;
-  margin:0 auto;
+  max-width:500px;
+  min-width:0;
+  padding-top:4px;
 }
 
 .logo{
-  max-width:300px;
-  max-height:108px;
+  width:auto;
+  max-width:76px;
+  max-height:74px;
   object-fit:contain;
-  margin-bottom:14px;
+  flex:0 0 auto;
 }
 
 .brand-name{
-  font-size:21px;
+  font-size:20px;
   font-weight:900;
   color:var(--heading);
-  margin:0 0 4px 0;
+  margin:0 0 5px 0;
   letter-spacing:-0.02em;
+}
+
+.brand-details{
+  min-width:0;
 }
 
 .brand-meta{
   color:var(--muted);
-  font-size:11.5px;
+  font-size:10.8px;
+  line-height:1.22;
 }
 
 .brand-meta div{
   margin-top:1px;
 }
 
+.brand-contact-label{
+  font-weight:800;
+  color:var(--text);
+}
+
 /* INVOICE PANEL */
 
 .invoice-panel{
+  flex:0 0 318px;
   border:1px solid var(--line);
   border-radius:12px;
-  padding:14px 16px;
+  padding:12px 14px;
   background:#fafafa;
 }
 
 .invoice-title{
-  font-size:28px;
+  font-size:25px;
   font-weight:800;
   margin:0;
   letter-spacing:-0.02em;
@@ -836,10 +905,10 @@ body{
 
 .status-pill{
   display:inline-block;
-  margin-top:5px;
-  padding:4px 9px;
+  margin-top:4px;
+  padding:3px 8px;
   border-radius:999px;
-  font-size:10px;
+  font-size:9.5px;
   font-weight:800;
   background:#eef4ff;
   color:#1d4ed8;
@@ -849,8 +918,8 @@ body{
 .meta-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:8px 14px;
-  margin-top:10px;
+  gap:7px 12px;
+  margin-top:9px;
 }
 
 .meta-label{
@@ -871,19 +940,19 @@ body{
 .section-grid{
   display:grid;
   grid-template-columns:1fr 1fr 1fr;
-  gap:10px;
-  margin-bottom:12px;
+  gap:9px;
+  margin-bottom:10px;
 }
 
 .card{
   border:1px solid var(--line);
   border-radius:12px;
-  padding:10px;
-  min-height:76px;
+  padding:9px 10px;
+  min-height:68px;
 }
 
 .card h3{
-  margin:0 0 8px;
+  margin:0 0 7px;
   font-size:10px;
   text-transform:uppercase;
   letter-spacing:.08em;
@@ -903,7 +972,7 @@ body{
 }
 
 .items-header{
-  padding:8px 12px;
+  padding:7px 12px;
   background:#fafafa;
   border-bottom:1px solid var(--line);
   font-size:10px;
@@ -985,7 +1054,7 @@ thead{
 
 thead th{
   background:#f2f4f7;
-  padding:8px 10px;
+  padding:7px 10px;
   text-align:left;
   font-size:11px;
   font-weight:800;
@@ -993,7 +1062,7 @@ thead th{
 }
 
 tbody td{
-  padding:8px 10px;
+  padding:7px 10px;
   border-bottom:1px solid var(--line);
   vertical-align:top;
 }
@@ -1009,10 +1078,17 @@ tbody tr:last-child td{
 .num{
   text-align:right;
   white-space:nowrap;
+  font-variant-numeric:tabular-nums;
 }
 
 .strong{
   font-weight:800;
+}
+
+.bill-address{
+  margin-top:6px;
+  color:var(--muted);
+  line-height:1.35;
 }
 
 .period-wo-inline-totals{
@@ -1036,24 +1112,35 @@ tbody tr:last-child td{
 .summary{
   display:flex;
   justify-content:flex-end;
-  margin-top:10px;
+  margin-top:9px;
   width:100%;
 }
 
 .totals{
-  width:300px;
+  width:330px;
   margin-left:auto;
   border:1px solid var(--line);
   border-radius:12px;
   overflow:hidden;
+  font-variant-numeric:tabular-nums;
 }
 
 .totals-row{
   display:flex;
   justify-content:space-between;
   gap:12px;
-  padding:9px 12px;
+  padding:8px 12px;
   border-bottom:1px solid var(--line);
+}
+
+.totals-row span:first-child{
+  min-width:0;
+}
+
+.totals-row span:last-child{
+  min-width:128px;
+  text-align:right;
+  white-space:nowrap;
 }
 
 .totals-row:last-child{
@@ -1061,13 +1148,13 @@ tbody tr:last-child td{
 }
 
 .totals-row.total{
-  font-size:16px;
+  font-size:15px;
   font-weight:800;
   background:#f8fafc;
 }
 
 .totals-row.balance{
-  font-size:17px;
+  font-size:16px;
   font-weight:900;
   background:#eef4ff;
   color:#1d4ed8;
@@ -1076,14 +1163,14 @@ tbody tr:last-child td{
 /* NOTES */
 
 .notes{
-  margin-top:14px;
+  margin-top:12px;
   border:1px solid var(--line);
   border-radius:12px;
   page-break-inside:avoid;
 }
 
 .notes-header{
-  padding:10px 14px;
+  padding:8px 12px;
   border-bottom:1px solid var(--line);
   background:#fafafa;
   font-size:10px;
@@ -1094,14 +1181,14 @@ tbody tr:last-child td{
 }
 
 .notes-body{
-  padding:14px;
+  padding:12px;
   color:#344054;
 }
 
 /* FOOTER */
 
 .footer{
-  margin-top:12px;
+  margin-top:10px;
   color:#667085;
   font-size:10px;
   text-align:center;
@@ -1139,26 +1226,27 @@ tr{
   }
 
   .logo{
-    max-width:250px;
-    max-height:92px;
+    max-width:62px;
+    max-height:60px;
   }
 
   .brand-name{
-    font-size:18px;
+    font-size:15px;
     margin-bottom:2px;
   }
 
   .brand-meta{
-    font-size:10px;
+    font-size:9.2px;
   }
 
   .invoice-panel{
-    padding:10px 12px;
+    flex-basis:286px;
+    padding:9px 11px;
     border-radius:10px;
   }
 
   .invoice-title{
-    font-size:22px;
+    font-size:20px;
   }
 
   .status-pill{
@@ -1173,8 +1261,8 @@ tr{
   }
 
 .topbar{
-  gap:10px;
-  margin-bottom:8px;
+  gap:16px;
+  margin-bottom:7px;
   align-items:start;
 }
 
@@ -1184,7 +1272,7 @@ tr{
   }
 
   .card{
-    min-height:58px;
+    min-height:54px;
     padding:7px 8px;
   }
 
@@ -1210,7 +1298,7 @@ tr{
 }
 
 .totals{
-  width:290px;
+  width:305px;
   margin-left:auto;
 }
 
@@ -1328,18 +1416,27 @@ tr{
    no duplicamos con @page margin aquí. */
 
 @media screen and (max-width: 900px){
-  .topbar,
+  .topbar{
+    flex-direction:column;
+  }
+
   .section-grid{
     grid-template-columns:1fr;
   }
 
   .brand-block{
-    max-width:280px;
+    max-width:100%;
+    align-items:flex-start;
   }
 
   .logo{
-    max-width:230px;
-    max-height:84px;
+    max-width:86px;
+    max-height:76px;
+  }
+
+  .invoice-panel{
+    width:100%;
+    flex-basis:auto;
   }
 
   .summary{
@@ -1373,14 +1470,17 @@ tr{
   <div class="topbar">
     <div class="brand-block">
       ${company.logo_url ? `<img class="logo" src="${escHtml(company.logo_url)}" alt="Company logo" />` : ""}
-      <h1 class="brand-name">${escHtml(companyDisplayName)}</h1>
 
-      <div class="brand-meta">
-        ${companyAddress ? `<div>${companyAddress}</div>` : ""}
-        ${company.phone ? `<div>${escHtml(company.phone)}</div>` : ""}
-        ${company.email ? `<div>${escHtml(company.email)}</div>` : ""}
-        ${company.website ? `<div>${escHtml(company.website)}</div>` : ""}
-        ${companyTaxRegistration ? `<div><strong>${escHtml(companyTaxRegistrationLabel)}:</strong> ${escHtml(companyTaxRegistration)}</div>` : ""}
+      <div class="brand-details">
+        <h1 class="brand-name">${escHtml(companyDisplayName)}</h1>
+
+        <div class="brand-meta">
+          ${companyAddress ? `<div>${companyAddress}</div>` : ""}
+          ${companyPhoneDisplay ? `<div><span class="brand-contact-label">Phone:</span> ${escHtml(companyPhoneDisplay)}</div>` : ""}
+          ${company.email ? `<div>${escHtml(company.email)}</div>` : ""}
+          ${company.website ? `<div>${escHtml(company.website)}</div>` : ""}
+          ${formattedCompanyTaxRegistration ? `<div><strong>${escHtml(companyTaxRegistrationLabel)}:</strong> ${escHtml(formattedCompanyTaxRegistration)}</div>` : ""}
+        </div>
       </div>
     </div>
 
@@ -1417,7 +1517,8 @@ tr{
     <h3>Bill To</h3>
     <strong>${escHtml(invoice.customer_name || "—")}</strong>
     ${showCustomerEmail && invoice.customer_email ? `<div>${escHtml(invoice.customer_email)}</div>` : ""}
-    ${showCustomerPhone && invoice.customer_phone ? `<div>${escHtml(invoice.customer_phone)}</div>` : ""}
+    ${showCustomerPhone && customerPhoneDisplay ? `<div>${escHtml(customerPhoneDisplay)}</div>` : ""}
+    ${customerBillingAddress ? `<div class="bill-address">${escHtml(customerBillingAddress).replace(/\n/g, "<br/>")}</div>` : ""}
   </div>
 
   <div class="card">
@@ -1493,17 +1594,17 @@ tr{
       </div>
       ` : ""}
 
+      <div class="totals-row total">
+        <span>Total</span>
+        <span>${moneyHtml(total, currency)}</span>
+      </div>
+
       ${paymentsReceived > 0 ? `
       <div class="totals-row">
         <span>Payments Received</span>
         <span>${moneyHtml(paymentsReceived, currency)}</span>
       </div>
       ` : ""}
-
-      <div class="totals-row total">
-        <span>Total</span>
-        <span>${moneyHtml(total, currency)}</span>
-      </div>
 
       <div class="totals-row balance">
         <span>Balance Due</span>

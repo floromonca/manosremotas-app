@@ -15,7 +15,7 @@ import InvoiceItemsSection from "./components/InvoiceItemsSection";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../../hooks/useAuthState";
 import { canManageInvoices } from "../../../../lib/security/roles";
-import { formatTaxSummaryLabel, preTaxLineAmount } from "../../../../lib/invoiceTax";
+import { formatTaxSummaryLabel, preTaxLineAmount, taxCurrencyProfileWarning } from "../../../../lib/invoiceTax";
 
 
 async function getDefaultTaxRate(companyId: string) {
@@ -481,6 +481,11 @@ export default function InvoicePage() {
         [inv?.tax_name, inv?.tax_rate],
     );
 
+    const taxCurrencyWarning = useMemo(
+        () => taxCurrencyProfileWarning(inv?.currency_code, inv?.tax_name),
+        [inv?.currency_code, inv?.tax_name],
+    );
+
     const currentBalance = Number(inv?.balance_due ?? totals.balance ?? 0);
     const canRecordPayment = !!inv?.invoice_id && currentBalance > 0;
 
@@ -931,6 +936,7 @@ export default function InvoicePage() {
                             compactView={invoicePreferences.compact_invoice_view}
                             totals={totals}
                             taxLabel={taxSummaryLabel}
+                            taxCurrencyWarning={taxCurrencyWarning}
                             depositRequired={depositRequired}
                             paymentsTotal={paymentsTotal}
                             onChangeBillingEmail={setBillingEmail}

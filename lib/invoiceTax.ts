@@ -27,7 +27,7 @@ export function formatTaxSummaryLabel(
 export function taxRegistrationLabel(country: string | null | undefined) {
   const normalized = String(country ?? "").trim().toLowerCase();
 
-  if (normalized === "ca" || normalized === "canada") {
+  if (isCanadianCountry(country)) {
     return "GST/HST No";
   }
 
@@ -41,6 +41,45 @@ export function taxRegistrationLabel(country: string | null | undefined) {
   }
 
   return "Tax Registration No";
+}
+
+export function isCanadianCountry(country: string | null | undefined) {
+  const normalized = String(country ?? "").trim().toLowerCase();
+  return normalized === "ca" || normalized === "canada";
+}
+
+export function isCanadianTaxProfile(taxName: string | null | undefined) {
+  const normalized = String(taxName ?? "").trim().toUpperCase();
+  return ["GST", "HST", "PST", "QST"].includes(normalized);
+}
+
+export function formatTaxRegistrationNumber(
+  value: string | null | undefined,
+  country: string | null | undefined,
+) {
+  const raw = String(value ?? "").trim();
+
+  if (!raw || !isCanadianCountry(country)) return raw;
+
+  const compact = raw.replace(/\s+/g, "").toUpperCase();
+  const match = compact.match(/^(\d{9})((?:RT|RP|RM|RC)\d{4})$/);
+
+  if (!match) return raw;
+
+  return `${match[1]} ${match[2]}`;
+}
+
+export function taxCurrencyProfileWarning(
+  currencyCode: string | null | undefined,
+  taxName: string | null | undefined,
+) {
+  const currency = String(currencyCode ?? "").trim().toUpperCase();
+
+  if (currency && currency !== "CAD" && isCanadianTaxProfile(taxName)) {
+    return `${String(taxName ?? "Canadian tax").trim()} is usually used with CAD. This invoice is saved as ${currency}. Review the company currency and tax profile before sending.`;
+  }
+
+  return "";
 }
 
 export function preTaxLineAmount(

@@ -89,18 +89,78 @@ export async function GET(
             return new NextResponse("Error consultando preferencias de invoice", { status: 500 });
         }
 
+        const { data: companyProfile, error: companyProfileError } = await supabaseAdmin
+            .from("companies")
+            .select("company_name, company_email, company_phone, company_website, tax_registration, logo_url, address_line_1, address_line_2, city, state_province, postal_code, country_code, currency_code")
+            .eq("company_id", invoiceCompanyId)
+            .maybeSingle();
+
+        if (companyProfileError) {
+            console.error("companies profile error:", companyProfileError);
+            return new NextResponse("Error consultando datos de compañía", { status: 500 });
+        }
+
         const renderData = {
             ...(data as any),
             company: {
                 ...((data as any).company ?? {}),
+                company_name:
+                    companyProfile?.company_name ??
+                    (data as any).company?.company_name ??
+                    null,
+                address_line1:
+                    companyProfile?.address_line_1 ??
+                    (data as any).company?.address_line1 ??
+                    null,
+                address_line2:
+                    companyProfile?.address_line_2 ??
+                    (data as any).company?.address_line2 ??
+                    null,
+                city:
+                    companyProfile?.city ??
+                    (data as any).company?.city ??
+                    null,
+                province:
+                    companyProfile?.state_province ??
+                    (data as any).company?.province ??
+                    null,
+                postal_code:
+                    companyProfile?.postal_code ??
+                    (data as any).company?.postal_code ??
+                    null,
+                phone:
+                    companyProfile?.company_phone ??
+                    (data as any).company?.phone ??
+                    null,
+                email:
+                    companyProfile?.company_email ??
+                    (data as any).company?.email ??
+                    null,
+                website:
+                    companyProfile?.company_website ??
+                    (data as any).company?.website ??
+                    null,
+                tax_registration:
+                    companyProfile?.tax_registration ??
+                    (data as any).company?.tax_registration ??
+                    null,
+                logo_url:
+                    companyProfile?.logo_url ??
+                    (data as any).company?.logo_url ??
+                    null,
                 payment_instructions: settings?.payment_instructions ?? null,
                 invoice_footer:
                     settings?.invoice_footer_note ??
                     (data as any).company?.invoice_footer ??
                     null,
                 country_code:
+                    companyProfile?.country_code ??
                     settings?.country_code ??
                     (data as any).company?.country_code ??
+                    (data as any).company?.country ??
+                    null,
+                country:
+                    companyProfile?.country_code ??
                     (data as any).company?.country ??
                     null,
             },
@@ -138,7 +198,7 @@ export async function GET(
             format: "A4",
             printBackground: true,
             margin: {
-                top: "10mm",
+                top: "7mm",
                 right: "10mm",
                 bottom: "10mm",
                 left: "10mm",
