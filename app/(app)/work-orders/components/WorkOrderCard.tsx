@@ -15,6 +15,7 @@ type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed" | "cancelle
 
 type WorkOrder = {
     work_order_id: string;
+    work_order_number?: string | null;
     company_id?: string | null;
     job_type: string;
     description: string;
@@ -368,7 +369,7 @@ export default function WorkOrderCard({
                         }}
                         title={wo.work_order_id}
                     >
-                        Ref {wo.work_order_id.slice(0, 8)}
+                        {wo.work_order_number || `Ref ${wo.work_order_id.slice(0, 8)}`}
                     </span>
 
                     {!wo.assigned_to && isAdminOrOwner ? (

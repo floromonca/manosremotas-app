@@ -14,6 +14,7 @@ type WorkOrderStatus = "new" | "in_progress" | "resolved" | "closed" | "cancelle
 
 type WorkOrder = {
     work_order_id: string;
+    work_order_number?: string | null;
     company_id?: string | null;
     job_type: string;
     description: string;

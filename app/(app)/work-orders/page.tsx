@@ -13,7 +13,6 @@ import { createInvoiceFromWorkOrder } from "../../../lib/invoices";
 import { CompanyGuard } from "../../components/CompanyGuard";
 import WorkOrderAuditPanel from "./components/WorkOrderAuditPanel";
 import OperationalShiftBanner from "./components/OperationalShiftBanner";
-import WorkOrdersToolbar from "./components/WorkOrdersToolbar";
 import WorkOrdersPageHeader from "./components/WorkOrdersPageHeader";
 import WorkOrdersAdminSectionTabs from "./components/WorkOrdersAdminSectionTabs";
 import WorkOrdersAdminActions from "./components/WorkOrdersAdminActions";
@@ -43,6 +42,7 @@ import { getOpenShift } from "../../../lib/supabase/shifts";
 
 type WorkOrder = {
     work_order_id: string;
+    work_order_number?: string | null;
     company_id?: string | null;
     job_type: string;
     description: string;
@@ -124,6 +124,7 @@ function WorkOrdersPageInner() {
     const [rows, setRows] = useState<WorkOrder[]>([]);
     const [loadingWO, setLoadingWO] = useState(false);
     const [errorMessage, setErrorMessage] = useState("");
+    const [workOrderSearch, setWorkOrderSearch] = useState("");
 
     type AuditItem = {
         changed_at: string | null;
@@ -633,6 +634,99 @@ function WorkOrdersPageInner() {
         return rows.filter((w) => w.status === "closed" || w.status === "cancelled");
     }, [rows]);
 
+    const techAssignedRows = techRows.filter((w) => w.status === "new");
+    const techInProgressRows = techRows.filter((w) => w.status === "in_progress");
+    const techCompletedRows = techRows.filter(
+        (w) => w.status === "resolved" || w.status === "closed"
+    );
+
+    const normalizedWorkOrderSearch = workOrderSearch.trim().toLowerCase();
+    const hasWorkOrderSearch = normalizedWorkOrderSearch.length > 0;
+
+    const filterWorkOrdersBySearch = useCallback(
+        (list: WorkOrder[]) => {
+            if (!normalizedWorkOrderSearch) return list;
+
+            return list.filter((w) => {
+                const assignedMember = members.find((m) => m.user_id === w.assigned_to);
+                const searchable = [
+                    w.work_order_number,
+                    w.work_order_id,
+                    w.work_order_id?.slice(0, 8),
+                    w.job_type,
+                    w.description,
+                    w.customer_name,
+                    w.service_address,
+                    w.status,
+                    w.priority,
+                    w.scheduled_for,
+                    assignedMember?.full_name,
+                    assignedMember?.user_id,
+                    w.invoice_id ? "invoiced invoice" : "",
+                ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+
+                return searchable.includes(normalizedWorkOrderSearch);
+            });
+        },
+        [members, normalizedWorkOrderSearch],
+    );
+
+    const searchedTechInProgressRows = useMemo(
+        () => filterWorkOrdersBySearch(techInProgressRows),
+        [filterWorkOrdersBySearch, techInProgressRows],
+    );
+    const searchedTechAssignedRows = useMemo(
+        () => filterWorkOrdersBySearch(techAssignedRows),
+        [filterWorkOrdersBySearch, techAssignedRows],
+    );
+    const searchedTechCompletedRows = useMemo(
+        () => filterWorkOrdersBySearch(techCompletedRows),
+        [filterWorkOrdersBySearch, techCompletedRows],
+    );
+    const searchedAdminNeedsAttentionRows = useMemo(
+        () => filterWorkOrdersBySearch(adminNeedsAttentionRows),
+        [adminNeedsAttentionRows, filterWorkOrdersBySearch],
+    );
+    const searchedAdminActiveRows = useMemo(
+        () => filterWorkOrdersBySearch(adminActiveRows),
+        [adminActiveRows, filterWorkOrdersBySearch],
+    );
+    const searchedAdminReadyToInvoiceRows = useMemo(
+        () => filterWorkOrdersBySearch(adminReadyToInvoiceRows),
+        [adminReadyToInvoiceRows, filterWorkOrdersBySearch],
+    );
+    const searchedAdminHistoryRows = useMemo(
+        () => filterWorkOrdersBySearch(adminHistoryRows),
+        [adminHistoryRows, filterWorkOrdersBySearch],
+    );
+
+    const currentSearchScopeCount =
+        adminActiveSection === "needs_attention"
+            ? adminNeedsAttentionRows.length
+            : adminActiveSection === "active_work"
+                ? adminActiveRows.length
+                : adminActiveSection === "ready_to_invoice"
+                    ? adminReadyToInvoiceRows.length
+                    : adminHistoryRows.length;
+
+    const currentSearchMatchCount =
+        adminActiveSection === "needs_attention"
+            ? searchedAdminNeedsAttentionRows.length
+            : adminActiveSection === "active_work"
+                ? searchedAdminActiveRows.length
+                : adminActiveSection === "ready_to_invoice"
+                    ? searchedAdminReadyToInvoiceRows.length
+                    : searchedAdminHistoryRows.length;
+
+    const searchSummaryLabel = isTechView
+        ? `${filterWorkOrdersBySearch(techRows).length} of ${techRows.length} assigned orders`
+        : hasWorkOrderSearch
+            ? `${currentSearchMatchCount} of ${currentSearchScopeCount} in this section`
+            : `${currentSearchScopeCount} in this section`;
+
     const renderAdminSection = (
         sectionKey: string,
         title: string,
@@ -640,8 +734,9 @@ function WorkOrdersPageInner() {
         emptyMessage: string
     ) => {
         const isExpanded = !!adminExpandedSections[sectionKey];
-        const visibleRows = isExpanded ? sectionRows : sectionRows.slice(0, 5);
-        const hasMore = sectionRows.length > 5;
+        const visibleRows =
+            hasWorkOrderSearch || isExpanded ? sectionRows : sectionRows.slice(0, 5);
+        const hasMore = !hasWorkOrderSearch && sectionRows.length > 5;
 
         return (
             <section style={{ marginTop: 20 }}>
@@ -721,7 +816,9 @@ function WorkOrdersPageInner() {
                             fontSize: 14,
                         }}
                     >
-                        {emptyMessage}
+                        {hasWorkOrderSearch
+                            ? `No work orders match “${workOrderSearch.trim()}” in this section.`
+                            : emptyMessage}
                     </div>
                 ) : (
                     <WorkOrdersList
@@ -754,12 +851,6 @@ function WorkOrdersPageInner() {
             </section>
         );
     };
-
-    const techAssignedRows = techRows.filter((w) => w.status === "new");
-    const techInProgressRows = techRows.filter((w) => w.status === "in_progress");
-    const techCompletedRows = techRows.filter(
-        (w) => w.status === "resolved" || w.status === "closed"
-    );
 
     const loadAuditTimeline = useCallback(async (workOrderId: string) => {
         setAuditLoadingFor((s) => ({ ...s, [workOrderId]: true }));
@@ -1733,6 +1824,90 @@ function WorkOrdersPageInner() {
                             </div>
                         ) : null}
 
+                        <section
+                            style={{
+                                marginBottom: 16,
+                                padding: 14,
+                                border: `1px solid ${MR_THEME.colors.border}`,
+                                borderRadius: MR_THEME.radius.card,
+                                background: MR_THEME.colors.cardBg,
+                                boxShadow: MR_THEME.shadows.card,
+                                display: "grid",
+                                gap: 10,
+                            }}
+                        >
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 12,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <div style={{ display: "grid", gap: 3 }}>
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 900,
+                                            color: MR_THEME.colors.textMuted,
+                                            textTransform: "uppercase",
+                                            letterSpacing: "0.08em",
+                                        }}
+                                    >
+                                        Find work orders
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: 13,
+                                            color: MR_THEME.colors.textSecondary,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        {searchSummaryLabel}
+                                    </div>
+                                </div>
+
+                                {hasWorkOrderSearch ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setWorkOrderSearch("")}
+                                        style={{
+                                            padding: "8px 11px",
+                                            borderRadius: MR_THEME.radius.control,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            background: MR_THEME.colors.cardBg,
+                                            color: MR_THEME.colors.textSecondary,
+                                            cursor: "pointer",
+                                            fontSize: 12,
+                                            fontWeight: 850,
+                                        }}
+                                    >
+                                        Clear
+                                    </button>
+                                ) : null}
+                            </div>
+
+                            <input
+                                value={workOrderSearch}
+                                onChange={(event) => setWorkOrderSearch(event.target.value)}
+                                placeholder="Search by work order, customer, address, job type, status, assignee, or ref"
+                                style={{
+                                    width: "100%",
+                                    minHeight: 46,
+                                    padding: "0 14px",
+                                    borderRadius: MR_THEME.radius.control,
+                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                    background: MR_THEME.colors.cardBgSoft,
+                                    color: MR_THEME.colors.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: 650,
+                                    outline: "none",
+                                    boxSizing: "border-box",
+                                }}
+                            />
+                        </section>
+
                         <div style={{ marginBottom: 18 }}>
                             {/* ✅ BLOQUEO OPERATIVO: Banner (Jornada) */}
                             <OperationalShiftBanner
@@ -1768,9 +1943,9 @@ function WorkOrdersPageInner() {
                                 <div style={{ opacity: 0.6 }}>No assigned work orders.</div>
                             ) : (
                                 <>
-                                    {renderTechSection("My Active Work", techInProgressRows)}
-                                    {renderTechSection("My Assigned Work", techAssignedRows)}
-                                    {renderTechSection("Recent Completed", techCompletedRows)}
+                                    {renderTechSection("My Active Work", searchedTechInProgressRows)}
+                                    {renderTechSection("My Assigned Work", searchedTechAssignedRows)}
+                                    {renderTechSection("Recent Completed", searchedTechCompletedRows)}
                                 </>
                             )
                         ) : rows.length === 0 ? (
@@ -1779,28 +1954,28 @@ function WorkOrdersPageInner() {
                             renderAdminSection(
                                 "needs_attention",
                                 "Needs Attention",
-                                adminNeedsAttentionRows,
+                                searchedAdminNeedsAttentionRows,
                                 "No work orders need attention."
                             )
                         ) : adminActiveSection === "active_work" ? (
                             renderAdminSection(
                                 "active_work",
                                 "Active Work",
-                                adminActiveRows,
+                                searchedAdminActiveRows,
                                 "No active work orders."
                             )
                         ) : adminActiveSection === "ready_to_invoice" ? (
                             renderAdminSection(
                                 "ready_to_invoice",
                                 "Ready to Invoice",
-                                adminReadyToInvoiceRows,
+                                searchedAdminReadyToInvoiceRows,
                                 "No work orders ready to invoice."
                             )
                         ) : (
                             renderAdminSection(
                                 "history",
                                 "History",
-                                adminHistoryRows,
+                                searchedAdminHistoryRows,
                                 "No closed work orders yet."
                             )
                         )}
