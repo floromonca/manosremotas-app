@@ -26,6 +26,7 @@ export default function CustomersPage() {
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [isCompactDesktop, setIsCompactDesktop] = useState(false);
+    const [hoveredCustomerId, setHoveredCustomerId] = useState<string | null>(null);
     const [cameFromControlCenter] = useState(
         () =>
             typeof window !== "undefined" &&
@@ -443,21 +444,32 @@ export default function CustomersPage() {
                         {filteredCustomers.map((customer) => (
                             <article
                                 key={customer.customer_id}
+                                onMouseEnter={() => setHoveredCustomerId(customer.customer_id)}
+                                onMouseLeave={() => setHoveredCustomerId(null)}
                                 style={{
-                                    border: `1px solid ${isCompactDesktop ? MR_THEME.colors.primarySurface : MR_THEME.colors.border}`,
+                                    border: `1px solid ${hoveredCustomerId === customer.customer_id
+                                        ? MR_THEME.colors.borderStrong
+                                        : (isCompactDesktop ? MR_THEME.colors.primarySurface : MR_THEME.colors.border)
+                                        }`,
                                     borderRadius: MR_THEME.radius.card,
                                     background: isCompactDesktop
                                         ? "linear-gradient(90deg, #ffffff 0%, #f8fbff 100%)"
                                         : MR_THEME.colors.cardBg,
-                                    boxShadow: isCompactDesktop ? MR_THEME.shadows.cardSoft : MR_THEME.shadows.card,
+                                    boxShadow: hoveredCustomerId === customer.customer_id
+                                        ? MR_THEME.shadows.dropdown  // sombra más pronunciada
+                                        : (isCompactDesktop ? MR_THEME.shadows.cardSoft : MR_THEME.shadows.card),
                                     padding: isCompactDesktop ? 12 : 14,
                                     display: "grid",
                                     gridTemplateColumns: "minmax(0, 1fr) auto",
                                     gap: isCompactDesktop ? 12 : 16,
                                     alignItems: "center",
                                     borderLeft: isCompactDesktop
-                                        ? `3px solid ${MR_THEME.colors.primarySurface}`
+                                        ? `3px solid ${hoveredCustomerId === customer.customer_id
+                                            ? MR_THEME.colors.primary
+                                            : MR_THEME.colors.primarySurface}`
                                         : `1px solid ${MR_THEME.colors.border}`,
+                                    transition: "all 0.2s ease",
+                                    cursor: "pointer",
                                 }}
                             >
                                 <div style={{ minWidth: 0 }}>
@@ -543,28 +555,7 @@ export default function CustomersPage() {
                 ) : null}
             </div>
 
-            <style jsx>{`
-    @media (max-width: 720px) {
-        main {
-            padding: 16px !important;
-        }
 
-        section,
-        article {
-            grid-template-columns: 1fr !important;
-        }
-
-        article {
-            padding: 16px !important;
-            gap: 12px !important;
-        }
-
-        button,
-        a {
-            width: 100%;
-        }
-    }
-`}</style>
 
         </main>
     );
