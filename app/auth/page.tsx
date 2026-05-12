@@ -26,7 +26,22 @@ export default function AuthPage() {
 
     window.location.replace(`/auth/reset-password${hash}`);
   }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
+    const params = new URLSearchParams(window.location.search);
+
+    const requestedMode = params.get("mode");
+    const requestedEmail = params.get("email");
+
+    if (requestedMode === "signup") {
+      setMode("signup");
+    }
+
+    if (requestedEmail) {
+      setEmail(requestedEmail.trim().toLowerCase());
+    }
+  }, []);
   const ensureClientSession = async (
     session:
       | {

@@ -209,14 +209,25 @@ export default function TeamPage() {
         }
 
         try {
-            const { error } = await supabase.from("company_invites").insert({
-                company_id: companyId,
-                email,
-                role: inviteRole,
-                status: "pending",
+            const res = await fetch("/api/team/invite", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    companyId,
+                    email,
+                    role: inviteRole,
+                }),
             });
 
-            if (error) throw error;
+            const payload = await res.json().catch(() => null);
+
+            if (!res.ok || !payload?.ok) {
+                throw new Error(
+                    payload?.error ?? "Could not create and send invite."
+                );
+            }
 
             setInviteEmail("");
             setInviteRole("tech");
@@ -224,12 +235,11 @@ export default function TeamPage() {
 
             await refresh();
 
-            setOk("Invite created successfully. The member must register with the same email.");
+            setOk("Invite created and email sent successfully.");
         } catch (e: any) {
-            setErr(e?.message ?? "Could not create invite.");
+            setErr(e?.message ?? "Could not create and send invite.");
         }
     }, [companyId, inviteEmail, inviteRole, refresh]);
-
     if (authLoading) {
         return (
             <PageShell>

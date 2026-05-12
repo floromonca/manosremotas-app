@@ -75,40 +75,23 @@ export default function OnboardingProfilePage() {
         setMsg(null);
 
         try {
-            const payload = {
-                full_name: name,
-                language: language || "en",
-            };
+            const res = await fetch("/api/profile/complete", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    companyId,
+                    fullName: name,
+                    language: language || "en",
+                }),
+            });
 
-            const { data: updatedRow, error: updErr } = await supabase
-                .from("profiles")
-                .update(payload)
-                .eq("user_id", user.id)
-                .eq("company_id", companyId)
-                .select("user_id")
-                .maybeSingle();
+            const payload = await res.json().catch(() => null);
 
-            if (updErr) throw updErr;
-
-            if (!updatedRow) {
-                const { error: insErr } = await supabase.from("profiles").insert({
-                    user_id: user.id,
-                    company_id: companyId,
-                    ...payload,
-                });
-
-                if (insErr) throw insErr;
+            if (!res.ok || !payload?.ok) {
+                throw new Error(payload?.error ?? "Could not save profile.");
             }
-
-            const { error: memberErr } = await supabase
-                .from("company_members")
-                .update({
-                    full_name: name,
-                })
-                .eq("user_id", user.id)
-                .eq("company_id", companyId);
-
-            if (memberErr) throw memberErr;
 
             const { data: companyRow, error: companyErr } = await supabase
                 .from("companies")
