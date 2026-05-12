@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MR_THEME } from "@/lib/theme";
 import { supabase } from "../../../../lib/supabaseClient";
@@ -56,6 +56,7 @@ export default function ControlCenterCompanyPage() {
     const [okMsg, setOkMsg] = useState("");
     const [role, setRole] = useState<string | null>(null);
     const [form, setForm] = useState<CompanyForm>(EMPTY_FORM);
+    const [lastSavedForm, setLastSavedForm] = useState<CompanyForm>(EMPTY_FORM);
 
     useEffect(() => {
         if (authLoading) return;
@@ -134,7 +135,7 @@ export default function ControlCenterCompanyPage() {
                     {};
 
                 if (!cancelled) {
-                    setForm({
+                    const nextForm = {
                         company_name: row.company_name ?? "",
                         company_email: row.company_email ?? "",
                         company_phone: row.company_phone ?? "",
@@ -150,7 +151,10 @@ export default function ControlCenterCompanyPage() {
                         currency_code: row.currency_code ?? "CAD",
                         timezone: row.timezone ?? "America/Toronto",
                         payment_terms_days: String(row.payment_terms_days ?? 30),
-                    });
+                    };
+
+                    setForm(nextForm);
+                    setLastSavedForm(nextForm);
                 }
             } catch (e: any) {
                 if (!cancelled) setErrorMsg(e?.message ?? String(e));
@@ -165,8 +169,27 @@ export default function ControlCenterCompanyPage() {
     }, [authLoading, user?.id, isLoadingCompany, companyId, myRole, router, user]);
 
     const setField = (key: keyof CompanyForm, value: string) => {
+        setOkMsg("");
         setForm((prev) => ({ ...prev, [key]: value }));
     };
+
+    const hasUnsavedChanges = useMemo(() => {
+        return JSON.stringify(form) !== JSON.stringify(lastSavedForm);
+    }, [form, lastSavedForm]);
+    useEffect(() => {
+        if (!hasUnsavedChanges || saving) return;
+
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [hasUnsavedChanges, saving]);
 
     const handleSave = async () => {
         if (!companyId) {
@@ -251,13 +274,31 @@ export default function ControlCenterCompanyPage() {
 
             if (settingsError) throw settingsError;
 
+            const savedForm = {
+                ...form,
+                company_name: payload.company_name,
+                company_email: payload.company_email ?? "",
+                company_phone: payload.company_phone ?? "",
+                company_website: payload.company_website ?? "",
+                tax_registration: payload.tax_registration ?? "",
+                logo_url: payload.logo_url ?? "",
+                address_line_1: payload.address_line_1 ?? "",
+                address_line_2: payload.address_line_2 ?? "",
+                city: payload.city ?? "",
+                state_province: payload.state_province ?? "",
+                postal_code: payload.postal_code ?? "",
+                country_code: payload.country_code,
+                currency_code: payload.currency_code,
+                timezone: payload.timezone,
+                payment_terms_days: String(paymentTermsDays),
+            };
+
+            setForm(savedForm);
+            setLastSavedForm(savedForm);
+
             refreshCompany();
             router.refresh();
             setOkMsg("Changes saved successfully.");
-            setForm((prev) => ({
-                ...prev,
-                payment_terms_days: String(paymentTermsDays),
-            }));
         } catch (e: any) {
             setErrorMsg(e?.message ?? String(e));
         } finally {
@@ -486,6 +527,23 @@ export default function ControlCenterCompanyPage() {
                 ) : null}
 
                 {okMsg ? <AlertMessage tone="success">{okMsg}</AlertMessage> : null}
+                {hasUnsavedChanges && !saving ? (
+                    <div
+                        style={{
+                            marginBottom: 18,
+                            padding: "12px 14px",
+                            border: "1px solid #fde68a",
+                            background: "#fffbeb",
+                            borderRadius: MR_THEME.radius.control,
+                            color: "#92400e",
+                            fontSize: 14,
+                            fontWeight: 800,
+                            lineHeight: 1.5,
+                        }}
+                    >
+                        You have unsaved changes. Save before moving to another settings section.
+                    </div>
+                ) : null}
 
                 {loading ? (
                     <LoadingCard>Loading company settings...</LoadingCard>

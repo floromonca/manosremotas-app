@@ -195,6 +195,79 @@ export default function CustomerDetailPage() {
 
         await loadLocations();
     }
+    async function handleEditLocation(location: Location) {
+        if (!companyId || !customerId || !location.location_id) return;
+
+        const nextLabel = window.prompt(
+            "Location label",
+            location.label ?? ""
+        );
+
+        if (nextLabel === null) return;
+
+        const nextAddress = window.prompt(
+            "Location address",
+            location.address ?? ""
+        );
+
+        if (nextAddress === null) return;
+
+        const cleanLabel = nextLabel.trim();
+        const cleanAddress = nextAddress.trim();
+
+        if (!cleanLabel) {
+            alert("Location label is required.");
+            return;
+        }
+
+        if (!cleanAddress) {
+            alert("Location address is required.");
+            return;
+        }
+
+        const { error } = await supabase
+            .from("locations")
+            .update({
+                label: cleanLabel,
+                address: cleanAddress,
+            })
+            .eq("company_id", companyId)
+            .eq("customer_id", customerId)
+            .eq("location_id", location.location_id);
+
+        if (error) {
+            console.error("Error updating location:", error);
+            alert(error.message || "Error updating location");
+            return;
+        }
+
+        await loadLocations();
+    }
+
+    async function handleDeleteLocation(location: Location) {
+        if (!companyId || !customerId || !location.location_id) return;
+
+        const confirmed = window.confirm(
+            `Delete this location?\n\n${location.label || "Location"}\n${location.address || ""}`
+        );
+
+        if (!confirmed) return;
+
+        const { error } = await supabase
+            .from("locations")
+            .delete()
+            .eq("company_id", companyId)
+            .eq("customer_id", customerId)
+            .eq("location_id", location.location_id);
+
+        if (error) {
+            console.error("Error deleting location:", error);
+            alert(error.message || "Error deleting location");
+            return;
+        }
+
+        await loadLocations();
+    }
     async function handleEditCustomer() {
         if (!companyId || !customer) {
             alert("No customer selected");
@@ -577,6 +650,8 @@ export default function CustomerDetailPage() {
                                 <CustomerLocationsCard
                                     locations={locations}
                                     onAddLocation={handleAddLocation}
+                                    onEditLocation={handleEditLocation}
+                                    onDeleteLocation={handleDeleteLocation}
                                 />
                             </div>
                         </div>

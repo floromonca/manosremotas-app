@@ -10,11 +10,15 @@ type Location = {
 type CustomerLocationsCardProps = {
     locations: Location[];
     onAddLocation: () => void;
+    onEditLocation: (location: Location) => void;
+    onDeleteLocation: (location: Location) => void;
 };
 
 export default function CustomerLocationsCard({
     locations,
     onAddLocation,
+    onEditLocation,
+    onDeleteLocation,
 }: CustomerLocationsCardProps) {
     return (
         <div
@@ -62,6 +66,7 @@ export default function CustomerLocationsCard({
                 </div>
 
                 <button
+                    type="button"
                     onClick={onAddLocation}
                     style={{
                         height: 42,
@@ -92,23 +97,85 @@ export default function CustomerLocationsCard({
                     >
                         <div
                             style={{
-                                fontWeight: 900,
-                                fontSize: 15,
-                                color: MR_THEME.colors.textPrimary,
-                                marginBottom: 6,
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "flex-start",
+                                gap: 12,
+                                flexWrap: "wrap",
+                                marginBottom: 8,
                             }}
                         >
-                            {location.label || "Location"}
-                        </div>
+                            <div
+                                style={{
+                                    minWidth: 0,
+                                    flex: 1,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontWeight: 900,
+                                        fontSize: 15,
+                                        color: MR_THEME.colors.textPrimary,
+                                        marginBottom: 6,
+                                    }}
+                                >
+                                    {location.label || "Location"}
+                                </div>
 
-                        <div
-                            style={{
-                                color: MR_THEME.colors.textSecondary,
-                                lineHeight: 1.5,
-                                wordBreak: "break-word",
-                            }}
-                        >
-                            {location.address || "—"}
+                                <div
+                                    style={{
+                                        color: MR_THEME.colors.textSecondary,
+                                        lineHeight: 1.5,
+                                        wordBreak: "break-word",
+                                    }}
+                                >
+                                    {location.address || "—"}
+                                </div>
+                            </div>
+
+                            <div
+                                style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => onEditLocation(location)}
+                                    style={{
+                                        minHeight: 34,
+                                        padding: "0 10px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.textPrimary,
+                                        cursor: "pointer",
+                                        fontWeight: 800,
+                                        fontSize: 13,
+                                    }}
+                                >
+                                    Edit
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={() => onDeleteLocation(location)}
+                                    style={{
+                                        minHeight: 34,
+                                        padding: "0 10px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: "1px solid #fecaca",
+                                        background: "#fff5f5",
+                                        color: "#b91c1c",
+                                        cursor: "pointer",
+                                        fontWeight: 800,
+                                        fontSize: 13,
+                                    }}
+                                >
+                                    Delete
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ))}

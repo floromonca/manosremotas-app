@@ -44,57 +44,92 @@ function AddPhotoButton({
 }) {
     const categoryLabel = formatCategory(category);
 
+    const baseButtonStyle: React.CSSProperties = {
+        padding: "14px 16px",
+        minHeight: 52,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: MR_THEME.radius.control,
+        border: disabled
+            ? `1px solid ${MR_THEME.colors.border}`
+            : `1px dashed ${MR_THEME.colors.primary}`,
+        background: disabled
+            ? MR_THEME.colors.cardBgSoft
+            : MR_THEME.colors.primarySoft,
+        color: disabled
+            ? MR_THEME.colors.textMuted
+            : MR_THEME.colors.primaryHover,
+        fontWeight: 900,
+        fontSize: 14,
+        lineHeight: 1.25,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.75 : 1,
+        width: "100%",
+        boxSizing: "border-box",
+        textAlign: "center",
+        transition: "all 0.15s ease",
+    };
+
+    const applyHoverOn = (element: HTMLLabelElement) => {
+        if (disabled) return;
+        element.style.background = MR_THEME.colors.primary;
+        element.style.color = "#ffffff";
+        element.style.border = `1px solid ${MR_THEME.colors.primary}`;
+    };
+
+    const applyHoverOff = (element: HTMLLabelElement) => {
+        if (disabled) return;
+        element.style.background = MR_THEME.colors.primarySoft;
+        element.style.color = MR_THEME.colors.primaryHover;
+        element.style.border = `1px dashed ${MR_THEME.colors.primary}`;
+    };
+
     return (
-        <label
-            onMouseEnter={(e) => {
-                if (disabled) return;
-                e.currentTarget.style.background = MR_THEME.colors.primary;
-                e.currentTarget.style.color = "#ffffff";
-                e.currentTarget.style.border = `1px solid ${MR_THEME.colors.primary}`;
-            }}
-            onMouseLeave={(e) => {
-                if (disabled) return;
-                e.currentTarget.style.background = MR_THEME.colors.primarySoft;
-                e.currentTarget.style.color = MR_THEME.colors.primaryHover;
-                e.currentTarget.style.border = `1px dashed ${MR_THEME.colors.primary}`;
-            }}
+        <div
             style={{
-                padding: "14px 16px",
-                minHeight: 52,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: MR_THEME.radius.control,
-                border: disabled
-                    ? `1px solid ${MR_THEME.colors.border}`
-                    : `1px dashed ${MR_THEME.colors.primary}`,
-                background: disabled
-                    ? MR_THEME.colors.cardBgSoft
-                    : MR_THEME.colors.primarySoft,
-                color: disabled
-                    ? MR_THEME.colors.textMuted
-                    : MR_THEME.colors.primaryHover,
-                fontWeight: 900,
-                fontSize: 14,
-                lineHeight: 1.25,
-                cursor: disabled ? "not-allowed" : "pointer",
-                opacity: disabled ? 0.75 : 1,
-                width: "100%",
-                boxSizing: "border-box",
-                textAlign: "center",
-                transition: "all 0.15s ease",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
             }}
         >
-            + Add {categoryLabel} photo
-            <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                disabled={disabled}
-                style={{ display: "none" }}
-                onChange={(e) => onUploadPhoto(e.target.files?.[0] ?? null, category)}
-            />
-        </label>
+            <label
+                onMouseEnter={(e) => applyHoverOn(e.currentTarget)}
+                onMouseLeave={(e) => applyHoverOff(e.currentTarget)}
+                style={baseButtonStyle}
+            >
+                Take {categoryLabel} photo
+                <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    disabled={disabled}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                        onUploadPhoto(e.target.files?.[0] ?? null, category);
+                        e.currentTarget.value = "";
+                    }}
+                />
+            </label>
+
+            <label
+                onMouseEnter={(e) => applyHoverOn(e.currentTarget)}
+                onMouseLeave={(e) => applyHoverOff(e.currentTarget)}
+                style={baseButtonStyle}
+            >
+                Upload from gallery
+                <input
+                    type="file"
+                    accept="image/*"
+                    disabled={disabled}
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                        onUploadPhoto(e.target.files?.[0] ?? null, category);
+                        e.currentTarget.value = "";
+                    }}
+                />
+            </label>
+        </div>
     );
 }
 
@@ -431,7 +466,7 @@ export default function WorkOrderPhotosSection({
                         lineHeight: 1.35,
                     }}
                 >
-                 Before and After photos are required.
+                    Before and After photos are required.
                 </div>
             </div>
         </section>
