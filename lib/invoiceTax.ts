@@ -82,6 +82,21 @@ export function taxCurrencyProfileWarning(
   return "";
 }
 
+export type InvoiceTaxBreakdownItem = {
+  quantity?: number | null;
+  qty?: number | null;
+  unit_price?: number | null;
+  line_subtotal?: number | null;
+  line_tax?: number | null;
+  line_total?: number | null;
+  tax_rate?: number | null;
+};
+
+function roundCurrency(value: number) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 export function preTaxLineAmount(
   qty: number | null | undefined,
   unitPrice: number | null | undefined,
@@ -92,4 +107,64 @@ export function preTaxLineAmount(
   }
 
   return Number(qty ?? 0) * Number(unitPrice ?? 0);
+}
+
+export function isTaxableInvoiceItem(item: InvoiceTaxBreakdownItem | null | undefined) {
+  const taxRate = Number(item?.tax_rate ?? 0);
+  const lineTax = Number(item?.line_tax ?? 0);
+
+  return (
+    (Number.isFinite(taxRate) && taxRate > 0) ||
+    (Number.isFinite(lineTax) && lineTax > 0)
+  );
+}
+
+export function calculateInvoiceTaxBreakdown(items: InvoiceTaxBreakdownItem[]) {
+  const breakdown = items.reduce(
+    (acc, item) => {
+      const quantity = item.quantity ?? item.qty;
+      const lineSubtotal = preTaxLineAmount(
+        quantity,
+        item.unit_price,
+        item.line_subtotal,
+      );
+      const taxRate = normalizeTaxRate(item.tax_rate);
+      const lineTax =
+        item.line_tax != null && Number.isFinite(Number(item.line_tax))
+          ? Number(item.line_tax)
+          : lineSubtotal * taxRate;
+      const isTaxable = isTaxableInvoiceItem(item);
+
+      acc.subtotal += lineSubtotal;
+      acc.taxTotal += lineTax;
+
+      if (isTaxable) {
+        acc.taxableSubtotal += lineSubtotal;
+        acc.hasTaxableItems = true;
+      } else {
+        acc.nonTaxableSubtotal += lineSubtotal;
+        acc.hasNonTaxableItems = true;
+      }
+
+      return acc;
+    },
+    {
+      subtotal: 0,
+      taxableSubtotal: 0,
+      nonTaxableSubtotal: 0,
+      taxTotal: 0,
+      hasTaxableItems: false,
+      hasNonTaxableItems: false,
+    },
+  );
+
+  return {
+    subtotal: roundCurrency(breakdown.subtotal),
+    taxableSubtotal: roundCurrency(breakdown.taxableSubtotal),
+    nonTaxableSubtotal: roundCurrency(breakdown.nonTaxableSubtotal),
+    taxTotal: roundCurrency(breakdown.taxTotal),
+    hasTaxableItems: breakdown.hasTaxableItems,
+    hasNonTaxableItems: breakdown.hasNonTaxableItems,
+    hasMixedTaxability: breakdown.hasTaxableItems && breakdown.hasNonTaxableItems,
+  };
 }

@@ -15,7 +15,12 @@ import InvoiceItemsSection from "./components/InvoiceItemsSection";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../../hooks/useAuthState";
 import { canManageInvoices } from "../../../../lib/security/roles";
-import { formatTaxSummaryLabel, preTaxLineAmount, taxCurrencyProfileWarning } from "../../../../lib/invoiceTax";
+import {
+    calculateInvoiceTaxBreakdown,
+    formatTaxSummaryLabel,
+    preTaxLineAmount,
+    taxCurrencyProfileWarning,
+} from "../../../../lib/invoiceTax";
 
 
 async function getDefaultTaxRate(companyId: string) {
@@ -469,6 +474,10 @@ export default function InvoicePage() {
             derivedFromLines: !hasStoredSubtotal || !hasStoredTax || !hasStoredTotal,
         };
     }, [inv, items]);
+
+    const taxBreakdown = useMemo(() => {
+        return calculateInvoiceTaxBreakdown(items);
+    }, [items]);
 
     const depositRequired = Number(inv?.deposit_required ?? 0);
 
@@ -935,6 +944,7 @@ export default function InvoicePage() {
                             showCustomerPhone={invoicePreferences.show_customer_phone_on_invoice}
                             compactView={invoicePreferences.compact_invoice_view}
                             totals={totals}
+                            taxBreakdown={taxBreakdown}
                             taxLabel={taxSummaryLabel}
                             taxCurrencyWarning={taxCurrencyWarning}
                             depositRequired={depositRequired}

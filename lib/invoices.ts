@@ -1,8 +1,10 @@
 // lib/invoices.ts
 import { supabase } from "./supabaseClient";
 import {
+  calculateInvoiceTaxBreakdown,
   formatTaxRegistrationNumber,
   formatTaxSummaryLabel,
+  isTaxableInvoiceItem,
   preTaxLineAmount,
   taxRegistrationLabel,
 } from "./invoiceTax";
@@ -629,6 +631,10 @@ export function renderInvoiceHtml(
   const balanceDue = Number(invoice.balance_due ?? total);
   const depositRequired = Number(invoice.deposit_required ?? 0);
   const taxLabel = formatTaxSummaryLabel(invoice.tax_name, invoice.tax_rate);
+  const taxBreakdown = calculateInvoiceTaxBreakdown(items);
+  const showTaxableBreakdown =
+    taxBreakdown.hasMixedTaxability ||
+    (taxBreakdown.hasNonTaxableItems && !taxBreakdown.hasTaxableItems);
   const companyTaxRegistration = String(company.tax_registration ?? "").trim();
   const companyTaxRegistrationLabel = taxRegistrationLabel(
     company.country || company.country_code,
@@ -657,9 +663,15 @@ export function renderInvoiceHtml(
   const flatRows = items.length
     ? items
       .map((item) => {
+        const taxabilityLabel = isTaxableInvoiceItem(item)
+          ? "Taxable"
+          : "Non-taxable";
         return `
         <tr>
-          <td class="desc">${escHtml(item.description || "")}</td>
+          <td class="desc">
+            <div class="item-description">${escHtml(item.description || "")}</div>
+            <div class="taxability-badge">${taxabilityLabel}</div>
+          </td>
           <td class="num">${Number(item.qty ?? 0)}${item.uom ? ` ${escHtml(item.uom)}` : ""}</td>
           <td class="num">${moneyHtml(item.unit_price, currency)}${item.uom ? ` / ${escHtml(item.uom)}` : ""}</td>
           <td class="num strong">${moneyHtml(preTaxLineAmount(item.qty, item.unit_price, item.line_subtotal), currency)}</td>
@@ -721,9 +733,15 @@ export function renderInvoiceHtml(
         const woRows = woItems.length
           ? woItems
             .map((item) => {
+              const taxabilityLabel = isTaxableInvoiceItem(item)
+                ? "Taxable"
+                : "Non-taxable";
               return `
         <tr>
-          <td class="desc">${escHtml(item.description || "")}</td>
+          <td class="desc">
+            <div class="item-description">${escHtml(item.description || "")}</div>
+            <div class="taxability-badge">${taxabilityLabel}</div>
+          </td>
           <td class="num">${Number(item.qty ?? 0)}${item.uom ? ` ${escHtml(item.uom)}` : ""}</td>
           <td class="num">${moneyHtml(item.unit_price, currency)}${item.uom ? ` / ${escHtml(item.uom)}` : ""}</td>
           <td class="num strong">${moneyHtml(preTaxLineAmount(item.qty, item.unit_price, item.line_subtotal), currency)}</td>
@@ -1073,6 +1091,23 @@ tbody tr:last-child td{
 
 .desc{
   width:50%;
+}
+
+.item-description{
+  color:var(--heading);
+}
+
+.taxability-badge{
+  display:inline-block;
+  margin-top:4px;
+  padding:2px 7px;
+  border-radius:999px;
+  background:#f8fafc;
+  border:1px solid var(--line);
+  color:var(--muted);
+  font-size:9px;
+  line-height:1.2;
+  font-weight:800;
 }
 
 .num{
@@ -1581,6 +1616,18 @@ tr{
         <span>Subtotal</span>
         <span>${moneyHtml(subtotal, currency)}</span>
       </div>
+
+      ${showTaxableBreakdown ? `
+      <div class="totals-row">
+        <span>Taxable amount</span>
+        <span>${moneyHtml(taxBreakdown.taxableSubtotal, currency)}</span>
+      </div>
+
+      <div class="totals-row">
+        <span>Non-taxable amount</span>
+        <span>${moneyHtml(taxBreakdown.nonTaxableSubtotal, currency)}</span>
+      </div>
+      ` : ""}
 
       <div class="totals-row">
         <span>${escHtml(taxLabel)}</span>

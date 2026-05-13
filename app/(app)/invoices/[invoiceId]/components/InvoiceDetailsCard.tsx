@@ -30,6 +30,16 @@ type Totals = {
     balance: number;
 };
 
+type TaxBreakdown = {
+    subtotal: number;
+    taxableSubtotal: number;
+    nonTaxableSubtotal: number;
+    taxTotal: number;
+    hasTaxableItems: boolean;
+    hasNonTaxableItems: boolean;
+    hasMixedTaxability: boolean;
+};
+
 type Props = {
     inv: InvoiceRow;
     billingEmail: string;
@@ -39,6 +49,7 @@ type Props = {
     showCustomerPhone: boolean;
     compactView: boolean;
     totals: Totals;
+    taxBreakdown?: TaxBreakdown;
     taxLabel: string;
     taxCurrencyWarning?: string;
     depositRequired: number;
@@ -59,6 +70,7 @@ export default function InvoiceDetailsCard({
     showCustomerPhone,
     compactView,
     totals,
+    taxBreakdown,
     taxLabel,
     taxCurrencyWarning,
     depositRequired,
@@ -73,6 +85,9 @@ export default function InvoiceDetailsCard({
     const balanceAmount = Number(inv.balance_due ?? totals.balance ?? 0);
     const subtotalAmount = Number(inv.subtotal ?? totals.subtotal ?? 0);
     const taxAmount = Number(inv.tax_total ?? totals.tax ?? 0);
+    const showTaxabilityBreakdown =
+        taxBreakdown?.hasMixedTaxability ||
+        (!!taxBreakdown?.hasNonTaxableItems && !taxBreakdown?.hasTaxableItems);
 
     const progressPercent =
         totalAmount > 0
@@ -419,6 +434,24 @@ export default function InvoiceDetailsCard({
                                     {money(subtotalAmount, inv.currency_code)}
                                 </strong>
                             </div>
+
+                            {showTaxabilityBreakdown ? (
+                                <>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                        <span>Taxable amount</span>
+                                        <strong style={{ color: "#111827" }}>
+                                            {money(taxBreakdown?.taxableSubtotal ?? 0, inv.currency_code)}
+                                        </strong>
+                                    </div>
+
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                                        <span>Non-taxable amount</span>
+                                        <strong style={{ color: "#111827" }}>
+                                            {money(taxBreakdown?.nonTaxableSubtotal ?? 0, inv.currency_code)}
+                                        </strong>
+                                    </div>
+                                </>
+                            ) : null}
 
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                                 <span>{taxLabel || "Tax"}</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { preTaxLineAmount } from "../../../../../lib/invoiceTax";
+import { isTaxableInvoiceItem, preTaxLineAmount } from "../../../../../lib/invoiceTax";
 
 type InvoiceItemRowType = {
     invoice_item_id: string;
@@ -37,6 +37,19 @@ const fieldInputStyle: React.CSSProperties = {
     boxSizing: "border-box",
 };
 
+const taxabilityBadgeStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    height: 28,
+    padding: "0 10px",
+    borderRadius: 999,
+    background: "#f8fafc",
+    color: "#64748b",
+    border: "1px solid #e2e8f0",
+    fontSize: 12,
+    fontWeight: 800,
+};
+
 export default function InvoiceItemRow({
     item,
     currencyCode,
@@ -63,6 +76,7 @@ export default function InvoiceItemRow({
 
     const isManual = item.synced_from_wo !== true;
     const canEdit = isDraft && isManual;
+    const taxabilityLabel = isTaxableInvoiceItem(item) ? "Taxable" : "Non-taxable";
 
     return (
         <div
@@ -113,6 +127,10 @@ export default function InvoiceItemRow({
                                     fontWeight: 700,
                                 }}
                             />
+
+                            <div>
+                                <span style={taxabilityBadgeStyle}>{taxabilityLabel}</span>
+                            </div>
                         </div>
                     ) : (
                         <div style={{ display: "grid", gap: 8 }}>
@@ -153,6 +171,8 @@ export default function InvoiceItemRow({
                                 >
                                     {isManual ? "Manual item" : "Synced from work order"}
                                 </span>
+
+                                <span style={taxabilityBadgeStyle}>{taxabilityLabel}</span>
                             </div>
                         </div>
                     )}
