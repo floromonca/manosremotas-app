@@ -6,6 +6,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { MR_THEME } from "@/lib/theme";
+import { canManagePayroll } from "@/lib/security/roles";
 import styles from "./payroll.module.css";
 
 type PayrollRpcRow = {
@@ -212,7 +213,8 @@ export default function PayrollPage() {
     const router = useRouter();
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
-    const isAdmin = myRole === "owner" || myRole === "admin";
+    const canAccessPayroll = canManagePayroll(myRole);
+    const isAdmin = canAccessPayroll;
 
     const initialRange = useMemo(() => getPresetRange("this_week"), []);
     const [preset, setPreset] = useState<PeriodPreset>("this_week");
@@ -233,10 +235,12 @@ export default function PayrollPage() {
     useEffect(() => {
         if (authLoading || isLoadingCompany) return;
         if (!user) router.replace("/auth");
-    }, [authLoading, isLoadingCompany, router, user]);
+        if (user && !canAccessPayroll) router.replace("/my-day");
+    }, [authLoading, canAccessPayroll, isLoadingCompany, router, user]);
 
     const loadPayroll = useCallback(async () => {
         if (!companyId || !user) return;
+        if (!canAccessPayroll) return;
         if (!startDate || !endDate) return;
 
         const startTime = new Date(`${startDate}T00:00:00`).getTime();
@@ -256,120 +260,75 @@ export default function PayrollPage() {
             const bounds = getRangeBounds(startDate, endDate);
             let payrollRows: PayrollRpcRow[] = [];
 
-            if (isAdmin) {
-                const [{ data: members, error: membersError }, { data: shifts, error: shiftsError }, { data: rates, error: ratesError }] =
-                    await Promise.all([
-                        supabase
-                            .from("company_members")
-                            .select("user_id, full_name, role")
-                            .eq("company_id", companyId)
-                            .eq("active", true),
-                        supabase
-                            .from("shifts")
-                            .select("user_id, check_in_at, check_out_at")
-                            .eq("company_id", companyId)
-                            .lt("check_in_at", bounds.endIso)
-                            .or(`check_out_at.is.null,check_out_at.gt.${bounds.startIso}`),
-                        supabase
-                            .from("member_pay_rates")
-                            .select("user_id, hourly_rate, currency_code, effective_from, created_at")
-                            .eq("company_id", companyId)
-                            .lte("effective_from", endDate)
-                            .or(`effective_to.is.null,effective_to.gte.${startDate}`),
-                    ]);
+            const [{ data: members, error: membersError }, { data: shifts, error: shiftsError }, { data: rates, error: ratesError }] =
+                await Promise.all([
+                    supabase
+                        .from("company_members")
+                        .select("user_id, full_name, role")
+                        .eq("company_id", companyId)
+                        .eq("active", true),
+                    supabase
+                        .from("shifts")
+                        .select("user_id, check_in_at, check_out_at")
+                        .eq("company_id", companyId)
+                        .lt("check_in_at", bounds.endIso)
+                        .or(`check_out_at.is.null,check_out_at.gt.${bounds.startIso}`),
+                    supabase
+                        .from("member_pay_rates")
+                        .select("user_id, hourly_rate, currency_code, effective_from, created_at")
+                        .eq("company_id", companyId)
+                        .lte("effective_from", endDate)
+                        .or(`effective_to.is.null,effective_to.gte.${startDate}`),
+                ]);
 
-                if (membersError) throw membersError;
-                if (shiftsError) throw shiftsError;
-                if (ratesError) throw ratesError;
+            if (membersError) throw membersError;
+            if (shiftsError) throw shiftsError;
+            if (ratesError) throw ratesError;
 
-                const shiftsByUser = new Map<string, TimeEntryRow[]>();
-                ((shifts ?? []) as TimeEntryRow[]).forEach((shift) => {
-                    shiftsByUser.set(shift.user_id, [...(shiftsByUser.get(shift.user_id) ?? []), shift]);
-                });
+            const shiftsByUser = new Map<string, TimeEntryRow[]>();
+            ((shifts ?? []) as TimeEntryRow[]).forEach((shift) => {
+                shiftsByUser.set(shift.user_id, [...(shiftsByUser.get(shift.user_id) ?? []), shift]);
+            });
 
-                const rateByUser = new Map<string, PayRateRow>();
-                ((rates ?? []) as PayRateRow[]).forEach((rate) => {
-                    const current = rateByUser.get(rate.user_id);
-                    const currentDate = current?.effective_from ?? current?.created_at ?? "";
-                    const nextDate = rate.effective_from ?? rate.created_at ?? "";
+            const rateByUser = new Map<string, PayRateRow>();
+            ((rates ?? []) as PayRateRow[]).forEach((rate) => {
+                const current = rateByUser.get(rate.user_id);
+                const currentDate = current?.effective_from ?? current?.created_at ?? "";
+                const nextDate = rate.effective_from ?? rate.created_at ?? "";
 
-                    if (!current || nextDate >= currentDate) {
-                        rateByUser.set(rate.user_id, rate);
-                    }
-                });
+                if (!current || nextDate >= currentDate) {
+                    rateByUser.set(rate.user_id, rate);
+                }
+            });
 
-                payrollRows = ((members ?? []) as MemberRow[]).map((member) => {
-                    const memberShifts = shiftsByUser.get(member.user_id) ?? [];
-                    const closedHours = memberShifts
-                        .filter((row) => row.check_out_at)
-                        .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
-                    const runningHours = memberShifts
-                        .filter((row) => !row.check_out_at)
-                        .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
-                    const visibleHours = Math.round((closedHours + runningHours) * 100) / 100;
-                    const payRate = rateByUser.get(member.user_id);
-                    const hourlyRate =
-                        payRate?.hourly_rate != null ? Number(payRate.hourly_rate) : null;
-
-                    return {
-                        user_id: member.user_id,
-                        full_name: member.full_name,
-                        role: member.role,
-                        closed_hours: Math.round(closedHours * 100) / 100,
-                        running_hours: Math.round(runningHours * 100) / 100,
-                        visible_hours: visibleHours,
-                        hourly_rate: hourlyRate,
-                        currency_code: payRate?.currency_code ?? "CAD",
-                        estimated_pay_closed:
-                            hourlyRate != null ? Math.round(closedHours * hourlyRate * 100) / 100 : null,
-                        estimated_pay_visible:
-                            hourlyRate != null ? Math.round(visibleHours * hourlyRate * 100) / 100 : null,
-                    };
-                });
-            } else {
-                const [{ data: member, error: memberError }, { data: shifts, error: shiftsError }] =
-                    await Promise.all([
-                        supabase
-                            .from("company_members")
-                            .select("user_id, full_name, role")
-                            .eq("company_id", companyId)
-                            .eq("user_id", user.id)
-                            .maybeSingle(),
-                        supabase
-                            .from("shifts")
-                            .select("user_id, check_in_at, check_out_at")
-                            .eq("company_id", companyId)
-                            .eq("user_id", user.id)
-                            .lt("check_in_at", bounds.endIso)
-                            .or(`check_out_at.is.null,check_out_at.gt.${bounds.startIso}`),
-                    ]);
-
-                if (memberError) throw memberError;
-                if (shiftsError) throw shiftsError;
-
-                const shiftRows = ((shifts ?? []) as TimeEntryRow[]);
-                const closedHours = shiftRows
+            payrollRows = ((members ?? []) as MemberRow[]).map((member) => {
+                const memberShifts = shiftsByUser.get(member.user_id) ?? [];
+                const closedHours = memberShifts
                     .filter((row) => row.check_out_at)
                     .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
-                const runningHours = shiftRows
+                const runningHours = memberShifts
                     .filter((row) => !row.check_out_at)
                     .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
+                const visibleHours = Math.round((closedHours + runningHours) * 100) / 100;
+                const payRate = rateByUser.get(member.user_id);
+                const hourlyRate =
+                    payRate?.hourly_rate != null ? Number(payRate.hourly_rate) : null;
 
-                payrollRows = [
-                    {
-                        user_id: user.id,
-                        full_name: (member as any)?.full_name ?? user.email ?? "My hours",
-                        role: (member as any)?.role ?? myRole ?? "tech",
-                        closed_hours: Math.round(closedHours * 100) / 100,
-                        running_hours: Math.round(runningHours * 100) / 100,
-                        visible_hours: Math.round((closedHours + runningHours) * 100) / 100,
-                        hourly_rate: null,
-                        currency_code: "CAD",
-                        estimated_pay_closed: null,
-                        estimated_pay_visible: null,
-                    },
-                ];
-            }
+                return {
+                    user_id: member.user_id,
+                    full_name: member.full_name,
+                    role: member.role,
+                    closed_hours: Math.round(closedHours * 100) / 100,
+                    running_hours: Math.round(runningHours * 100) / 100,
+                    visible_hours: visibleHours,
+                    hourly_rate: hourlyRate,
+                    currency_code: payRate?.currency_code ?? "CAD",
+                    estimated_pay_closed:
+                        hourlyRate != null ? Math.round(closedHours * hourlyRate * 100) / 100 : null,
+                    estimated_pay_visible:
+                        hourlyRate != null ? Math.round(visibleHours * hourlyRate * 100) / 100 : null,
+                };
+            });
 
             const userIds = payrollRows.map((row) => row.user_id).filter(Boolean);
             let workOrderEntries: TimeEntryRow[] = [];
@@ -382,11 +341,7 @@ export default function PayrollPage() {
                     .lt("check_in_at", bounds.endIso)
                     .or(`check_out_at.is.null,check_out_at.gt.${bounds.startIso}`);
 
-                if (isAdmin) {
-                    query = query.in("user_id", userIds);
-                } else {
-                    query = query.eq("user_id", user.id);
-                }
+                query = query.in("user_id", userIds);
 
                 const { data: workOrderData, error: workOrderError } = await query;
                 if (workOrderError) throw workOrderError;
@@ -426,13 +381,14 @@ export default function PayrollPage() {
         } finally {
             setLoading(false);
         }
-    }, [companyId, endDate, isAdmin, myRole, startDate, user]);
+    }, [canAccessPayroll, companyId, endDate, startDate, user]);
 
     useEffect(() => {
         if (authLoading || isLoadingCompany) return;
         if (!user || !companyId) return;
+        if (!canAccessPayroll) return;
         loadPayroll();
-    }, [authLoading, companyId, isLoadingCompany, loadPayroll, user]);
+    }, [authLoading, canAccessPayroll, companyId, isLoadingCompany, loadPayroll, user]);
 
     const sortedRows = useMemo(() => {
         return [...rows].sort((a, b) => Number(b.visible_hours ?? 0) - Number(a.visible_hours ?? 0));
@@ -536,6 +492,10 @@ export default function PayrollPage() {
 
     if (!user) {
         return <PageState title="Payroll" message="You must sign in to access payroll." />;
+    }
+
+    if (!canAccessPayroll) {
+        return <PageState title="Payroll" message="Redirecting to My Day..." />;
     }
 
     return (
@@ -672,7 +632,7 @@ export default function PayrollPage() {
                                                 {canOpenMember ? (
                                                     <button
                                                         type="button"
-                                                        onClick={() => router.push(`/settings/team/${row.user_id}`)}
+                                                        onClick={() => router.push(`/payroll/members/${row.user_id}`)}
                                                         style={linkButtonStyle}
                                                     >
                                                         {memberName}
@@ -749,7 +709,7 @@ export default function PayrollPage() {
                                             <button
                                                 type="button"
                                                 onClick={() => {
-                                                    if (isAdmin) router.push(`/settings/team/${row.user_id}`);
+                                                    if (isAdmin) router.push(`/payroll/members/${row.user_id}`);
                                                 }}
                                                 disabled={!isAdmin}
                                                 style={{

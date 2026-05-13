@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MR_THEME } from "@/lib/theme";
+import { canAdminCompany, canManagePayroll } from "@/lib/security/roles";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
 
 type SidebarItemProps = {
@@ -54,7 +55,8 @@ export default function AppSidebar({ onNavigate, variant = "desktop" }: Props) {
     const pathname = usePathname();
     const { myRole } = useActiveCompany();
 
-    const isAdmin = myRole === "owner" || myRole === "admin";
+    const isAdmin = canAdminCompany(myRole);
+    const showPayroll = canManagePayroll(myRole);
     const isDesktop = variant === "desktop";
 
     return (
@@ -124,13 +126,15 @@ export default function AppSidebar({ onNavigate, variant = "desktop" }: Props) {
                 variant={variant}
             />
 
-            <SidebarItem
-                href="/payroll"
-                label={isAdmin ? "Payroll" : "My Time"}
-                isActive={pathname.startsWith("/payroll")}
-                onNavigate={onNavigate}
-                variant={variant}
-            />
+            {showPayroll ? (
+                <SidebarItem
+                    href="/payroll"
+                    label="Payroll"
+                    isActive={pathname.startsWith("/payroll")}
+                    onNavigate={onNavigate}
+                    variant={variant}
+                />
+            ) : null}
 
             <SidebarItem
                 href="/profile"

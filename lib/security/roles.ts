@@ -29,3 +29,7 @@ export function canManageInvoices(role: string | null | undefined) {
 export function canAdminCompany(role: string | null | undefined) {
   return roleIn(role, COMPANY_ADMIN_ROLES);
 }
+
+export function canManagePayroll(role: string | null | undefined) {
+  return roleIn(role, COMPANY_ADMIN_ROLES);
+}
