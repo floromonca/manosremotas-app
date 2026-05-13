@@ -22,43 +22,48 @@ export async function GET(
       return new NextResponse("invoiceId requerido", { status: 400 });
     }
 
-    const supabase = await createServerSupabase();
-
-    const {
-      data: { user },
-      error: userErr,
-    } = await supabase.auth.getUser();
-
-    if (userErr) {
-      console.error("auth.getUser error:", userErr);
-      return new NextResponse("No autorizado", { status: 401 });
-    }
-
-    if (!user) {
-      return new NextResponse("No autorizado", { status: 401 });
-    }
-
-    const { data: memberships, error: membershipsErr } = await supabase
-      .from("company_members")
-      .select("company_id, role")
-      .eq("user_id", user.id);
-
-    if (membershipsErr) {
-      console.error("company_members error:", membershipsErr);
-      return new NextResponse("Error validando acceso", { status: 500 });
-    }
-
-    const membershipList = (memberships ?? []) as MembershipRow[];
-
-    if (membershipList.length === 0) {
-      return new NextResponse("Usuario sin empresa vinculada", { status: 403 });
-    }
-
     const url = new URL(req.url);
     const mode = url.searchParams.get("mode") ?? "pdf";
+    const isCustomerMode = mode === "customer";
     const showActions = mode === "preview";
     const origin = url.origin;
     const fromWorkOrder = url.searchParams.get("fromWorkOrder");
+
+    let membershipList: MembershipRow[] = [];
+
+    if (!isCustomerMode) {
+      const supabase = await createServerSupabase();
+
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+
+      if (userErr) {
+        console.error("auth.getUser error:", userErr);
+        return new NextResponse("No autorizado", { status: 401 });
+      }
+
+      if (!user) {
+        return new NextResponse("No autorizado", { status: 401 });
+      }
+
+      const { data: memberships, error: membershipsErr } = await supabase
+        .from("company_members")
+        .select("company_id, role")
+        .eq("user_id", user.id);
+
+      if (membershipsErr) {
+        console.error("company_members error:", membershipsErr);
+        return new NextResponse("Error validando acceso", { status: 500 });
+      }
+
+      membershipList = (memberships ?? []) as MembershipRow[];
+
+      if (membershipList.length === 0) {
+        return new NextResponse("Usuario sin empresa vinculada", { status: 403 });
+      }
+    }
 
     const { data, error } = await supabaseAdmin.rpc("get_invoice_full", {
       p_invoice_id: invoiceId,
@@ -76,12 +81,18 @@ export async function GET(
     const invoiceCompanyId = (data as any)?.invoice?.company_id ?? null;
     const invoiceNumber = (data as any)?.invoice?.invoice_number ?? null;
     const customerName = (data as any)?.invoice?.customer_name ?? null;
-    const currentMembership = membershipList.find(
-      (m) => m.company_id === invoiceCompanyId
-    );
+    if (!invoiceCompanyId) {
+      return new NextResponse("Invoice sin empresa vinculada", { status: 400 });
+    }
 
-    if (!invoiceCompanyId || !currentMembership || !canManageInvoices(currentMembership.role)) {
-      return new NextResponse("Acceso denegado a esta factura", { status: 403 });
+    if (!isCustomerMode) {
+      const currentMembership = membershipList.find(
+        (m) => m.company_id === invoiceCompanyId
+      );
+
+      if (!currentMembership || !canManageInvoices(currentMembership.role)) {
+        return new NextResponse("Acceso denegado a esta factura", { status: 403 });
+      }
     }
 
     const { data: settings, error: settingsError } = await supabaseAdmin

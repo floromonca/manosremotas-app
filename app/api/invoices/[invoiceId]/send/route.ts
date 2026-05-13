@@ -177,8 +177,8 @@ export async function POST(
       );
     }
 
-    const invoiceHtmlUrl = `${appUrl}/api/invoices/${invoiceId}/html?mode=preview`;
-    const invoicePdfUrl = `${appUrl}/api/invoices/${invoiceId}/pdf`;
+    const invoiceHtmlUrl = `${appUrl}/api/invoices/${invoiceId}/html?mode=customer`;
+    const invoicePdfUrl = `${appUrl}/api/invoices/${invoiceId}/pdf?mode=customer`;
 
     const companyName =
       company.legal_name || company.company_name || "ManosRemotas";
