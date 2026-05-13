@@ -7,26 +7,22 @@ import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { MR_THEME } from "@/lib/theme";
 import { canManagePayroll } from "@/lib/security/roles";
+import {
+    buildPayrollV1Row,
+    type PayrollScheduleInput,
+    type PayrollShiftInput,
+    type PayrollV1Flag,
+    type PayrollV1Row,
+    type PayrollV1Status,
+} from "@/lib/payroll/calculations";
 import styles from "./payroll.module.css";
 
-type PayrollRpcRow = {
+type ShiftRow = PayrollShiftInput & {
     user_id: string;
-    full_name: string | null;
-    role: string | null;
-    closed_hours: number | null;
-    running_hours: number | null;
-    visible_hours: number | null;
-    hourly_rate: number | null;
-    currency_code: string | null;
-    estimated_pay_closed: number | null;
-    estimated_pay_visible: number | null;
 };
 
-type TimeEntryRow = {
+type ScheduleRow = PayrollScheduleInput & {
     user_id: string;
-    check_in_at: string;
-    check_out_at: string | null;
-    work_order_id?: string | null;
 };
 
 type MemberRow = {
@@ -41,12 +37,6 @@ type PayRateRow = {
     currency_code: string | null;
     effective_from: string | null;
     created_at: string | null;
-};
-
-type PayrollRow = PayrollRpcRow & {
-    work_order_hours: number;
-    unassigned_hours: number;
-    work_order_count: number;
 };
 
 type PeriodPreset = "this_week" | "last_week" | "this_month" | "custom";
@@ -117,20 +107,6 @@ function getRangeBounds(startDate: string, endDate: string) {
     };
 }
 
-function boundedHours(row: TimeEntryRow, start: Date, endExclusive: Date, now = new Date()) {
-    const checkIn = new Date(row.check_in_at).getTime();
-    const checkOut = row.check_out_at ? new Date(row.check_out_at).getTime() : now.getTime();
-
-    if (Number.isNaN(checkIn) || Number.isNaN(checkOut) || checkOut <= checkIn) return 0;
-
-    const boundedStart = Math.max(checkIn, start.getTime());
-    const boundedEnd = Math.min(checkOut, endExclusive.getTime());
-
-    if (boundedEnd <= boundedStart) return 0;
-
-    return (boundedEnd - boundedStart) / 3600000;
-}
-
 function formatHours(value: number | null | undefined) {
     return `${Number(value ?? 0).toFixed(1)} h`;
 }
@@ -172,41 +148,18 @@ function rangeLabel(startDate: string, endDate: string) {
     return `${formatter.format(start)} - ${formatter.format(end)}`;
 }
 
-function statusFor(row: PayrollRow, showRateIssue: boolean) {
-    if (Number(row.running_hours ?? 0) > 0) return "On shift";
-    if (Number(row.visible_hours ?? 0) <= 0) return "No hours";
-    if (showRateIssue && row.hourly_rate == null) return "Missing rate";
-    return "Ready";
+function payrollFlagsFor(row: PayrollV1Row): PayrollFlag[] {
+    return row.flags.map((flag) => ({
+        label: flag,
+        tone: payrollFlagTone(flag),
+    }));
 }
 
-function payrollFlagsFor(row: PayrollRow, isAdmin: boolean): PayrollFlag[] {
-    const shiftHours = Number(row.visible_hours ?? 0);
-    const runningHours = Number(row.running_hours ?? 0);
-    const workOrderHours = Number(row.work_order_hours ?? 0);
-    const unassignedHours = Number(row.unassigned_hours ?? 0);
-    const flags: PayrollFlag[] = [];
-
-    if (runningHours > 0) {
-        flags.push({ label: "Open shift", tone: "info" });
-    }
-
-    if (workOrderHours > shiftHours + 0.1) {
-        flags.push({ label: "WO time exceeds shift", tone: "danger" });
-    }
-
-    if (shiftHours > 0 && unassignedHours >= 2 && unassignedHours / shiftHours >= 0.35) {
-        flags.push({ label: "High unassigned time", tone: "warning" });
-    }
-
-    if (isAdmin && shiftHours > 0 && row.hourly_rate == null) {
-        flags.push({ label: "Missing rate", tone: "warning" });
-    }
-
-    if (shiftHours === 0) {
-        flags.push({ label: "No hours", tone: "neutral" });
-    }
-
-    return flags;
+function payrollFlagTone(flag: PayrollV1Flag): PayrollFlag["tone"] {
+    if (flag === "Open shift") return "info";
+    if (flag === "Missing rate" || flag === "Missing schedule") return "warning";
+    if (flag === "Over scheduled hours" || flag === "Under scheduled hours") return "warning";
+    return "neutral";
 }
 
 export default function PayrollPage() {
@@ -214,13 +167,12 @@ export default function PayrollPage() {
     const { user, authLoading } = useAuthState();
     const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
     const canAccessPayroll = canManagePayroll(myRole);
-    const isAdmin = canAccessPayroll;
 
     const initialRange = useMemo(() => getPresetRange("this_week"), []);
     const [preset, setPreset] = useState<PeriodPreset>("this_week");
     const [startDate, setStartDate] = useState(initialRange.startDate);
     const [endDate, setEndDate] = useState(initialRange.endDate);
-    const [rows, setRows] = useState<PayrollRow[]>([]);
+    const [rows, setRows] = useState<PayrollV1Row[]>([]);
     const [loading, setLoading] = useState(true);
     const [errorMsg, setErrorMsg] = useState("");
 
@@ -258,9 +210,13 @@ export default function PayrollPage() {
 
         try {
             const bounds = getRangeBounds(startDate, endDate);
-            let payrollRows: PayrollRpcRow[] = [];
 
-            const [{ data: members, error: membersError }, { data: shifts, error: shiftsError }, { data: rates, error: ratesError }] =
+            const [
+                { data: members, error: membersError },
+                { data: shifts, error: shiftsError },
+                { data: rates, error: ratesError },
+                { data: schedules, error: schedulesError },
+            ] =
                 await Promise.all([
                     supabase
                         .from("company_members")
@@ -279,15 +235,34 @@ export default function PayrollPage() {
                         .eq("company_id", companyId)
                         .lte("effective_from", endDate)
                         .or(`effective_to.is.null,effective_to.gte.${startDate}`),
+                    supabase
+                        .from("member_work_schedules")
+                        .select("user_id, day_of_week, is_working_day, start_time, end_time, unpaid_break_minutes")
+                        .eq("company_id", companyId),
                 ]);
 
             if (membersError) throw membersError;
             if (shiftsError) throw shiftsError;
             if (ratesError) throw ratesError;
+            if (schedulesError) throw schedulesError;
 
-            const shiftsByUser = new Map<string, TimeEntryRow[]>();
-            ((shifts ?? []) as TimeEntryRow[]).forEach((shift) => {
+            const shiftsByUser = new Map<string, ShiftRow[]>();
+            ((shifts ?? []) as ShiftRow[]).forEach((shift) => {
                 shiftsByUser.set(shift.user_id, [...(shiftsByUser.get(shift.user_id) ?? []), shift]);
+            });
+
+            const schedulesByUser = new Map<string, PayrollScheduleInput[]>();
+            ((schedules ?? []) as ScheduleRow[]).forEach((schedule) => {
+                schedulesByUser.set(schedule.user_id, [
+                    ...(schedulesByUser.get(schedule.user_id) ?? []),
+                    {
+                        day_of_week: schedule.day_of_week,
+                        is_working_day: schedule.is_working_day,
+                        start_time: schedule.start_time,
+                        end_time: schedule.end_time,
+                        unpaid_break_minutes: schedule.unpaid_break_minutes,
+                    },
+                ]);
             });
 
             const rateByUser = new Map<string, PayRateRow>();
@@ -301,77 +276,24 @@ export default function PayrollPage() {
                 }
             });
 
-            payrollRows = ((members ?? []) as MemberRow[]).map((member) => {
-                const memberShifts = shiftsByUser.get(member.user_id) ?? [];
-                const closedHours = memberShifts
-                    .filter((row) => row.check_out_at)
-                    .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
-                const runningHours = memberShifts
-                    .filter((row) => !row.check_out_at)
-                    .reduce((sum, row) => sum + boundedHours(row, bounds.start, bounds.endExclusive), 0);
-                const visibleHours = Math.round((closedHours + runningHours) * 100) / 100;
+            const nextRows = ((members ?? []) as MemberRow[]).map((member) => {
                 const payRate = rateByUser.get(member.user_id);
                 const hourlyRate =
                     payRate?.hourly_rate != null ? Number(payRate.hourly_rate) : null;
 
-                return {
+                return buildPayrollV1Row({
                     user_id: member.user_id,
                     full_name: member.full_name,
                     role: member.role,
-                    closed_hours: Math.round(closedHours * 100) / 100,
-                    running_hours: Math.round(runningHours * 100) / 100,
-                    visible_hours: visibleHours,
-                    hourly_rate: hourlyRate,
-                    currency_code: payRate?.currency_code ?? "CAD",
-                    estimated_pay_closed:
-                        hourlyRate != null ? Math.round(closedHours * hourlyRate * 100) / 100 : null,
-                    estimated_pay_visible:
-                        hourlyRate != null ? Math.round(visibleHours * hourlyRate * 100) / 100 : null,
-                };
-            });
-
-            const userIds = payrollRows.map((row) => row.user_id).filter(Boolean);
-            let workOrderEntries: TimeEntryRow[] = [];
-
-            if (userIds.length > 0) {
-                let query = supabase
-                    .from("work_order_check_ins")
-                    .select("user_id, work_order_id, check_in_at, check_out_at")
-                    .eq("company_id", companyId)
-                    .lt("check_in_at", bounds.endIso)
-                    .or(`check_out_at.is.null,check_out_at.gt.${bounds.startIso}`);
-
-                query = query.in("user_id", userIds);
-
-                const { data: workOrderData, error: workOrderError } = await query;
-                if (workOrderError) throw workOrderError;
-                workOrderEntries = (workOrderData ?? []) as TimeEntryRow[];
-            }
-
-            const workHoursByUser = new Map<string, { hours: number; workOrders: Set<string> }>();
-
-            workOrderEntries.forEach((entry) => {
-                const current = workHoursByUser.get(entry.user_id) ?? {
-                    hours: 0,
-                    workOrders: new Set<string>(),
-                };
-
-                current.hours += boundedHours(entry, bounds.start, bounds.endExclusive);
-                if (entry.work_order_id) current.workOrders.add(entry.work_order_id);
-                workHoursByUser.set(entry.user_id, current);
-            });
-
-            const nextRows = payrollRows.map((row) => {
-                const work = workHoursByUser.get(row.user_id);
-                const workOrderHours = Math.round((work?.hours ?? 0) * 100) / 100;
-                const visibleHours = Number(row.visible_hours ?? 0);
-
-                return {
-                    ...row,
-                    work_order_hours: workOrderHours,
-                    unassigned_hours: Math.max(0, Math.round((visibleHours - workOrderHours) * 100) / 100),
-                    work_order_count: work?.workOrders.size ?? 0,
-                };
+                    scheduleRows: schedulesByUser.get(member.user_id) ?? [],
+                    shifts: shiftsByUser.get(member.user_id) ?? [],
+                    rate: {
+                        hourly_rate: hourlyRate,
+                        currency_code: payRate?.currency_code ?? "CAD",
+                    },
+                    startDate,
+                    endDate,
+                });
             });
 
             setRows(nextRows);
@@ -391,31 +313,31 @@ export default function PayrollPage() {
     }, [authLoading, canAccessPayroll, companyId, isLoadingCompany, loadPayroll, user]);
 
     const sortedRows = useMemo(() => {
-        return [...rows].sort((a, b) => Number(b.visible_hours ?? 0) - Number(a.visible_hours ?? 0));
+        return [...rows].sort((a, b) => Number(b.worked_hours ?? 0) - Number(a.worked_hours ?? 0));
     }, [rows]);
 
     const totals = useMemo(() => {
         return rows.reduce(
             (acc, row) => {
-                acc.closed += Number(row.closed_hours ?? 0);
-                acc.running += Number(row.running_hours ?? 0);
-                acc.shift += Number(row.visible_hours ?? 0);
-                acc.workOrders += Number(row.work_order_hours ?? 0);
-                acc.unassigned += Number(row.unassigned_hours ?? 0);
-                acc.pay += row.hourly_rate == null ? 0 : Number(row.estimated_pay_visible ?? 0);
-                if (Number(row.visible_hours ?? 0) > 0 && row.hourly_rate == null) acc.missingRates += 1;
-                if (Number(row.running_hours ?? 0) > 0) acc.onShift += 1;
+                acc.scheduled += Number(row.scheduled_hours ?? 0);
+                acc.worked += Number(row.worked_hours ?? 0);
+                acc.difference += Number(row.difference_hours ?? 0);
+                acc.pay += row.estimated_pay == null ? 0 : Number(row.estimated_pay ?? 0);
+                if (row.flags.includes("Missing rate")) acc.missingRates += 1;
+                if (row.flags.includes("Open shift")) acc.openShifts += 1;
+                if (row.status === "Needs Review" || row.status === "Missing Rate" || row.status === "Missing Schedule") {
+                    acc.needsReview += 1;
+                }
                 return acc;
             },
             {
-                closed: 0,
-                running: 0,
-                shift: 0,
-                workOrders: 0,
-                unassigned: 0,
+                scheduled: 0,
+                worked: 0,
+                difference: 0,
                 pay: 0,
                 missingRates: 0,
-                onShift: 0,
+                openShifts: 0,
+                needsReview: 0,
             }
         );
     }, [rows]);
@@ -423,51 +345,31 @@ export default function PayrollPage() {
     function downloadCsv() {
         if (!rows.length) return;
 
-        const headers = isAdmin
-            ? [
-                  "Employee",
-                  "Role",
-                  "Closed shift hours",
-                  "Running shift hours",
-                  "Total shift hours",
-                  "Work order hours",
-                  "Unassigned hours",
-                  "Hourly rate",
-                  "Estimated pay",
-                  "Flags",
-                  "Status",
-              ]
-            : [
-                  "Employee",
-                  "Role",
-                  "Closed shift hours",
-                  "Running shift hours",
-                  "Total shift hours",
-                  "Work order hours",
-                  "Unassigned hours",
-                  "Flags",
-                  "Status",
-              ];
+        const headers = [
+            "Employee",
+            "Role",
+            "Scheduled Hours",
+            "Worked Hours",
+            "Difference Hours",
+            "Hourly Rate",
+            "Currency",
+            "Estimated Pay",
+            "Flags",
+            "Status",
+        ];
 
         const csvRows = sortedRows.map((row) => {
-            const base = [
+            return [
                 row.full_name?.trim() || "Unnamed member",
                 humanRole(row.role),
-                Number(row.closed_hours ?? 0).toFixed(2),
-                Number(row.running_hours ?? 0).toFixed(2),
-                Number(row.visible_hours ?? 0).toFixed(2),
-                Number(row.work_order_hours ?? 0).toFixed(2),
-                Number(row.unassigned_hours ?? 0).toFixed(2),
-                payrollFlagsFor(row, isAdmin).map((flag) => flag.label).join("; "),
-            ];
-
-            if (!isAdmin) return [...base, statusFor(row, false)];
-
-            return [
-                ...base,
-                row.hourly_rate != null ? formatMoney(row.hourly_rate, row.currency_code) : "Rate not set",
-                row.hourly_rate != null ? formatMoney(row.estimated_pay_visible, row.currency_code) : "Rate not set",
-                statusFor(row, isAdmin),
+                Number(row.scheduled_hours ?? 0).toFixed(2),
+                Number(row.worked_hours ?? 0).toFixed(2),
+                Number(row.difference_hours ?? 0).toFixed(2),
+                row.hourly_rate != null ? Number(row.hourly_rate).toFixed(2) : "Rate not set",
+                row.currency_code,
+                row.estimated_pay != null ? formatMoney(row.estimated_pay, row.currency_code) : "Rate not set",
+                payrollFlagsFor(row).map((flag) => flag.label).join("; "),
+                row.status,
             ];
         });
 
@@ -503,11 +405,9 @@ export default function PayrollPage() {
             <header style={headerStyle}>
                 <div>
                     <div style={eyebrowStyle}>Operations / Payroll</div>
-                    <h1 style={titleStyle}>{isAdmin ? "Payroll" : "My Time"}</h1>
+                    <h1 style={titleStyle}>Payroll</h1>
                     <p style={subtitleStyle}>
-                        {isAdmin
-                            ? `Review shift hours, work order time, and estimated pay for ${companyName || "your company"}.`
-                            : "Review your shift hours and work order time for the selected period."}
+                        {`Review scheduled hours, worked hours, and estimated pay for ${companyName || "your company"}.`}
                     </p>
                 </div>
 
@@ -573,22 +473,23 @@ export default function PayrollPage() {
                 </div>
             </section>
 
+            <div style={periodTextStyle}>
+                <strong>Period:</strong> {rangeLabel(startDate, endDate)}
+            </div>
+
             <section style={statsGridStyle}>
-                <StatCard label="Period" value={rangeLabel(startDate, endDate)} />
-                <StatCard label="Shift hours" value={formatHours(totals.shift)} />
-                <StatCard label="Work order hours" value={formatHours(totals.workOrders)} />
-                <StatCard label="Unassigned hours" value={formatHours(totals.unassigned)} />
-                {isAdmin ? <StatCard label="Estimated payroll" value={formatMoney(totals.pay, "CAD")} /> : null}
-                <StatCard label="On shift now" value={String(totals.onShift)} />
-                {isAdmin ? <StatCard label="Missing rates" value={String(totals.missingRates)} /> : null}
+                <StatCard label="Estimated payroll" value={formatMoney(totals.pay, "CAD")} detail="Based on worked hours" />
+                <StatCard label="Worked hours" value={formatHours(totals.worked)} detail={`Scheduled: ${formatHours(totals.scheduled)}`} />
+                <StatCard label="Needs review" value={String(totals.needsReview)} detail={`${totals.missingRates} missing rates`} />
+                <StatCard label="Open shifts" value={String(totals.openShifts)} detail="May affect totals" />
             </section>
 
             <section style={cardStyle}>
                 <div style={sectionHeaderStyle}>
                     <div>
-                        <h2 style={sectionTitleStyle}>{isAdmin ? "Team Payroll" : "My Payroll Time"}</h2>
+                        <h2 style={sectionTitleStyle}>Team Payroll</h2>
                         <p style={sectionTextStyle}>
-                            Payroll is based on My Day shift check-ins. Work order time is shown separately for productivity review.
+                            Review scheduled hours, worked shift hours, estimated pay, and items that need attention.
                         </p>
                     </div>
 
@@ -608,12 +509,11 @@ export default function PayrollPage() {
                                 <tr style={{ background: "#f8fafc" }}>
                                     <th style={thStyle}>Employee</th>
                                     <th style={thStyle}>Role</th>
-                                    <th style={thStyleRight}>Shift Hours</th>
-                                    <th style={thStyleRight}>Running</th>
-                                    <th style={thStyleRight}>Work Orders</th>
-                                    <th style={thStyleRight}>Unassigned</th>
-                                    {isAdmin ? <th style={thStyleRight}>Rate</th> : null}
-                                    {isAdmin ? <th style={thStyleRight}>Estimated Pay</th> : null}
+                                    <th style={thStyleRight}>Scheduled</th>
+                                    <th style={thStyleRight}>Worked</th>
+                                    <th style={thStyleRight}>Over / Under</th>
+                                    <th style={thStyleRight}>Rate</th>
+                                    <th style={thStyleRight}>Estimated Pay</th>
                                     <th style={thStyle}>Flags</th>
                                     <th style={thStyle}>Status</th>
                                 </tr>
@@ -621,56 +521,41 @@ export default function PayrollPage() {
 
                             <tbody>
                                 {sortedRows.map((row, index) => {
-                                    const status = statusFor(row, isAdmin);
+                                    const status = row.status;
                                     const memberName = row.full_name?.trim() || "Unnamed member";
-                                    const canOpenMember = isAdmin;
-                                    const flags = payrollFlagsFor(row, isAdmin);
+                                    const flags = payrollFlagsFor(row);
 
                                     return (
                                         <tr key={row.user_id} style={{ background: index % 2 === 0 ? "#fff" : "#fafafa" }}>
                                             <td style={tdStyle}>
-                                                {canOpenMember ? (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => router.push(`/payroll/members/${row.user_id}`)}
-                                                        style={linkButtonStyle}
-                                                    >
-                                                        {memberName}
-                                                    </button>
-                                                ) : (
-                                                    <strong>{memberName}</strong>
-                                                )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => router.push(`/payroll/members/${row.user_id}`)}
+                                                    style={linkButtonStyle}
+                                                >
+                                                    {memberName}
+                                                </button>
                                             </td>
                                             <td style={tdStyle}>
                                                 <span style={roleBadgeStyle}>{humanRole(row.role)}</span>
                                             </td>
-                                            <td style={tdStyleNumeric}>{formatHours(row.visible_hours)}</td>
-                                            <td style={tdStyleNumeric}>{formatHours(row.running_hours)}</td>
+                                            <td style={tdStyleNumeric}>{formatHours(row.scheduled_hours)}</td>
+                                            <td style={tdStyleNumeric}>{formatHours(row.worked_hours)}</td>
+                                            <td style={tdStyleNumeric}>{formatHours(row.difference_hours)}</td>
                                             <td style={tdStyleNumeric}>
-                                                {formatHours(row.work_order_hours)}
-                                                <div style={microTextStyle}>
-                                                    {row.work_order_count} WO
-                                                </div>
+                                                {row.hourly_rate == null ? (
+                                                    <span style={warningBadgeStyle}>Rate not set</span>
+                                                ) : (
+                                                    formatMoney(row.hourly_rate, row.currency_code)
+                                                )}
                                             </td>
-                                            <td style={tdStyleNumeric}>{formatHours(row.unassigned_hours)}</td>
-                                            {isAdmin ? (
-                                                <td style={tdStyleNumeric}>
-                                                    {row.hourly_rate == null ? (
-                                                        <span style={warningBadgeStyle}>Rate not set</span>
-                                                    ) : (
-                                                        formatMoney(row.hourly_rate, row.currency_code)
-                                                    )}
-                                                </td>
-                                            ) : null}
-                                            {isAdmin ? (
-                                                <td style={{ ...tdStyleNumeric, fontWeight: 800, color: row.hourly_rate == null ? "#92400e" : "#065f46" }}>
-                                                    {row.hourly_rate == null ? (
-                                                        <span style={warningBadgeStyle}>Rate not set</span>
-                                                    ) : (
-                                                        formatMoney(row.estimated_pay_visible, row.currency_code)
-                                                    )}
-                                                </td>
-                                            ) : null}
+                                            <td style={{ ...tdStyleNumeric, fontWeight: 800, color: row.estimated_pay == null ? "#92400e" : "#065f46" }}>
+                                                {row.estimated_pay == null ? (
+                                                    <span style={warningBadgeStyle}>Rate not set</span>
+                                                ) : (
+                                                    formatMoney(row.estimated_pay, row.currency_code)
+                                                )}
+                                            </td>
                                             <td style={tdStyle}>
                                                 {flags.length > 0 ? (
                                                     <div style={flagListStyle}>
@@ -698,9 +583,9 @@ export default function PayrollPage() {
                 {!loading && sortedRows.length > 0 ? (
                     <div className={styles.mobileCards} style={mobileCardsStyle}>
                         {sortedRows.map((row) => {
-                            const status = statusFor(row, isAdmin);
+                            const status = row.status;
                             const memberName = row.full_name?.trim() || "Unnamed member";
-                            const flags = payrollFlagsFor(row, isAdmin);
+                            const flags = payrollFlagsFor(row);
 
                             return (
                                 <article key={`${row.user_id}-mobile`} style={mobileCardStyle}>
@@ -708,14 +593,11 @@ export default function PayrollPage() {
                                         <div style={{ minWidth: 0 }}>
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    if (isAdmin) router.push(`/payroll/members/${row.user_id}`);
-                                                }}
-                                                disabled={!isAdmin}
+                                                onClick={() => router.push(`/payroll/members/${row.user_id}`)}
                                                 style={{
                                                     ...mobileNameButtonStyle,
-                                                    cursor: isAdmin ? "pointer" : "default",
-                                                    textDecoration: isAdmin ? "underline" : "none",
+                                                    cursor: "pointer",
+                                                    textDecoration: "underline",
                                                 }}
                                             >
                                                 {memberName}
@@ -727,23 +609,18 @@ export default function PayrollPage() {
                                     </div>
 
                                     <div style={mobileMetricGridStyle}>
-                                        <MobileMetric label="Shift" value={formatHours(row.visible_hours)} />
-                                        <MobileMetric label="Running" value={formatHours(row.running_hours)} />
-                                        <MobileMetric label="Work Orders" value={formatHours(row.work_order_hours)} hint={`${row.work_order_count} WO`} />
-                                        <MobileMetric label="Unassigned" value={formatHours(row.unassigned_hours)} />
-                                        {isAdmin ? (
-                                            <MobileMetric
-                                                label="Rate"
-                                                value={row.hourly_rate == null ? "Not set" : formatMoney(row.hourly_rate, row.currency_code)}
-                                            />
-                                        ) : null}
-                                        {isAdmin ? (
-                                            <MobileMetric
-                                                label="Estimated Pay"
-                                                value={row.hourly_rate == null ? "Not set" : formatMoney(row.estimated_pay_visible, row.currency_code)}
-                                                emphasis
-                                            />
-                                        ) : null}
+                                        <MobileMetric label="Scheduled Hours" value={formatHours(row.scheduled_hours)} />
+                                        <MobileMetric label="Worked Hours" value={formatHours(row.worked_hours)} />
+                                        <MobileMetric label="Over / Under" value={formatHours(row.difference_hours)} />
+                                        <MobileMetric
+                                            label="Rate"
+                                            value={row.hourly_rate == null ? "Not set" : formatMoney(row.hourly_rate, row.currency_code)}
+                                        />
+                                        <MobileMetric
+                                            label="Estimated Pay"
+                                            value={row.estimated_pay == null ? "Not set" : formatMoney(row.estimated_pay, row.currency_code)}
+                                            emphasis
+                                        />
                                     </div>
 
                                     {flags.length > 0 ? (
@@ -803,11 +680,12 @@ function PageState({ title, message }: { title: string; message: string }) {
     );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, detail }: { label: string; value: string; detail?: string }) {
     return (
         <div style={statCardStyle}>
             <div style={statLabelStyle}>{label}</div>
             <div style={statValueStyle}>{value}</div>
+            {detail ? <div style={statDetailStyle}>{detail}</div> : null}
         </div>
     );
 }
@@ -915,9 +793,16 @@ const dateInputStyle: CSSProperties = {
     fontWeight: 700,
 };
 
+const periodTextStyle: CSSProperties = {
+    margin: "-6px 0 14px 0",
+    fontSize: 14,
+    lineHeight: 1.4,
+    color: MR_THEME.colors.textSecondary,
+};
+
 const statsGridStyle: CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: 12,
     marginBottom: 18,
 };
@@ -944,6 +829,14 @@ const statValueStyle: CSSProperties = {
     lineHeight: 1.1,
     fontWeight: 900,
     color: MR_THEME.colors.textPrimary,
+};
+
+const statDetailStyle: CSSProperties = {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 1.35,
+    color: MR_THEME.colors.textSecondary,
+    fontWeight: 700,
 };
 
 const cardStyle: CSSProperties = {
@@ -1218,8 +1111,8 @@ function flagBadgeStyle(tone: PayrollFlag["tone"]): CSSProperties {
     };
 }
 
-function statusBadgeStyle(status: string): CSSProperties {
-    if (status === "On shift") {
+function statusBadgeStyle(status: PayrollV1Status): CSSProperties {
+    if (status === "Open Shift") {
         return {
             ...warningBadgeStyle,
             background: "#eff6ff",
@@ -1228,7 +1121,7 @@ function statusBadgeStyle(status: string): CSSProperties {
         };
     }
 
-    if (status === "Missing rate") return warningBadgeStyle;
+    if (status === "Missing Rate" || status === "Missing Schedule" || status === "Needs Review") return warningBadgeStyle;
 
     if (status === "Ready") {
         return {
