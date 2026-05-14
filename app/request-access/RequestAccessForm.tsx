@@ -12,7 +12,7 @@ type RequestAccessFormProps = {
 
 const requestAccessContent = {
     en: {
-        back: "← Back to ManosRemotas",
+        back: "← Back to home",
         eyebrow: "Early Access",
         title: "Request early access to ManosRemotas",
         lead:
@@ -56,7 +56,7 @@ const requestAccessContent = {
         networkError: "Network error. Please check your connection and try again.",
     },
     es: {
-        back: "← Volver a ManosRemotas",
+        back: "← Volver al inicio",
         eyebrow: "Acceso anticipado",
         title: "Solicita acceso anticipado a ManosRemotas",
         lead:
@@ -161,12 +161,22 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
             <section className="mr-request-shell">
                 <div className="mr-request-card">
                     <div className="mr-request-copy">
+                        <Link href={homeHref} className="mr-request-brand">
+                            <span className="mr-request-brand-logo-wrap">
+                                <img
+                                    src="/brand/manosremotas-mark.png"
+                                    alt=""
+                                    className="mr-request-brand-logo"
+                                />
+                            </span>
+                            <span>ManosRemotas</span>
+                        </Link>
+
                         <Link href={homeHref} className="mr-back-link">
                             {content.back}
                         </Link>
 
                         <div className="mr-eyebrow">{content.eyebrow}</div>
-
                         <h1>{content.title}</h1>
 
                         <p className="mr-lead">{content.lead}</p>
@@ -340,15 +350,47 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
                     flex-direction: column;
                     justify-content: center;
                 }
+.mr-request-brand {
+    width: fit-content;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #0f172a;
+    text-decoration: none;
+    font-size: 20px;
+    font-weight: 950;
+    letter-spacing: -0.04em;
+    margin-bottom: 14px;
+}
 
+.mr-request-brand-logo-wrap {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14);
+    flex: 0 0 auto;
+}
+
+.mr-request-brand-logo {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    display: block;
+}
                 .mr-back-link {
-                    width: fit-content;
-                    color: #2563eb;
-                    text-decoration: none;
-                    font-size: 14px;
-                    font-weight: 800;
-                    margin-bottom: 36px;
-                }
+    width: fit-content;
+    color: #64748b;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 800;
+    margin-bottom: 18px;
+}
 
                 .mr-back-link:hover {
                     text-decoration: underline;

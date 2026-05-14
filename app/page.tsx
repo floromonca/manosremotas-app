@@ -334,21 +334,26 @@ export default async function Home({ searchParams }: HomePageProps) {
                     min-width: 0;
                 }
 
-                .mr-brand-mark {
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 10px;
-                    background: #2563eb;
-                    color: #ffffff;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: 900;
-                    font-size: 13px;
-                    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-                    flex: 0 0 auto;
-                }
+               .mr-brand-logo-wrap {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #dbeafe;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14);
+    flex: 0 0 auto;
+}
 
+.mr-brand-logo {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+    display: block;
+}
                 .mr-brand-name {
                     font-size: 20px;
                     font-weight: 900;
@@ -1292,7 +1297,13 @@ export default async function Home({ searchParams }: HomePageProps) {
       <header className="mr-header">
         <div className="mr-header-inner">
           <Link href="/" className="mr-brand">
-            <span className="mr-brand-mark">MR</span>
+            <span className="mr-brand-logo-wrap">
+              <img
+                src="/brand/manosremotas-mark.png"
+                alt=""
+                className="mr-brand-logo"
+              />
+            </span>
             <span className="mr-brand-name">ManosRemotas</span>
           </Link>
 
