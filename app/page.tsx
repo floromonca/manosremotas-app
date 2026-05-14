@@ -1068,7 +1068,7 @@ export default function Home() {
             <Link href="/auth" className="mr-signin">
               Sign in
             </Link>
-            <a href="#request-access" className="mr-button mr-button-primary">
+            <a href="/request-access" className="mr-button mr-button-primary">
               Request Early Access
             </a>
           </nav>
@@ -1094,7 +1094,7 @@ export default function Home() {
               </p>
 
               <div className="mr-hero-actions">
-                <a href="#request-access" className="mr-button mr-button-primary">
+                <a href="/request-access" className="mr-button mr-button-primary">
                   Request Early Access
                 </a>
                 <Link href="/auth" className="mr-button mr-button-secondary">
@@ -1286,7 +1286,7 @@ export default function Home() {
             way to manage jobs, technicians, evidence, invoices, and payments.
           </p>
 
-          <a href="#request-access" className="mr-button">
+          <a href="/request-access" className="mr-button">
             Request Early Access
           </a>
         </div>
