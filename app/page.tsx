@@ -2,14 +2,17 @@
 
 const problemCards = [
   {
+    icon: "search",
     title: "The “Where is it?” Trap",
     text: "Photos, job notes, addresses, customer requests, and technician updates get buried in messy chat histories.",
   },
   {
+    icon: "receipt",
     title: "The Billing Gap",
     text: "Materials, extra hours, and completed work can be forgotten before the invoice is created.",
   },
   {
+    icon: "eye",
     title: "The Blind Spot",
     text: "Owners and admins do not always know which jobs need attention, which are ready to invoice, or which ones are costing too much time.",
   },
@@ -17,18 +20,22 @@ const problemCards = [
 
 const workflowSteps = [
   {
+    icon: "clipboard",
     title: "Office",
     text: "Create the customer, build the work order, add services, and assign the job to your technician.",
   },
   {
+    icon: "phone",
     title: "Field",
     text: "Technicians see assigned work, track progress, add notes, and capture before-and-after evidence.",
   },
   {
+    icon: "receipt",
     title: "Billing",
     text: "Turn completed work into clear invoices with itemized details, taxes, PDF generation, email delivery, and payment tracking.",
   },
   {
+    icon: "chart",
     title: "Growth",
     text: "See what needs attention, what is ready to invoice, and where your operation can become more profitable.",
   },
@@ -36,26 +43,32 @@ const workflowSteps = [
 
 const features = [
   {
+    icon: "phone",
     title: "Field-Ready Mobile Experience",
     detail: "A simple mobile workflow technicians can actually use on real job sites.",
   },
   {
+    icon: "camera",
     title: "Photo Evidence Vault",
     detail: "Protect your business with before, during, and after photos attached to the right work order.",
   },
   {
+    icon: "receipt",
     title: "Smart Invoicing",
     detail: "Create clear invoices from completed work with taxes, PDF generation, email delivery, and payment tracking.",
   },
   {
+    icon: "list",
     title: "Service Catalog",
     detail: "Standardize common services, units, and pricing so work orders and invoices are faster to prepare.",
   },
   {
+    icon: "layout",
     title: "Admin Control Center",
     detail: "See active work, delayed jobs, technicians working, and jobs ready to invoice from one operational view.",
   },
   {
+    icon: "users",
     title: "Customer History",
     detail: "Keep customer details, service activity, work orders, photos, and billing history connected.",
   },
@@ -341,6 +354,237 @@ export default function Home() {
                     transform: translateY(-2px);
                 }
 
+                .mr-card-icon {
+                    position: relative;
+                    display: inline-flex;
+                    width: 36px;
+                    height: 36px;
+                    margin-bottom: 14px;
+                    border-radius: 12px;
+                    border: 1px solid #dbeafe;
+                    background: #eff6ff;
+                    color: #2563eb;
+                    flex: 0 0 auto;
+                }
+
+                .mr-card-icon::before,
+                .mr-card-icon::after {
+                    content: "";
+                    position: absolute;
+                    box-sizing: border-box;
+                }
+
+                .mr-icon-warning {
+                    background: #fff1f2;
+                    border-color: #fecdd3;
+                    color: #dc2626;
+                }
+
+                .mr-icon-success {
+                    background: #ecfdf5;
+                    border-color: #bbf7d0;
+                    color: #16a34a;
+                }
+
+                .mr-workflow-card .mr-card-icon {
+                    background: rgba(147, 197, 253, 0.12);
+                    border-color: rgba(147, 197, 253, 0.28);
+                    color: #93c5fd;
+                }
+
+                .mr-icon-search::before {
+                    width: 14px;
+                    height: 14px;
+                    left: 9px;
+                    top: 9px;
+                    border: 2px solid currentColor;
+                    border-radius: 999px;
+                }
+
+                .mr-icon-search::after {
+                    width: 9px;
+                    height: 2px;
+                    left: 21px;
+                    top: 23px;
+                    background: currentColor;
+                    border-radius: 999px;
+                    transform: rotate(45deg);
+                }
+
+                .mr-icon-receipt::before {
+                    width: 16px;
+                    height: 20px;
+                    left: 10px;
+                    top: 8px;
+                    border: 2px solid currentColor;
+                    border-radius: 5px;
+                }
+
+                .mr-icon-receipt::after {
+                    width: 9px;
+                    height: 2px;
+                    left: 14px;
+                    top: 14px;
+                    background: currentColor;
+                    border-radius: 999px;
+                    box-shadow: 0 6px 0 currentColor, 0 11px 0 currentColor;
+                }
+
+                .mr-icon-eye::before {
+                    width: 20px;
+                    height: 13px;
+                    left: 8px;
+                    top: 12px;
+                    border: 2px solid currentColor;
+                    border-radius: 999px;
+                }
+
+                .mr-icon-eye::after {
+                    width: 6px;
+                    height: 6px;
+                    left: 15px;
+                    top: 16px;
+                    background: currentColor;
+                    border-radius: 999px;
+                }
+
+                .mr-icon-clipboard::before {
+                    width: 16px;
+                    height: 19px;
+                    left: 10px;
+                    top: 10px;
+                    border: 2px solid currentColor;
+                    border-radius: 5px;
+                }
+
+                .mr-icon-clipboard::after {
+                    width: 9px;
+                    height: 2px;
+                    left: 14px;
+                    top: 7px;
+                    background: currentColor;
+                    border-radius: 999px;
+                    box-shadow: 0 10px 0 currentColor, 0 15px 0 currentColor;
+                }
+
+                .mr-icon-phone::before {
+                    width: 15px;
+                    height: 22px;
+                    left: 10px;
+                    top: 7px;
+                    border: 2px solid currentColor;
+                    border-radius: 7px;
+                }
+
+                .mr-icon-phone::after {
+                    width: 4px;
+                    height: 4px;
+                    left: 16px;
+                    top: 23px;
+                    background: currentColor;
+                    border-radius: 999px;
+                }
+
+                .mr-icon-chart::before {
+                    width: 18px;
+                    height: 16px;
+                    left: 9px;
+                    top: 12px;
+                    border-left: 2px solid currentColor;
+                    border-bottom: 2px solid currentColor;
+                    border-radius: 0 0 0 3px;
+                }
+
+                .mr-icon-chart::after {
+                    width: 15px;
+                    height: 10px;
+                    left: 13px;
+                    top: 12px;
+                    border-left: 2px solid currentColor;
+                    border-top: 2px solid currentColor;
+                    transform: skewY(-32deg);
+                    transform-origin: left bottom;
+                }
+
+                .mr-icon-camera::before {
+                    width: 20px;
+                    height: 16px;
+                    left: 8px;
+                    top: 13px;
+                    border: 2px solid currentColor;
+                    border-radius: 5px;
+                }
+
+                .mr-icon-camera::after {
+                    width: 8px;
+                    height: 8px;
+                    left: 14px;
+                    top: 17px;
+                    border: 2px solid currentColor;
+                    border-radius: 999px;
+                    box-shadow: -7px -6px 0 -2px currentColor;
+                }
+
+                .mr-icon-list::before {
+                    width: 16px;
+                    height: 2px;
+                    left: 12px;
+                    top: 11px;
+                    background: currentColor;
+                    border-radius: 999px;
+                    box-shadow: 0 7px 0 currentColor, 0 14px 0 currentColor;
+                }
+
+                .mr-icon-list::after {
+                    width: 4px;
+                    height: 4px;
+                    left: 7px;
+                    top: 10px;
+                    background: currentColor;
+                    border-radius: 999px;
+                    box-shadow: 0 7px 0 currentColor, 0 14px 0 currentColor;
+                }
+
+                .mr-icon-layout::before {
+                    width: 7px;
+                    height: 7px;
+                    left: 9px;
+                    top: 9px;
+                    background: currentColor;
+                    border-radius: 2px;
+                    box-shadow: 11px 0 0 currentColor, 0 11px 0 currentColor, 11px 11px 0 currentColor;
+                }
+
+                .mr-icon-users::before {
+                    width: 8px;
+                    height: 8px;
+                    left: 10px;
+                    top: 9px;
+                    border: 2px solid currentColor;
+                    border-radius: 999px;
+                    box-shadow: 11px 4px 0 -1px currentColor;
+                }
+
+                .mr-icon-users::after {
+                    width: 19px;
+                    height: 10px;
+                    left: 8px;
+                    top: 21px;
+                    border: 2px solid currentColor;
+                    border-bottom: 0;
+                    border-radius: 999px 999px 0 0;
+                }
+
+                .mr-icon-check::before {
+                    width: 15px;
+                    height: 8px;
+                    left: 12px;
+                    top: 14px;
+                    border-left: 2px solid currentColor;
+                    border-bottom: 2px solid currentColor;
+                    transform: rotate(-45deg);
+                }
+
                 .mr-card-kicker {
                     color: #2563eb;
                     font-weight: 950;
@@ -467,6 +711,10 @@ export default function Home() {
                 }
 
                 .mr-trust-point {
+                    position: relative;
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
                     border-radius: 16px;
                     background: #ffffff;
                     border: 1px solid #e2e8f0;
@@ -474,6 +722,30 @@ export default function Home() {
                     color: #334155;
                     font-size: 14px;
                     font-weight: 800;
+                }
+
+                .mr-trust-point::before {
+                    content: "";
+                    width: 18px;
+                    height: 18px;
+                    margin-top: 1px;
+                    border-radius: 999px;
+                    background: #ecfdf5;
+                    border: 1px solid #bbf7d0;
+                    flex: 0 0 auto;
+                    box-shadow: inset 0 0 0 4px #ffffff;
+                }
+
+                .mr-trust-point::after {
+                    content: "";
+                    position: absolute;
+                    left: 22px;
+                    top: 21px;
+                    width: 8px;
+                    height: 4px;
+                    border-left: 2px solid #16a34a;
+                    border-bottom: 2px solid #16a34a;
+                    transform: rotate(-45deg);
                 }
 
                 .mr-final-cta {
@@ -864,6 +1136,10 @@ export default function Home() {
           <div className="mr-card-grid">
             {problemCards.map((card) => (
               <article key={card.title} className="mr-card">
+                <span
+                  className={`mr-card-icon mr-icon-warning mr-icon-${card.icon}`}
+                  aria-hidden="true"
+                />
                 <h3 className="mr-card-title">{card.title}</h3>
                 <p className="mr-card-text">{card.text}</p>
               </article>
@@ -884,6 +1160,10 @@ export default function Home() {
           <div className="mr-card-grid mr-workflow-grid">
             {workflowSteps.map((step, index) => (
               <article key={step.title} className="mr-card mr-workflow-card">
+                <span
+                  className={`mr-card-icon mr-icon-${step.icon}`}
+                  aria-hidden="true"
+                />
                 <div className="mr-card-kicker">
                   {String(index + 1).padStart(2, "0")}
                 </div>
@@ -943,6 +1223,10 @@ export default function Home() {
           <div className="mr-card-grid">
             {features.map((feature) => (
               <article key={feature.title} className="mr-card">
+                <span
+                  className={`mr-card-icon mr-icon-${feature.icon}`}
+                  aria-hidden="true"
+                />
                 <h3 className="mr-card-title">{feature.title}</h3>
                 <p className="mr-card-text">{feature.detail}</p>
               </article>
