@@ -101,8 +101,8 @@ export default function ShiftStatusCard({
                             : !companyId
                                 ? "Select an active company to manage your shift."
                                 : openShift
-                                    ? `Checked in at ${new Date(openShift.check_in_at).toLocaleString()}. You are ready to operate from My Day and Work Orders.`
-                                    : "You can review your day here, but work actions stay disabled until you start your shift."}
+                                    ? `Checked in at ${new Date(openShift.check_in_at).toLocaleString()}. You are ready to operate.`
+                                    : "Start your shift to enable work actions."}
                     </div>
                 </div>
 

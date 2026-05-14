@@ -184,155 +184,227 @@ export default function CustomersPage() {
                         borderRadius: MR_THEME.radius.card,
                         background: MR_THEME.colors.cardBg,
                         boxShadow: MR_THEME.shadows.card,
-                        padding: isCompactDesktop ? 14 : MR_THEME.layout.cardPadding,
+                        padding: isCompactDesktop ? 14 : 14,
                         display: "grid",
-                        gridTemplateColumns: "minmax(0, 1fr) auto",
-                        gap: isCompactDesktop ? 12 : 16,
+                        gridTemplateColumns: isCompactDesktop ? "minmax(0, 1fr) auto" : "1fr",
+                        gap: isCompactDesktop ? 12 : 12,
                         alignItems: "center",
                     }}
                 >
                     <div>
+                        {isCompactDesktop ? (
+                            <div
+                                style={{
+                                    fontSize: 12,
+                                    textTransform: "uppercase",
+                                    letterSpacing: 1,
+                                    color: MR_THEME.colors.primary,
+                                    fontWeight: 800,
+                                    marginBottom: 5,
+                                }}
+                            >
+                                Customers
+                            </div>
+                        ) : null}
+
                         <div
                             style={{
-                                fontSize: 12,
-                                textTransform: "uppercase",
-                                letterSpacing: 1,
-                                color: MR_THEME.colors.primary,
-                                fontWeight: 800,
-                                marginBottom: isCompactDesktop ? 5 : 8,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 12,
+                                minWidth: 0,
                             }}
                         >
-                            Customers
+                            <div style={{ minWidth: 0 }}>
+                                <h1
+                                    style={{
+                                        ...MR_THEME.typography.pageTitle,
+                                        fontSize: isCompactDesktop ? 22 : 24,
+                                        lineHeight: isCompactDesktop ? "28px" : "30px",
+                                        margin: 0,
+                                        color: MR_THEME.colors.textPrimary,
+                                    }}
+                                >
+                                    {isCompactDesktop ? "Customer Directory" : "Customers"}
+                                </h1>
+
+                                <div
+                                    style={{
+                                        marginTop: isCompactDesktop ? 6 : 4,
+                                        color: MR_THEME.colors.textSecondary,
+                                        fontSize: isCompactDesktop ? 14 : 13,
+                                        lineHeight: 1.4,
+                                        fontWeight: 700,
+                                    }}
+                                >
+                                    {customers.length} customer{customers.length === 1 ? "" : "s"}
+                                </div>
+                            </div>
+
+                            {!isCompactDesktop ? (
+                                <button
+                                    type="button"
+                                    onClick={handleNewCustomer}
+                                    style={{
+                                        padding: "10px 12px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.primary}`,
+                                        background: MR_THEME.colors.primary,
+                                        color: "#ffffff",
+                                        cursor: "pointer",
+                                        fontWeight: 850,
+                                        boxShadow: MR_THEME.shadows.cardSoft,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    + New
+                                </button>
+                            ) : null}
                         </div>
 
-                        <h1
-                            style={{
-                                ...MR_THEME.typography.pageTitle,
-                                fontSize: isCompactDesktop ? 22 : MR_THEME.typography.pageTitle.fontSize,
-                                margin: 0,
-                                color: MR_THEME.colors.textPrimary,
-                            }}
-                        >
-                            Customer Directory
-                        </h1>
+                        {isCompactDesktop ? (
+                            <>
+                                <p
+                                    style={{
+                                        margin: "6px 0 0",
+                                        color: MR_THEME.colors.textSecondary,
+                                        fontSize: 14,
+                                        lineHeight: 1.5,
+                                    }}
+                                >
+                                    Manage customer contact information and open each profile to review work
+                                    orders, billing history, and service activity.
+                                </p>
 
-                        <p
-                            style={{
-                                margin: isCompactDesktop ? "6px 0 0" : "8px 0 0",
-                                color: MR_THEME.colors.textSecondary,
-                                fontSize: 14,
-                                lineHeight: 1.5,
-                            }}
-                        >
-                            Manage customer contact information and open each profile to review work
-                            orders, billing history, and service activity.
-                        </p>
+                                <div
+                                    style={{
+                                        marginTop: 10,
+                                        display: "flex",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    <span
+                                        style={{
+                                            padding: "5px 9px",
+                                            borderRadius: 999,
+                                            background: MR_THEME.colors.primarySoft,
+                                            border: `1px solid ${MR_THEME.colors.border}`,
+                                            fontSize: 13,
+                                            color: MR_THEME.colors.textSecondary,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        {companyName || "Active company"}
+                                    </span>
 
+                                    <span
+                                        style={{
+                                            padding: "5px 9px",
+                                            borderRadius: 999,
+                                            background: MR_THEME.colors.cardBgSoft,
+                                            border: `1px solid ${MR_THEME.colors.border}`,
+                                            fontSize: 13,
+                                            color: MR_THEME.colors.textSecondary,
+                                            fontWeight: 700,
+                                        }}
+                                    >
+                                        {customers.length} customer{customers.length === 1 ? "" : "s"}
+                                    </span>
+                                </div>
+
+                                {customers.length > 0 ? (
+                                    <input
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                        placeholder="Search customers"
+                                        style={{
+                                            width: "min(520px, 100%)",
+                                            height: 38,
+                                            marginTop: 12,
+                                            padding: "0 12px",
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            borderRadius: MR_THEME.radius.control,
+                                            background: MR_THEME.colors.cardBgSoft,
+                                            color: MR_THEME.colors.textPrimary,
+                                            fontSize: 13,
+                                            fontWeight: 650,
+                                            boxSizing: "border-box",
+                                            outline: "none",
+                                        }}
+                                    />
+                                ) : null}
+                            </>
+                        ) : null}
+                    </div>
+
+                    {isCompactDesktop ? (
                         <div
                             style={{
-                                marginTop: isCompactDesktop ? 10 : 14,
                                 display: "flex",
                                 gap: 10,
                                 flexWrap: "wrap",
+                                justifyContent: "flex-end",
                             }}
                         >
-                            <span
-                                style={{
-                                    padding: isCompactDesktop ? "5px 9px" : "6px 10px",
-                                    borderRadius: 999,
-                                    background: MR_THEME.colors.primarySoft,
-                                    border: `1px solid ${MR_THEME.colors.border}`,
-                                    fontSize: 13,
-                                    color: MR_THEME.colors.textSecondary,
-                                    fontWeight: 700,
-                                }}
-                            >
-                                {companyName || "Active company"}
-                            </span>
+                            {cameFromControlCenter ? (
+                                <button
+                                    type="button"
+                                    onClick={() => router.push("/control-center")}
+                                    style={{
+                                        padding: "9px 12px",
+                                        borderRadius: MR_THEME.radius.control,
+                                        border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                        background: MR_THEME.colors.cardBg,
+                                        color: MR_THEME.colors.primary,
+                                        cursor: "pointer",
+                                        fontWeight: 800,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    ← Back to Control Center
+                                </button>
+                            ) : null}
 
-                            <span
-                                style={{
-                                    padding: isCompactDesktop ? "5px 9px" : "6px 10px",
-                                    borderRadius: 999,
-                                    background: MR_THEME.colors.cardBgSoft,
-                                    border: `1px solid ${MR_THEME.colors.border}`,
-                                    fontSize: 13,
-                                    color: MR_THEME.colors.textSecondary,
-                                    fontWeight: 700,
-                                }}
-                            >
-                                {customers.length} customer{customers.length === 1 ? "" : "s"}
-                            </span>
-                        </div>
-
-                        {isCompactDesktop && customers.length > 0 ? (
-                            <input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search customers"
-                                style={{
-                                    width: "min(520px, 100%)",
-                                    height: 38,
-                                    marginTop: 12,
-                                    padding: "0 12px",
-                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                    borderRadius: MR_THEME.radius.control,
-                                    background: MR_THEME.colors.cardBgSoft,
-                                    color: MR_THEME.colors.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: 650,
-                                    boxSizing: "border-box",
-                                    outline: "none",
-                                }}
-                            />
-                        ) : null}
-                    </div>
-
-                    <div
-                        style={{
-                            display: "flex",
-                            gap: 10,
-                            flexWrap: "wrap",
-                            justifyContent: "flex-end",
-                        }}
-                    >
-                        {cameFromControlCenter ? (
                             <button
                                 type="button"
-                                onClick={() => router.push("/control-center")}
+                                onClick={handleNewCustomer}
                                 style={{
-                                    padding: isCompactDesktop ? "9px 12px" : "12px 16px",
+                                    padding: "9px 12px",
                                     borderRadius: MR_THEME.radius.control,
-                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
-                                    background: MR_THEME.colors.cardBg,
-                                    color: MR_THEME.colors.primary,
+                                    border: `1px solid ${MR_THEME.colors.primary}`,
+                                    background: MR_THEME.colors.primary,
+                                    color: "#ffffff",
                                     cursor: "pointer",
                                     fontWeight: 800,
+                                    boxShadow: MR_THEME.shadows.cardSoft,
                                     whiteSpace: "nowrap",
                                 }}
                             >
-                                ← Back to Control Center
+                                + New Customer
                             </button>
-                        ) : null}
+                        </div>
+                    ) : null}
 
+                    {!isCompactDesktop && cameFromControlCenter ? (
                         <button
                             type="button"
-                            onClick={handleNewCustomer}
+                            onClick={() => router.push("/control-center")}
                             style={{
-                                padding: isCompactDesktop ? "9px 12px" : "12px 16px",
+                                width: "100%",
+                                padding: "10px 12px",
                                 borderRadius: MR_THEME.radius.control,
-                                border: `1px solid ${MR_THEME.colors.primary}`,
-                                background: MR_THEME.colors.primary,
-                                color: "#ffffff",
+                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                background: MR_THEME.colors.cardBg,
+                                color: MR_THEME.colors.primary,
                                 cursor: "pointer",
                                 fontWeight: 800,
-                                boxShadow: MR_THEME.shadows.cardSoft,
-                                whiteSpace: "nowrap",
                             }}
                         >
-                            + New Customer
+                            ← Back to Control Center
                         </button>
-                    </div>
+                    ) : null}
                 </section>
                 {customers.length > 0 && !isCompactDesktop ? (
                     <section
@@ -448,25 +520,31 @@ export default function CustomersPage() {
                                 onMouseLeave={() => setHoveredCustomerId(null)}
                                 style={{
                                     border: `1px solid ${hoveredCustomerId === customer.customer_id
-                                        ? MR_THEME.colors.borderStrong
-                                        : (isCompactDesktop ? MR_THEME.colors.primarySurface : MR_THEME.colors.border)
+                                            ? MR_THEME.colors.borderStrong
+                                            : isCompactDesktop
+                                                ? MR_THEME.colors.primarySurface
+                                                : MR_THEME.colors.border
                                         }`,
                                     borderRadius: MR_THEME.radius.card,
                                     background: isCompactDesktop
                                         ? "linear-gradient(90deg, #ffffff 0%, #f8fbff 100%)"
                                         : MR_THEME.colors.cardBg,
-                                    boxShadow: hoveredCustomerId === customer.customer_id
-                                        ? MR_THEME.shadows.dropdown  // sombra más pronunciada
-                                        : (isCompactDesktop ? MR_THEME.shadows.cardSoft : MR_THEME.shadows.card),
-                                    padding: isCompactDesktop ? 12 : 14,
+                                    boxShadow:
+                                        hoveredCustomerId === customer.customer_id
+                                            ? MR_THEME.shadows.dropdown
+                                            : isCompactDesktop
+                                                ? MR_THEME.shadows.cardSoft
+                                                : MR_THEME.shadows.card,
+                                    padding: isCompactDesktop ? 12 : 12,
                                     display: "grid",
                                     gridTemplateColumns: "minmax(0, 1fr) auto",
-                                    gap: isCompactDesktop ? 12 : 16,
+                                    gap: isCompactDesktop ? 12 : 12,
                                     alignItems: "center",
                                     borderLeft: isCompactDesktop
                                         ? `3px solid ${hoveredCustomerId === customer.customer_id
                                             ? MR_THEME.colors.primary
-                                            : MR_THEME.colors.primarySurface}`
+                                            : MR_THEME.colors.primarySurface
+                                        }`
                                         : `1px solid ${MR_THEME.colors.border}`,
                                     transition: "all 0.2s ease",
                                     cursor: "pointer",
@@ -501,34 +579,59 @@ export default function CustomersPage() {
                                             <CustomerMeta value={customer.phone || "No phone"} />
                                         </div>
                                     ) : (
-                                        <div
-                                            style={{
-                                                fontWeight: 900,
-                                                fontSize: 18,
-                                                lineHeight: 1.2,
-                                                color: MR_THEME.colors.textPrimary,
-                                                overflow: "hidden",
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap",
-                                            }}
-                                        >
-                                            {customer.name}
+                                        <div style={{ minWidth: 0 }}>
+                                            <div
+                                                style={{
+                                                    fontWeight: 900,
+                                                    fontSize: 17,
+                                                    lineHeight: "22px",
+                                                    color: MR_THEME.colors.textPrimary,
+                                                    overflow: "hidden",
+                                                    textOverflow: "ellipsis",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                {customer.name}
+                                            </div>
+
+                                            <div
+                                                style={{
+                                                    marginTop: 5,
+                                                    display: "grid",
+                                                    gap: 3,
+                                                    minWidth: 0,
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        fontSize: 13,
+                                                        lineHeight: "18px",
+                                                        color: MR_THEME.colors.textSecondary,
+                                                        fontWeight: 700,
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    {customer.email || "No email"}
+                                                </div>
+
+                                                <div
+                                                    style={{
+                                                        fontSize: 13,
+                                                        lineHeight: "18px",
+                                                        color: MR_THEME.colors.textMuted,
+                                                        fontWeight: 700,
+                                                        overflow: "hidden",
+                                                        textOverflow: "ellipsis",
+                                                        whiteSpace: "nowrap",
+                                                    }}
+                                                >
+                                                    {customer.phone || "No phone"}
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
-
-                                    {!isCompactDesktop ? (
-                                        <div
-                                            style={{
-                                                marginTop: 10,
-                                                display: "grid",
-                                                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                                                gap: 10,
-                                            }}
-                                        >
-                                            <InfoBlock label="Email" value={customer.email || "—"} />
-                                            <InfoBlock label="Phone" value={customer.phone || "—"} />
-                                        </div>
-                                    ) : null}
                                 </div>
 
                                 <Link
@@ -537,14 +640,22 @@ export default function CustomersPage() {
                                         display: "inline-flex",
                                         alignItems: "center",
                                         justifyContent: "center",
-                                        padding: isCompactDesktop ? "8px 12px" : "10px 14px",
+                                        padding: isCompactDesktop ? "8px 12px" : "9px 12px",
                                         borderRadius: MR_THEME.radius.control,
-                                        border: `1px solid ${isCompactDesktop ? MR_THEME.colors.primarySurface : MR_THEME.colors.borderStrong}`,
-                                        background: isCompactDesktop ? MR_THEME.colors.primarySoft : MR_THEME.colors.cardBg,
-                                        color: isCompactDesktop ? MR_THEME.colors.primary : MR_THEME.colors.textPrimary,
+                                        border: `1px solid ${isCompactDesktop
+                                                ? MR_THEME.colors.primarySurface
+                                                : MR_THEME.colors.borderStrong
+                                            }`,
+                                        background: isCompactDesktop
+                                            ? MR_THEME.colors.primarySoft
+                                            : MR_THEME.colors.cardBg,
+                                        color: isCompactDesktop
+                                            ? MR_THEME.colors.primary
+                                            : MR_THEME.colors.textPrimary,
                                         textDecoration: "none",
-                                        fontWeight: 800,
+                                        fontWeight: 850,
                                         whiteSpace: "nowrap",
+                                        fontSize: isCompactDesktop ? 13 : 14,
                                     }}
                                 >
                                     Open

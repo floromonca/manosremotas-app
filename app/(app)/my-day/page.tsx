@@ -253,7 +253,7 @@ function MyDayContent() {
 
     const operationalMessage = openShift
         ? "You are checked in and ready to operate."
-        : "Shift is closed. You can review your work, but actions are disabled until you start your shift.";
+        : "Start your shift to enable work actions.";
 
     const currentWork =
         myRows.find((w) => w.status === "in_progress") ??

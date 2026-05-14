@@ -131,7 +131,7 @@ export default function AppShellLayout({
                 <div
                     style={{
                         width: "100%",
-                        margin: isMobile ? "0 0 18px" : "0 0 14px",
+                        margin: isMobile ? "0 0 12px" : "0 0 14px",
                     }}
                 >
 
@@ -175,30 +175,32 @@ export default function AppShellLayout({
                                     ☰
                                 </button>
                             )}
-
                             <div style={{ minWidth: 0 }}>
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        fontWeight: 900,
-                                        letterSpacing: 1,
-                                        textTransform: "uppercase",
-                                        color: MR_THEME.colors.textMuted,
-                                        marginBottom: isMobile ? 2 : 1,
-                                    }}
-                                >
-                                    Company
-                                </div>
+                                {!isMobile && (
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 900,
+                                            letterSpacing: 1,
+                                            textTransform: "uppercase",
+                                            color: MR_THEME.colors.textMuted,
+                                            marginBottom: 1,
+                                        }}
+                                    >
+                                        Company
+                                    </div>
+                                )}
 
                                 <div
                                     style={{
-                                        fontSize: isMobile ? 15 : 14,
-                                        fontWeight: 800,
+                                        fontSize: isMobile ? 16 : 14,
+                                        fontWeight: 850,
                                         color: MR_THEME.colors.textPrimary,
                                         whiteSpace: "nowrap",
                                         overflow: "hidden",
                                         textOverflow: "ellipsis",
-                                        maxWidth: isMobile ? 170 : 360,
+                                        maxWidth: isMobile ? 190 : 360,
+                                        lineHeight: isMobile ? "20px" : "18px",
                                     }}
                                 >
                                     {companyName || "—"}
@@ -418,7 +420,7 @@ export default function AppShellLayout({
                                     boxShadow: "0 1px 2px rgba(16,24,40,0.04)",
                                 }}
                             >
-                              Exit support
+                                Exit support
                             </button>
                         </div>
                     )
