@@ -1,6 +1,12 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+function copyCookies(from: NextResponse, to: NextResponse) {
+    from.cookies.getAll().forEach((cookie) => {
+        to.cookies.set(cookie);
+    });
+}
+
 export async function middleware(request: NextRequest) {
     let response = NextResponse.next({
         request,
@@ -41,7 +47,26 @@ export async function middleware(request: NextRequest) {
         }
     );
 
-    await supabase.auth.getUser();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    const host = request.headers.get("host") ?? "";
+    const hostname = host.split(":")[0];
+    const pathname = request.nextUrl.pathname;
+
+    const isAppDomain = hostname === "app.manosremotas.com";
+
+    if (isAppDomain && pathname === "/") {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = user ? "/control-center" : "/auth";
+        redirectUrl.search = "";
+
+        const redirectResponse = NextResponse.redirect(redirectUrl);
+        copyCookies(response, redirectResponse);
+
+        return redirectResponse;
+    }
 
     return response;
 }
