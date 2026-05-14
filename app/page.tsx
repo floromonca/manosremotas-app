@@ -1,100 +1,301 @@
 ﻿import Link from "next/link";
 
-const problemCards = [
-  {
-    icon: "search",
-    title: "The “Where is it?” Trap",
-    text: "Photos, job notes, addresses, customer requests, and technician updates get buried in messy chat histories.",
+const landingContent = {
+  en: {
+    ui: {
+      signIn: "Sign in",
+      requestEarlyAccess: "Request Early Access",
+      eyebrow: "Built for service teams in Ontario & North America",
+      heroTitle: "Stop losing profit to paperwork.",
+      heroCopy:
+        "ManosRemotas helps service contractors organize jobs, technicians, photos, invoices, and payments in one clear, mobile-ready workflow.",
+      heroNote:
+        "Built for contractors who want less admin work, clearer billing, and better control.",
+      problemTitle:
+        "Your business is growing, but your tools are holding you back.",
+      problemCopy:
+        "When job details are scattered across WhatsApp, paper notes, spreadsheets, photos, and phone calls, your team loses time — and your business can lose money.",
+      workflowTitle: "One workflow. Total control.",
+      workflowCopy:
+        "Everything from first call to final payment — connected in one operating workflow.",
+      rolesTitle: "Designed for both the office and the field.",
+      ownersTitle: "For owners and admins",
+      ownersItems: [
+        "See what needs attention",
+        "Assign work faster",
+        "Track job progress",
+        "Know what is ready to invoice",
+        "Reduce missed billing details",
+      ],
+      techniciansTitle: "For technicians",
+      techniciansItems: [
+        "Start the day from My Day",
+        "See assigned work clearly",
+        "Track progress on each job",
+        "Upload photo evidence",
+        "Keep work simple from the phone",
+      ],
+      featuresTitle: "Features built for the field.",
+      featuresCopy:
+        "Practical tools for daily field operations, billing clarity, and customer history.",
+      industriesTitle:
+        "Designed for the trades that keep homes and businesses running.",
+      industriesCopy:
+        "ManosRemotas is built for small service teams that need practical field operations software without unnecessary complexity.",
+      trustTitle: "Control without complexity.",
+      trustCopy:
+        "ManosRemotas gives each company a private workspace with role-based access, mobile-first technician tools, connected work orders, evidence, invoices, and payments.",
+      finalCtaTitle: "Ready to take control of your field operations?",
+      finalCtaCopy:
+        "Request early access to ManosRemotas and start building a cleaner way to manage jobs, technicians, evidence, invoices, and payments.",
+      footerCopy: "Field service operations software for small service teams.",
+      footerRights: "© 2026 ManosRemotas. All rights reserved.",
+    },
+    problemCards: [
+      {
+        icon: "search",
+        title: "The “Where is it?” Trap",
+        text: "Photos, job notes, addresses, customer requests, and technician updates get buried in messy chat histories.",
+      },
+      {
+        icon: "receipt",
+        title: "The Billing Gap",
+        text: "Materials, extra hours, and completed work can be forgotten before the invoice is created.",
+      },
+      {
+        icon: "eye",
+        title: "The Blind Spot",
+        text: "Owners and admins do not always know which jobs need attention, which are ready to invoice, or which ones are costing too much time.",
+      },
+    ],
+    workflowSteps: [
+      {
+        icon: "clipboard",
+        title: "Office",
+        text: "Create the customer, build the work order, add services, and assign the job to your technician.",
+      },
+      {
+        icon: "phone",
+        title: "Field",
+        text: "Technicians see assigned work, track progress, add notes, and capture before-and-after evidence.",
+      },
+      {
+        icon: "receipt",
+        title: "Billing",
+        text: "Turn completed work into clear invoices with itemized details, taxes, PDF generation, email delivery, and payment tracking.",
+      },
+      {
+        icon: "chart",
+        title: "Growth",
+        text: "See what needs attention, what is ready to invoice, and where your operation can become more profitable.",
+      },
+    ],
+    features: [
+      {
+        icon: "phone",
+        title: "Field-Ready Mobile Experience",
+        detail: "A simple mobile workflow technicians can actually use on real job sites.",
+      },
+      {
+        icon: "camera",
+        title: "Photo Evidence Vault",
+        detail: "Protect your business with before, during, and after photos attached to the right work order.",
+      },
+      {
+        icon: "receipt",
+        title: "Smart Invoicing",
+        detail: "Create clear invoices from completed work with taxes, PDF generation, email delivery, and payment tracking.",
+      },
+      {
+        icon: "list",
+        title: "Service Catalog",
+        detail: "Standardize common services, units, and pricing so work orders and invoices are faster to prepare.",
+      },
+      {
+        icon: "layout",
+        title: "Admin Control Center",
+        detail: "See active work, delayed jobs, technicians working, and jobs ready to invoice from one operational view.",
+      },
+      {
+        icon: "users",
+        title: "Customer History",
+        detail: "Keep customer details, service activity, work orders, photos, and billing history connected.",
+      },
+    ],
+    industries: [
+      "HVAC & Refrigeration",
+      "Electrical Contractors",
+      "Plumbing & Mechanical",
+      "IT Field Services & CCTV",
+      "Renovation & Handyman Teams",
+      "Property Maintenance",
+      "Cleaning and Facility Services",
+      "General Field Service Teams",
+    ],
+    trustPoints: [
+      "Private workspace for each company",
+      "Role-based access for admins and technicians",
+      "Mobile-first experience for field workers",
+      "Connected job history, evidence, invoices, and payments",
+      "Designed for small teams with 1–20 employees",
+      "Built for real service operations, not generic task management",
+    ],
   },
-  {
-    icon: "receipt",
-    title: "The Billing Gap",
-    text: "Materials, extra hours, and completed work can be forgotten before the invoice is created.",
+  es: {
+    ui: {
+      signIn: "Ingresar",
+      requestEarlyAccess: "Solicitar acceso anticipado",
+      eyebrow: "Creado para equipos de servicio en Ontario y Norteamérica",
+      heroTitle: "Deja de perder ganancias por el papeleo.",
+      heroCopy:
+        "ManosRemotas ayuda a contratistas de servicios a organizar trabajos, técnicos, fotos, facturas y pagos en un flujo claro y listo para móvil.",
+      heroNote:
+        "Creado para contratistas que quieren menos trabajo administrativo, facturación más clara y mejor control.",
+      problemTitle:
+        "Tu negocio está creciendo, pero tus herramientas te están frenando.",
+      problemCopy:
+        "Cuando los detalles del trabajo están dispersos entre WhatsApp, notas en papel, hojas de cálculo, fotos y llamadas, tu equipo pierde tiempo — y tu negocio puede perder dinero.",
+      workflowTitle: "Un solo flujo. Control total.",
+      workflowCopy:
+        "Todo, desde la primera llamada hasta el pago final, conectado en un solo flujo operativo.",
+      rolesTitle: "Diseñado para la oficina y para el campo.",
+      ownersTitle: "Para dueños y administradores",
+      ownersItems: [
+        "Ver qué necesita atención",
+        "Asignar trabajos más rápido",
+        "Seguir el avance de cada trabajo",
+        "Saber qué está listo para facturar",
+        "Reducir detalles olvidados en la facturación",
+      ],
+      techniciansTitle: "Para técnicos",
+      techniciansItems: [
+        "Comenzar el día desde My Day",
+        "Ver claramente los trabajos asignados",
+        "Actualizar el progreso de cada trabajo",
+        "Subir evidencia fotográfica",
+        "Mantener el trabajo simple desde el celular",
+      ],
+      featuresTitle: "Funciones creadas para el campo.",
+      featuresCopy:
+        "Herramientas prácticas para la operación diaria, claridad en la facturación e historial del cliente.",
+      industriesTitle:
+        "Diseñado para los oficios que mantienen hogares y negocios funcionando.",
+      industriesCopy:
+        "ManosRemotas está creado para pequeños equipos de servicio que necesitan software práctico de operación en campo sin complejidad innecesaria.",
+      trustTitle: "Control sin complejidad.",
+      trustCopy:
+        "ManosRemotas le da a cada empresa un espacio privado con acceso por roles, herramientas móviles para técnicos, órdenes de trabajo, evidencia, facturas y pagos conectados.",
+      finalCtaTitle: "¿Listo para tomar control de tu operación en campo?",
+      finalCtaCopy:
+        "Solicita acceso anticipado a ManosRemotas y empieza a construir una forma más clara de manejar trabajos, técnicos, evidencia, facturas y pagos.",
+      footerCopy: "Software de operación en campo para pequeños equipos de servicio.",
+      footerRights: "© 2026 ManosRemotas. Todos los derechos reservados.",
+    },
+    problemCards: [
+      {
+        icon: "search",
+        title: "La trampa de “¿dónde está?”",
+        text: "Fotos, notas del trabajo, direcciones, solicitudes del cliente y actualizaciones del técnico terminan perdidas en chats desordenados.",
+      },
+      {
+        icon: "receipt",
+        title: "La brecha de facturación",
+        text: "Materiales, horas extra y trabajos completados pueden olvidarse antes de crear la factura.",
+      },
+      {
+        icon: "eye",
+        title: "El punto ciego operativo",
+        text: "Dueños y administradores no siempre saben qué trabajos necesitan atención, cuáles están listos para facturar o cuáles están consumiendo demasiado tiempo.",
+      },
+    ],
+    workflowSteps: [
+      {
+        icon: "clipboard",
+        title: "Oficina",
+        text: "Crea el cliente, arma la orden de trabajo, agrega servicios y asigna el trabajo al técnico.",
+      },
+      {
+        icon: "phone",
+        title: "Campo",
+        text: "Los técnicos ven sus trabajos asignados, actualizan el progreso, agregan notas y capturan evidencia antes y después.",
+      },
+      {
+        icon: "receipt",
+        title: "Facturación",
+        text: "Convierte el trabajo completado en facturas claras con detalles, impuestos, PDF, envío por email y seguimiento de pagos.",
+      },
+      {
+        icon: "chart",
+        title: "Crecimiento",
+        text: "Ve qué necesita atención, qué está listo para facturar y dónde tu operación puede ser más rentable.",
+      },
+    ],
+    features: [
+      {
+        icon: "phone",
+        title: "Experiencia móvil para el campo",
+        detail: "Un flujo móvil simple que los técnicos realmente pueden usar en trabajos reales.",
+      },
+      {
+        icon: "camera",
+        title: "Evidencia fotográfica",
+        detail: "Protege tu negocio con fotos antes, durante y después, conectadas a la orden de trabajo correcta.",
+      },
+      {
+        icon: "receipt",
+        title: "Facturación inteligente",
+        detail: "Crea facturas claras desde trabajos completados, con impuestos, PDF, envío por email y seguimiento de pagos.",
+      },
+      {
+        icon: "list",
+        title: "Catálogo de servicios",
+        detail: "Estandariza servicios comunes, unidades y precios para preparar órdenes y facturas más rápido.",
+      },
+      {
+        icon: "layout",
+        title: "Centro de control administrativo",
+        detail: "Visualiza trabajos activos, atrasos, técnicos trabajando y órdenes listas para facturar desde una sola vista.",
+      },
+      {
+        icon: "users",
+        title: "Historial del cliente",
+        detail: "Mantén conectados los datos del cliente, actividad de servicio, órdenes, fotos e historial de facturación.",
+      },
+    ],
+    industries: [
+      "HVAC y refrigeración",
+      "Contratistas eléctricos",
+      "Plomería y mecánica",
+      "Servicios TI en campo y CCTV",
+      "Renovaciones y handyman",
+      "Mantenimiento de propiedades",
+      "Limpieza y servicios de instalaciones",
+      "Equipos generales de servicio en campo",
+    ],
+    trustPoints: [
+      "Espacio privado para cada empresa",
+      "Acceso por roles para administradores y técnicos",
+      "Experiencia móvil para trabajadores en campo",
+      "Historial conectado de trabajos, evidencia, facturas y pagos",
+      "Diseñado para equipos pequeños de 1 a 20 empleados",
+      "Creado para operaciones reales de servicio, no para gestión genérica de tareas",
+    ],
   },
-  {
-    icon: "eye",
-    title: "The Blind Spot",
-    text: "Owners and admins do not always know which jobs need attention, which are ready to invoice, or which ones are costing too much time.",
-  },
-];
+} as const;
 
-const workflowSteps = [
-  {
-    icon: "clipboard",
-    title: "Office",
-    text: "Create the customer, build the work order, add services, and assign the job to your technician.",
-  },
-  {
-    icon: "phone",
-    title: "Field",
-    text: "Technicians see assigned work, track progress, add notes, and capture before-and-after evidence.",
-  },
-  {
-    icon: "receipt",
-    title: "Billing",
-    text: "Turn completed work into clear invoices with itemized details, taxes, PDF generation, email delivery, and payment tracking.",
-  },
-  {
-    icon: "chart",
-    title: "Growth",
-    text: "See what needs attention, what is ready to invoice, and where your operation can become more profitable.",
-  },
-];
+type HomePageProps = {
+  searchParams?: Promise<{
+    lang?: string;
+  }>;
+};
 
-const features = [
-  {
-    icon: "phone",
-    title: "Field-Ready Mobile Experience",
-    detail: "A simple mobile workflow technicians can actually use on real job sites.",
-  },
-  {
-    icon: "camera",
-    title: "Photo Evidence Vault",
-    detail: "Protect your business with before, during, and after photos attached to the right work order.",
-  },
-  {
-    icon: "receipt",
-    title: "Smart Invoicing",
-    detail: "Create clear invoices from completed work with taxes, PDF generation, email delivery, and payment tracking.",
-  },
-  {
-    icon: "list",
-    title: "Service Catalog",
-    detail: "Standardize common services, units, and pricing so work orders and invoices are faster to prepare.",
-  },
-  {
-    icon: "layout",
-    title: "Admin Control Center",
-    detail: "See active work, delayed jobs, technicians working, and jobs ready to invoice from one operational view.",
-  },
-  {
-    icon: "users",
-    title: "Customer History",
-    detail: "Keep customer details, service activity, work orders, photos, and billing history connected.",
-  },
-];
+export default async function Home({ searchParams }: HomePageProps) {
+  const resolvedSearchParams = await searchParams;
+  const lang = resolvedSearchParams?.lang === "es" ? "es" : "en";
+  const langQuery = lang === "es" ? "?lang=es" : "";
+  const requestAccessHref = `/request-access${langQuery}`;
+  const content = landingContent[lang];
 
-const industries = [
-  "HVAC & Refrigeration",
-  "Electrical Contractors",
-  "Plumbing & Mechanical",
-  "IT Field Services & CCTV",
-  "Renovation & Handyman Teams",
-  "Property Maintenance",
-  "Cleaning and Facility Services",
-  "General Field Service Teams",
-];
-
-const trustPoints = [
-  "Private workspace for each company",
-  "Role-based access for admins and technicians",
-  "Mobile-first experience for field workers",
-  "Connected job history, evidence, invoices, and payments",
-  "Designed for small teams with 1–20 employees",
-  "Built for real service operations, not generic task management",
-];
-
-export default function Home() {
   return (
     <main className="mr-public-page">
       <style>{`
@@ -163,7 +364,38 @@ export default function Home() {
                     gap: 16px;
                     flex: 0 0 auto;
                 }
+                .mr-language-switch {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    padding: 4px;
+                    border: 1px solid #dbe5f2;
+                    background: #f8fafc;
+                    border-radius: 999px;
+                }
 
+                .mr-language-switch a {
+                    min-width: 34px;
+                    padding: 7px 9px;
+                    border-radius: 999px;
+                    color: #64748b;
+                    text-decoration: none;
+                    font-size: 12px;
+                    font-weight: 900;
+                    line-height: 1;
+                    text-align: center;
+                }
+
+                .mr-language-switch a:hover {
+                    color: #0f172a;
+                    background: #e2e8f0;
+                }
+
+                .mr-language-switch .mr-language-active {
+                    color: #ffffff;
+                    background: #2563eb;
+                    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+                }
                 .mr-signin {
                     color: #475569;
                     text-decoration: none;
@@ -1065,11 +1297,26 @@ export default function Home() {
           </Link>
 
           <nav className="mr-nav" aria-label="Main navigation">
+            <div className="mr-language-switch" aria-label="Language selector">
+              <Link
+                href="/"
+                className={lang === "en" ? "mr-language-active" : ""}
+              >
+                EN
+              </Link>
+              <Link
+                href="/?lang=es"
+                className={lang === "es" ? "mr-language-active" : ""}
+              >
+                ES
+              </Link>
+            </div>
+
             <Link href="/auth" className="mr-signin">
-              Sign in
+              {content.ui.signIn}
             </Link>
-            <a href="/request-access" className="mr-button mr-button-primary">
-              Request Early Access
+            <a href={requestAccessHref} className="mr-button mr-button-primary">
+              {content.ui.requestEarlyAccess}
             </a>
           </nav>
         </div>
@@ -1081,30 +1328,23 @@ export default function Home() {
             <div className="mr-hero-content">
               <div className="mr-eyebrow">
                 <span className="mr-eyebrow-dot" />
-                Built for service teams in Ontario & North America
+                {content.ui.eyebrow}
               </div>
 
-              <h1 className="mr-hero-title">
-                Stop losing profit to paperwork.
-              </h1>
+              <h1 className="mr-hero-title">{content.ui.heroTitle}</h1>
 
-              <p className="mr-hero-copy">
-                ManosRemotas helps service contractors organize jobs, technicians,
-                photos, invoices, and payments in one clear, mobile-ready workflow.
-              </p>
+              <p className="mr-hero-copy">{content.ui.heroCopy}</p>
 
               <div className="mr-hero-actions">
-                <a href="/request-access" className="mr-button mr-button-primary">
-                  Request Early Access
+                <a href={requestAccessHref} className="mr-button mr-button-primary">
+                  {content.ui.requestEarlyAccess}
                 </a>
                 <Link href="/auth" className="mr-button mr-button-secondary">
-                  Sign in
+                  {content.ui.signIn}
                 </Link>
               </div>
 
-              <div className="mr-hero-note">
-                Built for contractors who want less admin work, clearer billing, and better control.
-              </div>
+              <div className="mr-hero-note">{content.ui.heroNote}</div>
             </div>
 
             <div className="mr-hero-visual" aria-hidden="true">
@@ -1123,18 +1363,12 @@ export default function Home() {
       <section className="mr-section">
         <div className="mr-container">
           <div className="mr-section-heading">
-            <h2 className="mr-section-title">
-              Your business is growing, but your tools are holding you back.
-            </h2>
-            <p className="mr-section-copy">
-              When job details are scattered across WhatsApp, paper notes,
-              spreadsheets, photos, and phone calls, your team loses time —
-              and your business can lose money.
-            </p>
+            <h2 className="mr-section-title">{content.ui.problemTitle}</h2>
+            <p className="mr-section-copy">{content.ui.problemCopy}</p>
           </div>
 
           <div className="mr-card-grid">
-            {problemCards.map((card) => (
+            {content.problemCards.map((card) => (
               <article key={card.title} className="mr-card">
                 <span
                   className={`mr-card-icon mr-icon-warning mr-icon-${card.icon}`}
@@ -1151,14 +1385,12 @@ export default function Home() {
       <section className="mr-section mr-workflow">
         <div className="mr-container">
           <div className="mr-section-heading">
-            <h2 className="mr-section-title">One workflow. Total control.</h2>
-            <p className="mr-section-copy">
-              Everything from first call to final payment — connected in one operating workflow.
-            </p>
+            <h2 className="mr-section-title">{content.ui.workflowTitle}</h2>
+            <p className="mr-section-copy">{content.ui.workflowCopy}</p>
           </div>
 
           <div className="mr-card-grid mr-workflow-grid">
-            {workflowSteps.map((step, index) => (
+            {content.workflowSteps.map((step, index) => (
               <article key={step.title} className="mr-card mr-workflow-card">
                 <span
                   className={`mr-card-icon mr-icon-${step.icon}`}
@@ -1178,31 +1410,25 @@ export default function Home() {
       <section className="mr-section">
         <div className="mr-container">
           <div className="mr-section-heading">
-            <h2 className="mr-section-title">
-              Designed for both the office and the field.
-            </h2>
+            <h2 className="mr-section-title">{content.ui.rolesTitle}</h2>
           </div>
 
           <div className="mr-role-grid">
             <article className="mr-role-card mr-role-card-dark">
-              <h3>For owners and admins</h3>
+              <h3>{content.ui.ownersTitle}</h3>
               <ul className="mr-role-list">
-                <li>✓ See what needs attention</li>
-                <li>✓ Assign work faster</li>
-                <li>✓ Track job progress</li>
-                <li>✓ Know what is ready to invoice</li>
-                <li>✓ Reduce missed billing details</li>
+                {content.ui.ownersItems.map((item) => (
+                  <li key={item}>✓ {item}</li>
+                ))}
               </ul>
             </article>
 
             <article className="mr-role-card">
-              <h3>For technicians</h3>
+              <h3>{content.ui.techniciansTitle}</h3>
               <ul className="mr-role-list">
-                <li>✓ Start the day from My Day</li>
-                <li>✓ See assigned work clearly</li>
-                <li>✓ Track progress on each job</li>
-                <li>✓ Upload photo evidence</li>
-                <li>✓ Keep work simple from the phone</li>
+                {content.ui.techniciansItems.map((item) => (
+                  <li key={item}>✓ {item}</li>
+                ))}
               </ul>
             </article>
           </div>
@@ -1212,16 +1438,12 @@ export default function Home() {
       <section className="mr-section mr-section-soft">
         <div className="mr-container">
           <div className="mr-section-heading">
-            <h2 className="mr-section-title">
-              Features built for the field.
-            </h2>
-            <p className="mr-section-copy">
-              Practical tools for daily field operations, billing clarity, and customer history.
-            </p>
+            <h2 className="mr-section-title">{content.ui.featuresTitle}</h2>
+            <p className="mr-section-copy">{content.ui.featuresCopy}</p>
           </div>
 
           <div className="mr-card-grid">
-            {features.map((feature) => (
+            {content.features.map((feature) => (
               <article key={feature.title} className="mr-card">
                 <span
                   className={`mr-card-icon mr-icon-${feature.icon}`}
@@ -1238,17 +1460,12 @@ export default function Home() {
       <section className="mr-section">
         <div className="mr-container">
           <div className="mr-section-heading">
-            <h2 className="mr-section-title">
-              Designed for the trades that keep homes and businesses running.
-            </h2>
-            <p className="mr-section-copy">
-              ManosRemotas is built for small service teams that need practical
-              field operations software without unnecessary complexity.
-            </p>
+            <h2 className="mr-section-title">{content.ui.industriesTitle}</h2>
+            <p className="mr-section-copy">{content.ui.industriesCopy}</p>
           </div>
 
           <div className="mr-industry-tags">
-            {industries.map((industry) => (
+            {content.industries.map((industry) => (
               <span key={industry} className="mr-tag">
                 {industry}
               </span>
@@ -1260,16 +1477,12 @@ export default function Home() {
       <section className="mr-section mr-section-soft">
         <div className="mr-container">
           <div className="mr-section-heading">
-            <h2 className="mr-section-title">Control without complexity.</h2>
-            <p className="mr-section-copy">
-              ManosRemotas gives each company a private workspace with
-              role-based access, mobile-first technician tools, connected
-              work orders, evidence, invoices, and payments.
-            </p>
+            <h2 className="mr-section-title">{content.ui.trustTitle}</h2>
+            <p className="mr-section-copy">{content.ui.trustCopy}</p>
           </div>
 
           <div className="mr-trust-grid">
-            {trustPoints.map((point) => (
+            {content.trustPoints.map((point) => (
               <div key={point} className="mr-trust-point">
                 {point}
               </div>
@@ -1280,14 +1493,11 @@ export default function Home() {
 
       <section id="request-access" className="mr-final-cta">
         <div className="mr-container">
-          <h2>Ready to take control of your field operations?</h2>
-          <p>
-            Request early access to ManosRemotas and start building a cleaner
-            way to manage jobs, technicians, evidence, invoices, and payments.
-          </p>
+          <h2>{content.ui.finalCtaTitle}</h2>
+          <p>{content.ui.finalCtaCopy}</p>
 
-          <a href="/request-access" className="mr-button">
-            Request Early Access
+          <a href={requestAccessHref} className="mr-button">
+            {content.ui.requestEarlyAccess}
           </a>
         </div>
       </section>
@@ -1295,8 +1505,8 @@ export default function Home() {
       <footer className="mr-footer">
         <div className="mr-container">
           <strong>ManosRemotas</strong>
-          <p>Field service operations software for small service teams.</p>
-          <p>© 2026 ManosRemotas. All rights reserved.</p>
+          <p>{content.ui.footerCopy}</p>
+          <p>{content.ui.footerRights}</p>
         </div>
       </footer>
     </main>
