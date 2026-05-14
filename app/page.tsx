@@ -191,13 +191,44 @@ export default function Home() {
                     border: 1px solid #cbd5e1;
                 }
 
-            .mr-hero {
-    padding: 60px 24px 54px;
-                    background:
-                        radial-gradient(circle at top right, rgba(219, 234, 254, 0.85), transparent 34%),
-                        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-                    text-align: center;
-                }
+           .mr-hero {
+    padding: 62px 24px 60px;
+    background:
+        radial-gradient(circle at top right, rgba(219, 234, 254, 0.85), transparent 34%),
+        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.mr-hero-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 0.78fr) minmax(520px, 1.22fr);
+    align-items: center;
+    gap: 52px;
+}
+
+.mr-hero-content {
+    text-align: left;
+}
+
+.mr-hero-visual {
+    position: relative;
+}
+
+.mr-hero-image-frame {
+    overflow: hidden;
+    border: 1px solid #dbeafe;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 30px 76px rgba(15, 23, 42, 0.14);
+}
+
+.mr-hero-image {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    object-fit: contain;
+    object-position: center;
+}
 
                 .mr-container {
                     max-width: 1120px;
@@ -226,27 +257,27 @@ export default function Home() {
                     box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.1);
                 }
 
-                .mr-hero-title {
-                    margin: 0 auto 20px;
-                    max-width: 820px;
-                    font-size: clamp(42px, 6vw, 68px);
+         .mr-hero-title {
+    margin: 0 0 20px;
+    max-width: 560px;
+    font-size: clamp(42px, 5vw, 60px);
                     font-weight: 950;
                     line-height: 1.05;
                     letter-spacing: -0.055em;
                     color: #0f172a;
                 }
 
-                .mr-hero-copy {
-                    margin: 0 auto 28px;
-                    max-width: 650px;
+              .mr-hero-copy {
+    margin: 0 0 28px;
+    max-width: 600px;
                     font-size: 19px;
                     color: #475569;
                     line-height: 1.6;
                 }
 
-                .mr-hero-actions {
-                    display: flex;
-                    justify-content: center;
+               .mr-hero-actions {
+    display: flex;
+    justify-content: flex-start;
                     align-items: center;
                     gap: 12px;
                     flex-wrap: wrap;
@@ -515,9 +546,35 @@ export default function Home() {
     border-radius: 9px;
 }
 
-    .mr-hero {
-        padding: 36px 16px 30px;
-    }
+  .mr-hero {
+    padding: 36px 16px 30px;
+}
+
+.mr-hero-layout {
+    display: block;
+}
+
+.mr-hero-content {
+    text-align: center;
+}
+
+.mr-hero-visual {
+    margin-top: 28px;
+}
+
+.mr-hero-image-frame {
+    border-radius: 20px;
+}
+
+.mr-hero-title {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.mr-hero-copy {
+    margin-left: auto;
+    margin-right: auto;
+}
 
     .mr-eyebrow {
         font-size: 12px;
@@ -714,6 +771,17 @@ export default function Home() {
         .mr-workflow-grid {
     grid-template-columns: 1fr;
 }
+    .mr-hero-image-frame {
+    min-height: 0;
+    border-radius: 20px;
+}
+
+.mr-hero-image {
+    min-height: 0;
+    height: auto;
+    object-fit: contain;
+    transform: none;
+}
 }
             `}</style>
 
@@ -737,31 +805,45 @@ export default function Home() {
 
       <section className="mr-hero">
         <div className="mr-container">
-          <div className="mr-eyebrow">
-            <span className="mr-eyebrow-dot" />
-            Built for service teams in Ontario & North America
-          </div>
+          <div className="mr-hero-layout">
+            <div className="mr-hero-content">
+              <div className="mr-eyebrow">
+                <span className="mr-eyebrow-dot" />
+                Built for service teams in Ontario & North America
+              </div>
 
-          <h1 className="mr-hero-title">
-            Stop losing profit to paperwork.
-          </h1>
+              <h1 className="mr-hero-title">
+                Stop losing profit to paperwork.
+              </h1>
 
-          <p className="mr-hero-copy">
-            ManosRemotas helps service contractors organize jobs, technicians,
-            photos, invoices, and payments in one clear, mobile-ready workflow.
-          </p>
+              <p className="mr-hero-copy">
+                ManosRemotas helps service contractors organize jobs, technicians,
+                photos, invoices, and payments in one clear, mobile-ready workflow.
+              </p>
 
-          <div className="mr-hero-actions">
-            <a href="#request-access" className="mr-button mr-button-primary">
-              Request Early Access
-            </a>
-            <Link href="/auth" className="mr-button mr-button-secondary">
-              Sign in
-            </Link>
-          </div>
+              <div className="mr-hero-actions">
+                <a href="#request-access" className="mr-button mr-button-primary">
+                  Request Early Access
+                </a>
+                <Link href="/auth" className="mr-button mr-button-secondary">
+                  Sign in
+                </Link>
+              </div>
 
-          <div className="mr-hero-note">
-            Built for contractors who want less admin work, clearer billing, and better control.
+              <div className="mr-hero-note">
+                Built for contractors who want less admin work, clearer billing, and better control.
+              </div>
+            </div>
+
+            <div className="mr-hero-visual" aria-hidden="true">
+              <div className="mr-hero-image-frame">
+                <img
+                  className="mr-hero-image"
+                  src="/landing/manosremotas-hero-workflow.png"
+                  alt=""
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
