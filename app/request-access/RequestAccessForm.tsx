@@ -162,7 +162,7 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
             <section className="mr-request-shell">
                 <div className="mr-request-card">
                     <div className="mr-request-copy">
-                        <Link href={homeHref} className="mr-request-brand">
+                        <div className="mr-request-brand" aria-label="ManosRemotas">
                             <span className="mr-request-brand-logo-wrap">
                                 <img
                                     src="/brand/manosremotas-mark.png"
@@ -171,12 +171,11 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
                                 />
                             </span>
                             <span>ManosRemotas</span>
-                        </Link>
+                        </div>
 
                         <Link href={homeHref} className="mr-back-link">
                             {content.back}
                         </Link>
-
                         <div className="mr-eyebrow">{content.eyebrow}</div>
                         <h1>{content.title}</h1>
 
@@ -361,40 +360,42 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
                     justify-content: center;
                 }
 .mr-request-brand {
-    width: fit-content;
-    display: inline-flex;
-    align-items: center;
+    width: 100%;
+    display: grid;
+    justify-items: center;
     gap: 10px;
     color: #0f172a;
     text-decoration: none;
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 950;
     letter-spacing: -0.04em;
-    margin-bottom: 14px;
+    margin-bottom: 22px;
+    text-align: center;
 }
 
 .mr-request-brand-logo-wrap {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     background: #ffffff;
     border: 1px solid #dbeafe;
-    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14);
+    box-shadow: 0 18px 42px rgba(37, 99, 235, 0.18);
     flex: 0 0 auto;
 }
 
 .mr-request-brand-logo {
-    width: 30px;
-    height: 30px;
+    width: 64px;
+    height: 64px;
     object-fit: contain;
     display: block;
 }
-                .mr-back-link {
+   .mr-back-link {
     width: fit-content;
+    justify-self: center;
     color: #64748b;
     text-decoration: none;
     font-size: 14px;
