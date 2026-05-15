@@ -128,6 +128,7 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
             location: String(formData.get("location") ?? ""),
             businessType: String(formData.get("businessType") ?? ""),
             message: String(formData.get("message") ?? ""),
+            website: String(formData.get("website") ?? ""),
         };
 
         try {
@@ -192,6 +193,15 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
                     </div>
 
                     <form className="mr-request-form" onSubmit={handleSubmit}>
+                        <input
+                            className="mr-honeypot"
+                            name="website"
+                            type="text"
+                            tabIndex={-1}
+                            autoComplete="off"
+                            aria-hidden="true"
+                        />
+
                         <div className="mr-form-header">
                             <h2>{content.formTitle}</h2>
                             <p>{content.formCopy}</p>
@@ -463,7 +473,14 @@ export default function RequestAccessForm({ lang }: RequestAccessFormProps) {
                     border-bottom: 2px solid #16a34a;
                     transform: rotate(-45deg);
                 }
-
+.mr-honeypot {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
                 .mr-request-form {
                     padding: 30px;
                     display: grid;

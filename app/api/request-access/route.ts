@@ -9,6 +9,7 @@ type RequestAccessBody = {
     location?: unknown;
     businessType?: unknown;
     message?: unknown;
+    website?: unknown;
 };
 
 function cleanText(value: unknown, maxLength: number) {
@@ -48,6 +49,13 @@ export async function POST(req: Request) {
         const location = cleanText(body.location, 160);
         const businessType = cleanText(body.businessType, 80);
         const message = cleanMessage(body.message, 1200);
+        const website = cleanText(body.website, 200);
+        if (website) {
+            return NextResponse.json({
+                ok: true,
+                message: "Request received.",
+            });
+        }
 
         if (!fullName) {
             return NextResponse.json(
