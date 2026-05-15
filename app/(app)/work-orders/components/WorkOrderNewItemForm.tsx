@@ -337,7 +337,46 @@ export default function WorkOrderNewItemForm({
                     Item description is required.
                 </div>
             )}
+            <div style={{ display: "grid", gap: 6 }}>
+                <div
+                    style={{
+                        fontWeight: 800,
+                        fontSize: 13,
+                        color: "#374151",
+                    }}
+                >
+                    Unit / UOM
+                </div>
 
+                <input
+                    className="mr-form-input"
+                    placeholder="E.g. hour, each, sq ft, m², day"
+                    type="text"
+                    value={newItem.uom ?? ""}
+                    disabled={invoiceIsLocked}
+                    onChange={(e) => {
+                        const value = e.target.value;
+
+                        setNewItem((s) => ({
+                            ...s,
+                            uom: value.trim() === "" ? null : value,
+                        }));
+                    }}
+                    style={{
+                        padding: 12,
+                        borderRadius: 10,
+                        border: "1px solid #d1d5db",
+                        width: "100%",
+                        maxWidth: 230,
+                        background: invoiceIsLocked ? "#f3f4f6" : "#ffffff",
+                        outline: "none",
+                        fontSize: 15,
+                        color: MR_THEME.colors.textPrimary,
+                        fontWeight: 600,
+                        cursor: invoiceIsLocked ? "not-allowed" : "text",
+                    }}
+                />
+            </div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <div style={{ display: "grid", gap: 6 }}>
                     <div

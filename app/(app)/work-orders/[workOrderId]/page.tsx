@@ -723,7 +723,82 @@ export default function WorkOrderDetailPage() {
         },
         [priceDraft, refreshItemsOnly, syncDraftInvoiceIfNeeded]
     );
+    const updateWorkOrderItem = useCallback(
+        async (
+            itemId: string,
+            payload: {
+                description: string;
+                uom: string | null;
+                qty_planned: number | null;
+                unit_price: number | null;
+                taxable: boolean;
+            }
+        ) => {
+            if (invoiceIsLocked) {
+                alert("This work order is already invoiced and billing items are read-only.");
+                return;
+            }
 
+            if (!isAdmin) {
+                alert("Only admin users can edit work order items.");
+                return;
+            }
+
+            const description = String(payload.description ?? "").trim();
+
+            if (!description) {
+                alert("Item description is required.");
+                return;
+            }
+
+            const qtyPlanned =
+                payload.qty_planned === null || payload.qty_planned === undefined
+                    ? null
+                    : Number(payload.qty_planned);
+
+            if (qtyPlanned !== null && (!Number.isFinite(qtyPlanned) || qtyPlanned <= 0)) {
+                alert("Planned quantity must be greater than 0.");
+                return;
+            }
+
+            const unitPrice =
+                payload.unit_price === null || payload.unit_price === undefined
+                    ? 0
+                    : Number(payload.unit_price);
+
+            if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+                alert("Unit price must be 0 or greater.");
+                return;
+            }
+
+            const cleanUom =
+                typeof payload.uom === "string" && payload.uom.trim()
+                    ? payload.uom.trim()
+                    : null;
+
+            const { error } = await supabase
+                .from("work_order_items")
+                .update({
+                    description,
+                    uom: cleanUom,
+                    qty_planned: qtyPlanned,
+                    unit_price: unitPrice,
+                    taxable: Boolean(payload.taxable),
+                    pending_pricing: false,
+                    pricing_status: "priced",
+                })
+                .eq("item_id", itemId);
+
+            if (error) {
+                alert(`Could not update item: ${error.message}`);
+                return;
+            }
+
+            await syncDraftInvoiceIfNeeded();
+            await refreshItemsOnly();
+        },
+        [invoiceIsLocked, isAdmin, refreshItemsOnly, syncDraftInvoiceIfNeeded]
+    );
     const handleChangeStatus = useCallback(
         async (next: WorkOrderStatus) => {
             if (!wo) return;
@@ -1067,6 +1142,7 @@ export default function WorkOrderDetailPage() {
                                     updateQtyDone={updateQtyDone}
                                     updateTechNote={updateTechNote}
                                     priceItem={priceItem}
+                                    updateWorkOrderItem={updateWorkOrderItem}
                                     invoiceIsLocked={invoiceIsLocked}
                                     hasInvoice={hasInvoice}
                                     invoiceStatus={invoiceStatus}

@@ -16,6 +16,13 @@ type WorkOrderItem = {
     tech_note?: string | null;
     uom: string | null;
 };
+type EditItemDraft = {
+    description: string;
+    uom: string;
+    qty_planned: string;
+    unit_price: string;
+    taxable: boolean;
+};
 type Props = {
     items: WorkOrderItem[];
     isAdmin: boolean;
@@ -25,6 +32,16 @@ type Props = {
     updateQtyDone: (itemId: string, newQtyDone: number | null) => void | Promise<void>;
     updateTechNote: (itemId: string, note: string) => void | Promise<void>;
     priceItem: (itemId: string) => void | Promise<void>;
+    updateWorkOrderItem: (
+        itemId: string,
+        payload: {
+            description: string;
+            uom: string | null;
+            qty_planned: number | null;
+            unit_price: number | null;
+            taxable: boolean;
+        }
+    ) => void | Promise<void>;
     invoiceIsLocked: boolean;
     hasInvoice: boolean;
     invoiceStatus: string | null;
@@ -48,11 +65,15 @@ export default function WorkOrderItemsTable({
     updateQtyDone,
     updateTechNote,
     priceItem,
+    updateWorkOrderItem,
     invoiceIsLocked,
     hasInvoice,
     invoiceStatus,
 }: Props) {
     const [openNoteItemId, setOpenNoteItemId] = React.useState<string | null>(null);
+    const [editingItemId, setEditingItemId] = React.useState<string | null>(null);
+    const [editDraft, setEditDraft] = React.useState<EditItemDraft | null>(null);
+    const [savingEditItemId, setSavingEditItemId] = React.useState<string | null>(null);
     const [localQtyDone, setLocalQtyDone] = useState<Record<string, string>>({});
     const [isMobile, setIsMobile] = React.useState(false);
     React.useEffect(() => {
@@ -65,7 +86,81 @@ export default function WorkOrderItemsTable({
 
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
+    function startEditItem(item: WorkOrderItem) {
+        if (invoiceIsLocked) {
+            alert("This work order is already invoiced and billing items are read-only.");
+            return;
+        }
 
+        if (!isAdmin) {
+            alert("Only admin users can edit work order items.");
+            return;
+        }
+
+        setEditingItemId(item.item_id);
+        setEditDraft({
+            description: item.description ?? "",
+            uom: item.uom ?? "",
+            qty_planned:
+                item.qty_planned === null || item.qty_planned === undefined
+                    ? ""
+                    : String(item.qty_planned),
+            unit_price:
+                item.unit_price === null || item.unit_price === undefined
+                    ? "0"
+                    : String(item.unit_price),
+            taxable: Boolean(item.taxable),
+        });
+    }
+
+    function cancelEditItem() {
+        setEditingItemId(null);
+        setEditDraft(null);
+    }
+
+    async function saveEditItem(itemId: string) {
+        if (!editDraft) return;
+
+        const description = editDraft.description.trim();
+
+        if (!description) {
+            alert("Item description is required.");
+            return;
+        }
+
+        const qtyPlanned =
+            editDraft.qty_planned.trim() === "" ? null : Number(editDraft.qty_planned);
+
+        if (qtyPlanned !== null && (!Number.isFinite(qtyPlanned) || qtyPlanned <= 0)) {
+            alert("Planned quantity must be greater than 0.");
+            return;
+        }
+
+        const unitPrice =
+            editDraft.unit_price.trim() === "" ? 0 : Number(editDraft.unit_price);
+
+        if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+            alert("Unit price must be 0 or greater.");
+            return;
+        }
+
+        try {
+            setSavingEditItemId(itemId);
+
+            await updateWorkOrderItem(itemId, {
+                description,
+                uom: editDraft.uom.trim() === "" ? null : editDraft.uom.trim(),
+                qty_planned: qtyPlanned,
+                unit_price: unitPrice,
+                taxable: editDraft.taxable,
+            });
+
+            setEditingItemId(null);
+            setEditDraft(null);
+        } finally {
+            setSavingEditItemId(null);
+        }
+    }
     if (items.length === 0) {
         return (
             <div style={{
@@ -274,27 +369,253 @@ export default function WorkOrderItemsTable({
                                     </span>
                                 </div>
 
-                                <button
-                                    type="button"
+                                <div
                                     style={{
-                                        border: "none",
-                                        background: "transparent",
-                                        padding: 0,
-                                        color: MR_THEME.colors.primary,
-                                        fontSize: 13,
-                                        fontWeight: 700,
-                                        cursor: "pointer",
-                                        whiteSpace: "nowrap",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                        flexWrap: "wrap",
+                                        justifyContent: "flex-end",
                                     }}
-                                    onClick={() =>
-                                        setOpenNoteItemId(
-                                            openNoteItemId === it.item_id ? null : it.item_id
-                                        )
-                                    }
                                 >
-                                    {it.tech_note ? "Edit note" : "+ Add note"}
-                                </button>
-                            </div>                            {/* Pricing */}
+                                    {isAdmin ? (
+                                        <button
+                                            type="button"
+                                            disabled={invoiceIsLocked}
+                                            style={{
+                                                border: "none",
+                                                background: "transparent",
+                                                padding: 0,
+                                                color: invoiceIsLocked ? MR_THEME.colors.textMuted : MR_THEME.colors.primary,
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                cursor: invoiceIsLocked ? "not-allowed" : "pointer",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                            onClick={() => startEditItem(it)}
+                                        >
+                                            Edit item
+                                        </button>
+                                    ) : null}
+
+                                    <button
+                                        type="button"
+                                        style={{
+                                            border: "none",
+                                            background: "transparent",
+                                            padding: 0,
+                                            color: MR_THEME.colors.primary,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                        onClick={() =>
+                                            setOpenNoteItemId(
+                                                openNoteItemId === it.item_id ? null : it.item_id
+                                            )
+                                        }
+                                    >
+                                        {it.tech_note ? "Edit note" : "+ Add note"}
+                                    </button>
+                                </div>
+                            </div>
+                            {editingItemId === it.item_id && editDraft ? (
+                                <div
+                                    style={{
+                                        display: "grid",
+                                        gap: 8,
+                                        padding: 10,
+                                        borderRadius: 14,
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        background: MR_THEME.colors.cardBgSoft,
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 900,
+                                            color: MR_THEME.colors.textPrimary,
+                                        }}
+                                    >
+                                        Edit item
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        value={editDraft.description}
+                                        placeholder="Description"
+                                        onChange={(e) =>
+                                            setEditDraft((current) =>
+                                                current ? { ...current, description: e.target.value } : current
+                                            )
+                                        }
+                                        style={{
+                                            width: "100%",
+                                            padding: "9px 10px",
+                                            borderRadius: 10,
+                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                            color: MR_THEME.colors.textPrimary,
+                                            background: MR_THEME.colors.cardBg,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            boxSizing: "border-box",
+                                        }}
+                                    />
+
+                                    <div
+                                        style={{
+                                            display: "grid",
+                                            gridTemplateColumns: "1fr 1fr",
+                                            gap: 8,
+                                        }}
+                                    >
+                                        <input
+                                            type="text"
+                                            value={editDraft.uom}
+                                            placeholder="UOM"
+                                            onChange={(e) =>
+                                                setEditDraft((current) =>
+                                                    current ? { ...current, uom: e.target.value } : current
+                                                )
+                                            }
+                                            style={{
+                                                width: "100%",
+                                                padding: "9px 10px",
+                                                borderRadius: 10,
+                                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                color: MR_THEME.colors.textPrimary,
+                                                background: MR_THEME.colors.cardBg,
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                boxSizing: "border-box",
+                                            }}
+                                        />
+
+                                        <input
+                                            type="number"
+                                            value={editDraft.qty_planned}
+                                            placeholder="Qty"
+                                            onChange={(e) =>
+                                                setEditDraft((current) =>
+                                                    current ? { ...current, qty_planned: e.target.value } : current
+                                                )
+                                            }
+                                            style={{
+                                                width: "100%",
+                                                padding: "9px 10px",
+                                                borderRadius: 10,
+                                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                color: MR_THEME.colors.textPrimary,
+                                                background: MR_THEME.colors.cardBg,
+                                                fontSize: 13,
+                                                fontWeight: 700,
+                                                boxSizing: "border-box",
+                                            }}
+                                        />
+                                    </div>
+
+                                    {isAdmin ? (
+                                        <div
+                                            style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "1fr 1fr",
+                                                gap: 8,
+                                                alignItems: "center",
+                                            }}
+                                        >
+                                            <input
+                                                type="number"
+                                                value={editDraft.unit_price}
+                                                placeholder="Unit price"
+                                                onChange={(e) =>
+                                                    setEditDraft((current) =>
+                                                        current ? { ...current, unit_price: e.target.value } : current
+                                                    )
+                                                }
+                                                style={{
+                                                    width: "100%",
+                                                    padding: "9px 10px",
+                                                    borderRadius: 10,
+                                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                    color: MR_THEME.colors.textPrimary,
+                                                    background: MR_THEME.colors.cardBg,
+                                                    fontSize: 13,
+                                                    fontWeight: 700,
+                                                    boxSizing: "border-box",
+                                                }}
+                                            />
+
+                                            <label
+                                                style={{
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 8,
+                                                    fontSize: 13,
+                                                    fontWeight: 800,
+                                                    color: MR_THEME.colors.textPrimary,
+                                                }}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editDraft.taxable}
+                                                    onChange={(e) =>
+                                                        setEditDraft((current) =>
+                                                            current ? { ...current, taxable: e.target.checked } : current
+                                                        )
+                                                    }
+                                                />
+                                                Taxable
+                                            </label>
+                                        </div>
+                                    ) : null}
+
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            gap: 8,
+                                            flexWrap: "wrap",
+                                        }}
+                                    >
+                                        <button
+                                            type="button"
+                                            disabled={savingEditItemId === it.item_id}
+                                            onClick={() => saveEditItem(it.item_id)}
+                                            style={{
+                                                flex: "1 1 120px",
+                                                padding: "9px 12px",
+                                                borderRadius: 10,
+                                                border: `1px solid ${MR_THEME.colors.primary}`,
+                                                background: MR_THEME.colors.primary,
+                                                color: "#ffffff",
+                                                fontWeight: 900,
+                                                cursor: savingEditItemId === it.item_id ? "not-allowed" : "pointer",
+                                                opacity: savingEditItemId === it.item_id ? 0.7 : 1,
+                                            }}
+                                        >
+                                            {savingEditItemId === it.item_id ? "Saving..." : "Save"}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={cancelEditItem}
+                                            style={{
+                                                flex: "1 1 120px",
+                                                padding: "9px 12px",
+                                                borderRadius: 10,
+                                                border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                background: MR_THEME.colors.cardBg,
+                                                color: MR_THEME.colors.textPrimary,
+                                                fontWeight: 900,
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+                            {/* Pricing */}
                             {isAdmin ? (
                                 <div
                                     style={{
@@ -540,6 +861,19 @@ export default function WorkOrderItemsTable({
                                 Total
                             </th>
                         ) : null}
+                        {isAdmin ? (
+                            <th
+                                style={{
+                                    padding: "10px 8px",
+                                    fontSize: 12,
+                                    color: "#374151",
+                                    textAlign: "right",
+                                    paddingRight: 20,
+                                }}
+                            >
+                                Actions
+                            </th>
+                        ) : null}
                     </tr>
                 </thead>
 
@@ -754,17 +1088,233 @@ export default function WorkOrderItemsTable({
                                             {money(lineTotal)}
                                         </td>
                                     ) : null}
+                                    {isAdmin ? (
+                                        <td
+                                            style={{
+                                                padding: "10px 8px",
+                                                textAlign: "right",
+                                                paddingRight: 20,
+                                            }}
+                                        >
+                                            <button
+                                                type="button"
+                                                disabled={invoiceIsLocked}
+                                                onClick={() => startEditItem(it)}
+                                                style={{
+                                                    padding: "8px 10px",
+                                                    borderRadius: 10,
+                                                    border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                    background: invoiceIsLocked
+                                                        ? MR_THEME.colors.cardBgSoft
+                                                        : MR_THEME.colors.cardBg,
+                                                    color: invoiceIsLocked
+                                                        ? MR_THEME.colors.textMuted
+                                                        : MR_THEME.colors.primary,
+                                                    fontSize: 12,
+                                                    fontWeight: 900,
+                                                    cursor: invoiceIsLocked ? "not-allowed" : "pointer",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                Edit item
+                                            </button>
+                                        </td>
+                                    ) : null}
                                 </tr>
 
                                 <tr>
                                     <td
-                                        colSpan={isAdmin ? 8 : 6}
+                                        colSpan={isAdmin ? 9 : 6}
                                         style={{
                                             padding: "0 8px 12px",
                                             borderBottom: "1px solid #f3f4f6",
                                             background: "#ffffff",
                                         }}
                                     >
+                                        {editingItemId === it.item_id && editDraft ? (
+                                            <div
+                                                style={{
+                                                    display: "grid",
+                                                    gap: 10,
+                                                    padding: 12,
+                                                    borderRadius: 14,
+                                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                                    background: MR_THEME.colors.cardBgSoft,
+                                                    marginBottom: 10,
+                                                }}
+                                            >
+                                                <div
+                                                    style={{
+                                                        fontSize: 13,
+                                                        fontWeight: 900,
+                                                        color: MR_THEME.colors.textPrimary,
+                                                    }}
+                                                >
+                                                    Edit item
+                                                </div>
+
+                                                <div
+                                                    style={{
+                                                        display: "grid",
+                                                        gridTemplateColumns: "minmax(220px, 1.4fr) 120px 120px 140px 120px",
+                                                        gap: 10,
+                                                        alignItems: "center",
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="text"
+                                                        value={editDraft.description}
+                                                        placeholder="Description"
+                                                        onChange={(e) =>
+                                                            setEditDraft((current) =>
+                                                                current ? { ...current, description: e.target.value } : current
+                                                            )
+                                                        }
+                                                        style={{
+                                                            width: "100%",
+                                                            padding: "9px 10px",
+                                                            borderRadius: 10,
+                                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                            color: MR_THEME.colors.textPrimary,
+                                                            background: MR_THEME.colors.cardBg,
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            boxSizing: "border-box",
+                                                        }}
+                                                    />
+
+                                                    <input
+                                                        type="text"
+                                                        value={editDraft.uom}
+                                                        placeholder="UOM"
+                                                        onChange={(e) =>
+                                                            setEditDraft((current) =>
+                                                                current ? { ...current, uom: e.target.value } : current
+                                                            )
+                                                        }
+                                                        style={{
+                                                            width: "100%",
+                                                            padding: "9px 10px",
+                                                            borderRadius: 10,
+                                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                            color: MR_THEME.colors.textPrimary,
+                                                            background: MR_THEME.colors.cardBg,
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            boxSizing: "border-box",
+                                                        }}
+                                                    />
+
+                                                    <input
+                                                        type="number"
+                                                        value={editDraft.qty_planned}
+                                                        placeholder="Qty"
+                                                        onChange={(e) =>
+                                                            setEditDraft((current) =>
+                                                                current ? { ...current, qty_planned: e.target.value } : current
+                                                            )
+                                                        }
+                                                        style={{
+                                                            width: "100%",
+                                                            padding: "9px 10px",
+                                                            borderRadius: 10,
+                                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                            color: MR_THEME.colors.textPrimary,
+                                                            background: MR_THEME.colors.cardBg,
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            boxSizing: "border-box",
+                                                        }}
+                                                    />
+
+                                                    <input
+                                                        type="number"
+                                                        value={editDraft.unit_price}
+                                                        placeholder="Unit price"
+                                                        onChange={(e) =>
+                                                            setEditDraft((current) =>
+                                                                current ? { ...current, unit_price: e.target.value } : current
+                                                            )
+                                                        }
+                                                        style={{
+                                                            width: "100%",
+                                                            padding: "9px 10px",
+                                                            borderRadius: 10,
+                                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                            color: MR_THEME.colors.textPrimary,
+                                                            background: MR_THEME.colors.cardBg,
+                                                            fontSize: 13,
+                                                            fontWeight: 700,
+                                                            boxSizing: "border-box",
+                                                        }}
+                                                    />
+
+                                                    <label
+                                                        style={{
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            gap: 8,
+                                                            fontSize: 13,
+                                                            fontWeight: 800,
+                                                            color: MR_THEME.colors.textPrimary,
+                                                        }}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editDraft.taxable}
+                                                            onChange={(e) =>
+                                                                setEditDraft((current) =>
+                                                                    current ? { ...current, taxable: e.target.checked } : current
+                                                                )
+                                                            }
+                                                        />
+                                                        Taxable
+                                                    </label>
+                                                </div>
+
+                                                <div
+                                                    style={{
+                                                        display: "flex",
+                                                        gap: 8,
+                                                        justifyContent: "flex-end",
+                                                    }}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        disabled={savingEditItemId === it.item_id}
+                                                        onClick={() => saveEditItem(it.item_id)}
+                                                        style={{
+                                                            padding: "9px 14px",
+                                                            borderRadius: 10,
+                                                            border: `1px solid ${MR_THEME.colors.primary}`,
+                                                            background: MR_THEME.colors.primary,
+                                                            color: "#ffffff",
+                                                            fontWeight: 900,
+                                                            cursor: savingEditItemId === it.item_id ? "not-allowed" : "pointer",
+                                                            opacity: savingEditItemId === it.item_id ? 0.7 : 1,
+                                                        }}
+                                                    >
+                                                        {savingEditItemId === it.item_id ? "Saving..." : "Save item"}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={cancelEditItem}
+                                                        style={{
+                                                            padding: "9px 14px",
+                                                            borderRadius: 10,
+                                                            border: `1px solid ${MR_THEME.colors.borderStrong}`,
+                                                            background: MR_THEME.colors.cardBg,
+                                                            color: MR_THEME.colors.textPrimary,
+                                                            fontWeight: 900,
+                                                            cursor: "pointer",
+                                                        }}
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : null}
                                         {openNoteItemId === it.item_id ? (
                                             <textarea
                                                 disabled={invoiceIsLocked}

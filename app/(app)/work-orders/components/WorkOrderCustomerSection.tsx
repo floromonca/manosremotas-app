@@ -24,7 +24,7 @@ export default function WorkOrderCustomerSection({
 }: Props) {
     const router = useRouter();
     const isTech = !isAdmin;
-    const [showCustomerDetails, setShowCustomerDetails] = useState(!isTech);
+    const [showCustomerDetails, setShowCustomerDetails] = useState(false);
 
     const inputStyle: React.CSSProperties = {
         padding: isTech ? "9px 10px" : "12px 14px",
@@ -62,8 +62,15 @@ export default function WorkOrderCustomerSection({
         <div
             style={{
                 marginTop: 18,
-                paddingTop: isTech ? 14 : 18,
-                borderTop: `1px solid ${MR_THEME.colors.border}`,
+                padding: showCustomerDetails ? (isTech ? 14 : 18) : "14px 16px",
+                borderRadius: MR_THEME.radius.card,
+                border: `1px solid ${MR_THEME.colors.border}`,
+                background: showCustomerDetails
+                    ? "transparent"
+                    : MR_THEME.colors.cardBg,
+                boxShadow: showCustomerDetails
+                    ? "none"
+                    : MR_THEME.shadows.cardSoft,
             }}
         >
             <div
@@ -73,6 +80,7 @@ export default function WorkOrderCustomerSection({
                     alignItems: "center",
                     gap: 12,
                     marginBottom: showCustomerDetails ? (isTech ? 10 : 14) : 0,
+                    paddingBottom: showCustomerDetails ? 0 : 0,
                 }}
             >
                 <div>
