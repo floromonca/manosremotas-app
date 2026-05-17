@@ -7,6 +7,7 @@ import { useActiveCompany } from "../../../hooks/useActiveCompany";
 import { useAuthState } from "../../../hooks/useAuthState";
 import { MR_THEME } from "@/lib/theme";
 import { canManagePayroll } from "@/lib/security/roles";
+import { hasPlanFeature } from "@/lib/features/entitlements";
 import {
     buildPayrollV1Row,
     type PayrollScheduleInput,
@@ -165,8 +166,10 @@ function payrollFlagTone(flag: PayrollV1Flag): PayrollFlag["tone"] {
 export default function PayrollPage() {
     const router = useRouter();
     const { user, authLoading } = useAuthState();
-    const { companyId, companyName, myRole, isLoadingCompany } = useActiveCompany();
-    const canAccessPayroll = canManagePayroll(myRole);
+    const { companyId, companyName, companyPlan, myRole, isLoadingCompany } = useActiveCompany();
+    const canAccessPayroll =
+        canManagePayroll(myRole) &&
+        hasPlanFeature(companyPlan, "payroll");
 
     const initialRange = useMemo(() => getPresetRange("this_week"), []);
     const [preset, setPreset] = useState<PeriodPreset>("this_week");
