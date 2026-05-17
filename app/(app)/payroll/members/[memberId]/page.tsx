@@ -17,6 +17,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { MR_THEME } from "@/lib/theme";
 import MemberWorkScheduleCard from "../../components/MemberWorkScheduleCard";
 import PayrollPayRateCard from "../../components/PayrollPayRateCard";
+import { hasPlanFeature } from "@/lib/features/entitlements";
 
 type MemberProfileRow = {
   user_id: string;
@@ -90,9 +91,19 @@ export default function PayrollMemberProfilePage() {
   const memberId = params.memberId;
 
   const { user, authLoading } = useAuthState();
-  const { companyId, myRole, isLoadingCompany } = useActiveCompany();
+  const {
+    companyId,
+    companyPlan,
+    myRole,
+    isLoadingCompany,
+  } = useActiveCompany();
 
-  const canAccessPayroll = canManagePayroll(myRole);
+  const canAccessPayroll =
+    canManagePayroll(myRole) &&
+    hasPlanFeature(
+      companyPlan,
+      "payroll"
+    );
 
   const [member, setMember] = useState<MemberProfileRow | null>(null);
   const [payRate, setPayRate] = useState<PayRateRow | null>(null);
