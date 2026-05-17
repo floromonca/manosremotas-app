@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { MR_THEME } from "@/lib/theme";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
+import { useRouter } from "next/navigation";
+import { hasPlanFeature } from "@/lib/features/entitlements";
 import {
     createServiceCatalogItem,
     fetchServiceCatalogItems,
@@ -40,7 +42,12 @@ const emptyForm: ServiceFormState = {
 };
 
 export default function ServicesSettingsPage() {
-    const { companyId } = useActiveCompany();
+    const router = useRouter();
+
+    const {
+        companyId,
+        companyPlan,
+    } = useActiveCompany();
 
     const [items, setItems] = useState<ServiceCatalogItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -55,9 +62,20 @@ export default function ServicesSettingsPage() {
     const [csvRows, setCsvRows] = useState<string[][]>([]);
     const [csvErrors, setCsvErrors] = useState<string[]>([]);
     const [csvPreviewRows, setCsvPreviewRows] = useState<CsvPreviewRow[]>([]);
+    const canAccessServices =
+        hasPlanFeature(
+            companyPlan,
+            "service_catalog"
+        );
+
+    useEffect(() => {
+        if (!canAccessServices) {
+            router.replace("/settings/company");
+        }
+    }, [canAccessServices, router]);
 
     const loadItems = useCallback(async () => {
-        if (!companyId) {
+        if (!companyId || !canAccessServices) {
             setItems([]);
             setLoading(false);
             return;
