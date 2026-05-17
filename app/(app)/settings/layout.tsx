@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { MR_THEME } from "@/lib/theme";
 import { useActiveCompany } from "../../../hooks/useActiveCompany";
+import { hasPlanFeature } from "@/lib/features/entitlements";
 
 const settingsNavItems = [
     { href: "/settings/company", label: "Company" },
@@ -74,9 +75,16 @@ export default function SettingsLayout({
 }) {
     const pathname = usePathname();
     const router = useRouter();
-    const { myRole, isLoadingCompany } = useActiveCompany();
+    const { myRole, companyPlan, isLoadingCompany } = useActiveCompany();
 
     const isAdmin = myRole === "owner" || myRole === "admin";
+    const visibleSettingsNavItems = settingsNavItems.filter((item) => {
+        if (item.href === "/settings/services") {
+            return hasPlanFeature(companyPlan, "service_catalog");
+        }
+
+        return true;
+    });
 
     useEffect(() => {
         if (isLoadingCompany) return;
@@ -176,7 +184,7 @@ export default function SettingsLayout({
                                 borderBottom: `1px solid ${MR_THEME.colors.border}`,
                             }}
                         >
-                            {settingsNavItems.map((item) => (
+                            {visibleSettingsNavItems.map((item) => (
                                 <SettingsNavItem
                                     key={item.href}
                                     href={item.href}
@@ -223,7 +231,7 @@ export default function SettingsLayout({
                             </div>
 
                             <div style={{ display: "grid", gap: 8 }}>
-                                {settingsNavItems.map((item) => (
+                                {visibleSettingsNavItems.map((item) => (
                                     <SettingsNavItem
                                         key={item.href}
                                         href={item.href}
