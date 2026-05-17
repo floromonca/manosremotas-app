@@ -53,10 +53,11 @@ type Props = {
 
 export default function AppSidebar({ onNavigate, variant = "desktop" }: Props) {
     const pathname = usePathname();
-    const { myRole } = useActiveCompany();
+    const { myRole, companyPlan } = useActiveCompany();
 
     const isAdmin = canAdminCompany(myRole);
-    const showPayroll = canManagePayroll(myRole);
+    const showPayroll =
+        canManagePayroll(myRole) && companyPlan === "business";
     const isDesktop = variant === "desktop";
 
     return (
