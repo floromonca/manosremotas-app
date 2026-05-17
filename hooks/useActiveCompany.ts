@@ -14,6 +14,7 @@ type MembershipRow = {
 type CompanyRow = {
   company_id: string;
   company_name: string;
+  plan_key: "starter" | "pro" | "business";
 };
 
 export function useActiveCompany() {
@@ -21,6 +22,7 @@ export function useActiveCompany() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState<string>("");
+  const [companyPlan, setCompanyPlan] = useState<CompanyRow["plan_key"]>("starter");
   const [myRole, setMyRole] = useState<Role | null>(null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(true);
 
@@ -155,7 +157,7 @@ export function useActiveCompany() {
 
           chosen = validStored ?? list[0];
         }
-        
+
         // 6) Sanear storage
         if (typeof window !== "undefined") {
           if (stored !== chosen.company_id) {
@@ -166,7 +168,9 @@ export function useActiveCompany() {
         // 7) Cargar company_name
         const { data: c, error: cErr } = await supabase
           .from("companies")
-          .select("company_id, company_name")
+          .select(
+            "company_id, company_name, plan_key"
+          )
           .eq("company_id", chosen.company_id)
           .maybeSingle();
 
@@ -178,6 +182,7 @@ export function useActiveCompany() {
           setCompanyId(chosen.company_id);
           setMyRole(chosen.role);
           setCompanyName(company?.company_name ?? "");
+          setCompanyPlan(company?.plan_key ?? "starter");
         }
       } catch (e: any) {
         console.log("[useActiveCompany] CATCH =", e);
@@ -190,6 +195,7 @@ export function useActiveCompany() {
         if (!cancelled) {
           setCompanyId(null);
           setCompanyName("");
+          setCompanyPlan("starter");
           setMyRole(null);
         }
       } finally {
@@ -205,6 +211,7 @@ export function useActiveCompany() {
   return {
     companyId,
     companyName,
+    companyPlan,
     myRole,
     isLoadingCompany,
     refreshCompany,
