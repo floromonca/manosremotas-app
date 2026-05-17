@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { MR_THEME } from "@/lib/theme";
 import { canAdminCompany, canManagePayroll } from "@/lib/security/roles";
 import { useActiveCompany } from "../../hooks/useActiveCompany";
+import { hasPlanFeature } from "@/lib/features/entitlements";
 
 type SidebarItemProps = {
     href: string;
@@ -57,7 +58,11 @@ export default function AppSidebar({ onNavigate, variant = "desktop" }: Props) {
 
     const isAdmin = canAdminCompany(myRole);
     const showPayroll =
-        canManagePayroll(myRole) && companyPlan === "business";
+        canManagePayroll(myRole) &&
+        hasPlanFeature(
+            companyPlan,
+            "payroll"
+        );
     const isDesktop = variant === "desktop";
 
     return (
