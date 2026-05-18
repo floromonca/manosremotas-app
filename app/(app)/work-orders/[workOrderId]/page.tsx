@@ -28,7 +28,10 @@ import PhotoPreviewModal from "../components/PhotoPreviewModal";
 import WorkOrderCheckInsSection from "../components/WorkOrderCheckInsSection";
 import WorkOrderCheckInBar from "../components/WorkOrderCheckInBar";
 import { useWorkOrderPhotos } from "../hooks/useWorkOrderPhotos";
-import { getPlanPhotoLimit } from "@/lib/features/entitlements";
+import {
+    getPlanPhotoLimit,
+    hasPlanFeature,
+} from "@/lib/features/entitlements";
 
 type WorkOrder = {
     work_order_id: string;
@@ -160,6 +163,9 @@ export default function WorkOrderDetailPage() {
     const [canOperate, setCanOperate] = useState(false);
     const [shiftLoading, setShiftLoading] = useState(false);
     const isAdmin = myRole === "owner" || myRole === "admin";
+    const canPreviewWorkReport =
+        isAdmin &&
+        hasPlanFeature(companyPlan, "work_report");
     const [wo, setWo] = useState<WorkOrder | null>(null);
     const [checkIns, setCheckIns] = useState<WorkOrderCheckIn[]>([]);
     const {
@@ -1180,6 +1186,87 @@ export default function WorkOrderDetailPage() {
                                 >
                                     {photoError}
                                 </div>
+                            ) : null}
+                            {canPreviewWorkReport ? (
+                                <section
+                                    style={{
+                                        border: `1px solid ${MR_THEME.colors.border}`,
+                                        borderRadius: 18,
+                                        background: "#ffffff",
+                                        padding: 18,
+                                        boxShadow: "0 10px 24px rgba(15, 23, 42, 0.04)",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "flex-start",
+                                            gap: 14,
+                                            flexWrap: "wrap",
+                                        }}
+                                    >
+                                        <div>
+                                            <div
+                                                style={{
+                                                    fontSize: 12,
+                                                    fontWeight: 800,
+                                                    color: MR_THEME.colors.textMuted,
+                                                    textTransform: "uppercase",
+                                                    letterSpacing: "0.08em",
+                                                }}
+                                            >
+                                                Professional Work Report
+                                            </div>
+
+                                            <h2
+                                                style={{
+                                                    margin: "4px 0 6px",
+                                                    fontSize: 18,
+                                                    fontWeight: 850,
+                                                    color: MR_THEME.colors.textPrimary,
+                                                    letterSpacing: "-0.02em",
+                                                }}
+                                            >
+                                                Work Completion Report
+                                            </h2>
+
+                                            <p
+                                                style={{
+                                                    margin: 0,
+                                                    fontSize: 13,
+                                                    color: MR_THEME.colors.textSecondary,
+                                                    lineHeight: 1.45,
+                                                    maxWidth: 560,
+                                                }}
+                                            >
+                                                Generate a customer-facing report with services performed,
+                                                smart photo evidence, recommendations, and completion summary.
+                                            </p>
+                                        </div>
+
+                                        <a
+                                            href={`/api/work-orders/${encodeURIComponent(workOrderId)}/report/html?mode=preview`}
+                                            style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                minHeight: 40,
+                                                padding: "0 14px",
+                                                borderRadius: 12,
+                                                background: MR_THEME.colors.primary,
+                                                color: "#ffffff",
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                textDecoration: "none",
+                                                whiteSpace: "nowrap",
+                                                boxShadow: "0 8px 18px rgba(37, 99, 235, 0.18)",
+                                            }}
+                                        >
+                                            Preview Report
+                                        </a>
+                                    </div>
+                                </section>
                             ) : null}
                             <WorkOrderSiteReportSection
                                 report={wo.site_report}
