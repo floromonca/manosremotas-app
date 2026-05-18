@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../../../../lib/supabaseClient";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
+import { getPlanConfig } from "@/lib/features/entitlements";
 
 type BillingSettings = {
     payment_terms_days: number;
@@ -26,13 +27,14 @@ const normalizeLegacyPrefix = (value: string, fallback: string) => {
 };
 
 export default function BillingSettingsPage() {
-    const { companyId, companyName } = useActiveCompany();
+    const { companyId, companyName, companyPlan } = useActiveCompany();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [okMsg, setOkMsg] = useState("");
     const [settings, setSettings] = useState<BillingSettings>(DEFAULT_SETTINGS);
+    const currentPlan = getPlanConfig(companyPlan);
 
     useEffect(() => {
         if (!companyId) {
@@ -263,6 +265,40 @@ export default function BillingSettingsPage() {
 
             <div style={{ display: "grid", gap: 20 }}>
                 <SectionCard
+                    title="Current Plan"
+                    description="Subscription plan and included limits for this company."
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gap: 12,
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontSize: 24,
+                                fontWeight: 800,
+                                color: "#111827",
+                            }}
+                        >
+                            {currentPlan.name}
+                        </div>
+
+                        <div
+                            style={{
+                                display: "grid",
+                                gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                                gap: 12,
+                            }}
+                        >
+                            <PlanLimit label="Users included" value={currentPlan.usersIncluded} />
+                            <PlanLimit label="Photos per Work Order" value={currentPlan.maxPhotosPerWorkOrder} />
+                            <PlanLimit label="Storage included" value={`${currentPlan.storageGb} GB`} />
+                            <PlanLimit label="Monthly price" value={`$${currentPlan.monthlyPrice} USD`} />
+                        </div>
+                    </div>
+                </SectionCard>
+                <SectionCard
                     title="Numbering & Defaults"
                     description="Core defaults used when creating invoices and work orders."
                 >
@@ -439,7 +475,47 @@ export default function BillingSettingsPage() {
         </div>
     );
 }
+function PlanLimit({
+    label,
+    value,
+}: {
+    label: string;
+    value: string | number;
+}) {
+    return (
+        <div
+            style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
+                padding: "12px 14px",
+                background: "#f9fafb",
+            }}
+        >
+            <div
+                style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: "#6b7280",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    marginBottom: 6,
+                }}
+            >
+                {label}
+            </div>
 
+            <div
+                style={{
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: "#111827",
+                }}
+            >
+                {value}
+            </div>
+        </div>
+    );
+}
 function SectionCard({
     title,
     description,
