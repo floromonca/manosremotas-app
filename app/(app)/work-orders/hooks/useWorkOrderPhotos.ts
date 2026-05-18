@@ -15,12 +15,14 @@ type UseWorkOrderPhotosParams = {
     workOrderId: string;
     activeCompanyId: string | null;
     userId: string | null;
+    maxPhotosPerWorkOrder: number;
 };
 
 export function useWorkOrderPhotos({
     workOrderId,
     activeCompanyId,
     userId,
+    maxPhotosPerWorkOrder,
 }: UseWorkOrderPhotosParams) {
     const [photos, setPhotos] = useState<WorkOrderPhoto[]>([]);
     const [activePhotoTab, setActivePhotoTab] = useState<WorkOrderPhotoCategory>("before");
@@ -136,8 +138,10 @@ export function useWorkOrderPhotos({
 
                 if (countError) throw countError;
 
-                if ((count ?? 0) >= 6) {
-                    setPhotoError("Maximum 6 photos per work order.");
+                if ((count ?? 0) >= maxPhotosPerWorkOrder) {
+                    setPhotoError(
+                        `Maximum ${maxPhotosPerWorkOrder} photos per work order.`
+                    );
                     return;
                 }
 

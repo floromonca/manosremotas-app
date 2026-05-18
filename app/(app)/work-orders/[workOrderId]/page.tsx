@@ -28,6 +28,7 @@ import PhotoPreviewModal from "../components/PhotoPreviewModal";
 import WorkOrderCheckInsSection from "../components/WorkOrderCheckInsSection";
 import WorkOrderCheckInBar from "../components/WorkOrderCheckInBar";
 import { useWorkOrderPhotos } from "../hooks/useWorkOrderPhotos";
+import { getPlanPhotoLimit } from "@/lib/features/entitlements";
 
 type WorkOrder = {
     work_order_id: string;
@@ -147,7 +148,12 @@ export default function WorkOrderDetailPage() {
     const { user } = useAuthState();
     const myUserId = user?.id ?? null;
 
-    const { companyId: activeCompanyId } = useActiveCompany();
+    const {
+        companyId: activeCompanyId,
+        companyPlan,
+    } = useActiveCompany();
+    const maxPhotosPerWorkOrder =
+        getPlanPhotoLimit(companyPlan);
 
     const [roleLoading, setRoleLoading] = useState(false);
     const [myRole, setMyRole] = useState<"owner" | "admin" | "tech" | "viewer" | null>(null);
@@ -182,6 +188,7 @@ export default function WorkOrderDetailPage() {
         workOrderId,
         activeCompanyId,
         userId: user?.id ?? null,
+        maxPhotosPerWorkOrder,
     });
 
     const woRef = useRef<WorkOrder | null>(null);
@@ -1155,6 +1162,7 @@ export default function WorkOrderDetailPage() {
                                 onUploadPhoto={handlePhotoUpload}
                                 onDeletePhoto={handleDeletePhoto}
                                 onOpenPhoto={setSelectedPhotoId}
+                                maxPhotosPerWorkOrder={maxPhotosPerWorkOrder}
                             />
                             {photoError ? (
                                 <div

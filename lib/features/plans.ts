@@ -52,7 +52,7 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
         monthlyPrice: 49,
         usersIncluded: 5,
         storageGb: 10,
-        maxPhotosPerWorkOrder: 10,
+        maxPhotosPerWorkOrder: 6,
         features: [
             "work_orders",
             "my_day",
@@ -71,7 +71,7 @@ export const PLANS: Record<PlanKey, PlanConfig> = {
         monthlyPrice: 129,
         usersIncluded: 15,
         storageGb: 50,
-        maxPhotosPerWorkOrder: 25,
+        maxPhotosPerWorkOrder: 20,
         features: [
             "work_orders",
             "my_day",

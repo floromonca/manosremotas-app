@@ -21,6 +21,7 @@ type Props = {
     onUploadPhoto: (file: File | null, category: PhotoCategory) => void;
     onDeletePhoto: (photo: WorkOrderPhoto) => void;
     onOpenPhoto: (photoId: string) => void;
+    maxPhotosPerWorkOrder: number;
 };
 
 const PHOTO_TABS: PhotoCategory[] = ["before", "during", "after"];
@@ -233,9 +234,11 @@ export default function WorkOrderPhotosSection({
     onUploadPhoto,
     onDeletePhoto,
     onOpenPhoto,
+    maxPhotosPerWorkOrder,
 }: Props) {
     const totalPhotos = photos.length;
-    const limitReached = totalPhotos >= 6;
+    const limitReached =
+        totalPhotos >= maxPhotosPerWorkOrder;
 
     const beforeCount = getCategoryPhotos(photos, "before").length;
     const duringCount = getCategoryPhotos(photos, "during").length;
@@ -312,7 +315,7 @@ export default function WorkOrderPhotosSection({
                             whiteSpace: "nowrap",
                         }}
                     >
-                        {totalPhotos} / 6 photos
+                        {totalPhotos} / {maxPhotosPerWorkOrder} photos
                     </div>
                 </div>
 
@@ -399,7 +402,7 @@ export default function WorkOrderPhotosSection({
                             lineHeight: 1.4,
                         }}
                     >
-                        Photo limit reached.
+                        Maximum {maxPhotosPerWorkOrder} photos reached for this work order.
                     </div>
                 ) : missingBeforeOrAfter ? (
                     <div
