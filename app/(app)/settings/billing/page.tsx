@@ -467,16 +467,50 @@ export default function BillingSettingsPage() {
                     <div
                         style={{
                             marginTop: 14,
-                            padding: "12px 14px",
+                            padding: "14px",
                             borderRadius: 14,
                             background: "#f8fafc",
                             border: "1px solid #e5e7eb",
-                            color: "#475569",
-                            fontSize: 13,
-                            lineHeight: 1.5,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 14,
+                            flexWrap: "wrap",
                         }}
                     >
-                        Plan changes are managed by ManosRemotas support during this pilot stage. Contact support when a company is ready to upgrade.
+                        <div
+                            style={{
+                                color: "#475569",
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                                maxWidth: 720,
+                            }}
+                        >
+                            <strong style={{ color: "#111827" }}>Need to upgrade?</strong>{" "}
+                            Plan changes are managed by ManosRemotas support during this pilot stage.
+                            Contact support when a company is ready to unlock Pro or Business features.
+                        </div>
+
+                        <a
+                            href="mailto:flormonc@gmail.com?subject=ManosRemotas%20plan%20upgrade%20request"
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                minHeight: 40,
+                                padding: "0 14px",
+                                borderRadius: 12,
+                                background: "#2563eb",
+                                color: "#ffffff",
+                                fontSize: 13,
+                                fontWeight: 850,
+                                textDecoration: "none",
+                                whiteSpace: "nowrap",
+                                boxShadow: "0 8px 18px rgba(37, 99, 235, 0.18)",
+                            }}
+                        >
+                            Request plan upgrade
+                        </a>
                     </div>
                 </SectionCard>
                 <SectionCard
