@@ -552,7 +552,32 @@ body {
     color: var(--muted);
     font-size: 12px;
 }
+.page-additional .section {
+    margin-top: 14px;
+}
 
+.page-additional .photo-grid {
+    gap: 8px;
+}
+
+.page-additional .photo-card img {
+    height: 105px;
+}
+
+.page-additional .photo-label {
+    padding: 6px 10px;
+    font-size: 10px;
+}
+
+.page-additional .text-block {
+    padding: 11px 13px;
+    line-height: 1.42;
+}
+
+.page-additional .footer-note {
+    margin-top: 16px;
+    padding-top: 10px;
+}
 @media print {
     @page {
         size: Letter;
@@ -589,7 +614,24 @@ body {
     .photo-card img {
         height: 118px;
     }
+.page-additional .photo-card img {
+    height: 82px;
+}
 
+.page-additional .section {
+    margin-top: 10px;
+}
+
+.page-additional .text-block {
+    padding: 9px 12px;
+    font-size: 13px;
+    line-height: 1.36;
+}
+
+.page-additional .footer-note {
+    margin-top: 10px;
+    padding-top: 8px;
+}
     .photo-label {
         padding: 5px 10px;
     }
@@ -683,7 +725,7 @@ body {
     ${renderMainPhotoSection("After", photoGroups.after)}
 </section>
 
-<section class="page">
+<section class="page page-additional">
     <div class="header">
         <div>
             <div class="label">Additional Evidence</div>
