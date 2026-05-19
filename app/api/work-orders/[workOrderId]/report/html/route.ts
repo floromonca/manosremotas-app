@@ -180,20 +180,33 @@ export async function GET(
             technician,
         });
 
-        const actionBarHtml = `
-            <div class="mr-topbar no-print">
-                <div class="mr-topbar-left">
-                    <strong>Professional Work Report Preview</strong>
-                </div>
-                <div class="mr-topbar-actions">
-                    <button type="button" onclick="window.print()">Print / Save PDF</button>
+        const backToWorkOrderUrl = `${origin}/work-orders/${encodeURIComponent(workOrderId)}`;
 
-                    <a href="${origin}/work-orders/${encodeURIComponent(workOrderId)}">
-                        <button type="button">Back to Work Order</button>
-                    </a>
-                </div>
-            </div>
-        `;
+        const actionBarHtml = `
+    <div class="mr-topbar no-print">
+        <div class="mr-topbar-left">
+            <strong>Professional Work Report Preview</strong>
+        </div>
+
+        <div class="mr-topbar-actions">
+            <button
+                type="button"
+                class="mr-topbar-button"
+                onclick="window.print()"
+            >
+                Print / Save PDF
+            </button>
+
+            <a
+                class="mr-topbar-button"
+                href="${backToWorkOrderUrl}"
+                onclick="event.preventDefault(); event.stopPropagation(); window.location.href='${backToWorkOrderUrl}'; return false;"
+            >
+                Back to Work Order
+            </a>
+        </div>
+    </div>
+`;
 
         const injectedStyles = `
             <style>
@@ -222,26 +235,72 @@ export async function GET(
                     flex-wrap: wrap;
                 }
 
-                .mr-topbar-actions a {
-                    text-decoration: none;
-                }
+                .mr-topbar-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    padding: 0 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    font-family: inherit;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    z-index: 1002;
+}
 
-                .mr-topbar-actions button {
-                    border: 1px solid #d1d5db;
-                    background: #ffffff;
-                    color: #111827;
-                    padding: 10px 14px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    line-height: 1;
-                }
+.mr-topbar-button:hover {
+    background: #f9fafb;
+}
 
-                .mr-topbar-actions button:hover {
-                    background: #f9fafb;
-                }
+@media (max-width: 640px) {
+    .mr-topbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        z-index: 9999;
+        align-items: stretch;
+        padding: 10px 12px;
+        background: #ffffff;
+        border-top: 1px solid #e5e7eb;
+        border-bottom: none;
+        flex-direction: column;
+    }
 
-                @media print {
+    .mr-topbar-left {
+        font-size: 12px;
+        line-height: 1.2;
+    }
+
+    .mr-topbar-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .mr-topbar-button {
+        min-height: 42px;
+        padding: 0 10px;
+        font-size: 12px;
+        width: 100%;
+    }
+
+    body {
+        padding-bottom: 92px;
+    }
+}                @media print {
                     .no-print {
                         display: none !important;
                     }
