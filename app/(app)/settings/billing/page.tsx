@@ -322,6 +322,7 @@ export default function BillingSettingsPage() {
                                     "Team basics",
                                     "Invoicing during trial",
                                     "3 photos per Work Order",
+                                    "1 GB storage included",
                                 ],
                             },
                             {
@@ -335,7 +336,7 @@ export default function BillingSettingsPage() {
                                     "CSV service import",
                                     "Reusable service pricing",
                                     "6 photos per Work Order",
-                                    "More storage included",
+                                    "5 GB storage included",
                                 ],
                             },
                             {
@@ -349,6 +350,7 @@ export default function BillingSettingsPage() {
                                     "PDF work completion reports",
                                     "Payroll visibility",
                                     "20 photos per Work Order",
+                                    "15 GB storage included",
                                     "Advanced operational reporting",
                                 ],
                             },
