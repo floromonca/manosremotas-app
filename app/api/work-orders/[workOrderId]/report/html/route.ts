@@ -189,13 +189,12 @@ export async function GET(
         </div>
 
         <div class="mr-topbar-actions">
-            <button
-                type="button"
-                class="mr-topbar-button"
-                onclick="window.print()"
+           <a
+        class="mr-topbar-button"
+             href="${origin}/api/work-orders/${encodeURIComponent(workOrderId)}/report/pdf"
             >
-                Print / Save PDF
-            </button>
+             Download PDF
+            </a>
 
             <a
                 class="mr-topbar-button"
