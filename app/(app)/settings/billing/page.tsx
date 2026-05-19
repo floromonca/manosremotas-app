@@ -299,6 +299,185 @@ export default function BillingSettingsPage() {
                     </div>
                 </SectionCard>
                 <SectionCard
+                    title="Plan Features"
+                    description="See what is included in each plan and which operational tools can be unlocked as the company grows."
+                >
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                            gap: 14,
+                        }}
+                    >
+                        {[
+                            {
+                                key: "starter",
+                                name: "Starter Trial",
+                                price: "$0 USD / month",
+                                badge: "Current foundation",
+                                features: [
+                                    "Work Orders",
+                                    "Customers",
+                                    "My Day",
+                                    "Team basics",
+                                    "Invoicing during trial",
+                                    "3 photos per Work Order",
+                                ],
+                            },
+                            {
+                                key: "pro",
+                                name: "Pro",
+                                price: "$49 USD / month",
+                                badge: "For growing teams",
+                                features: [
+                                    "Everything in Starter",
+                                    "Service Catalog",
+                                    "CSV service import",
+                                    "Reusable service pricing",
+                                    "6 photos per Work Order",
+                                    "More storage included",
+                                ],
+                            },
+                            {
+                                key: "business",
+                                name: "Business",
+                                price: "$129 USD / month",
+                                badge: "Best for operations",
+                                features: [
+                                    "Everything in Pro",
+                                    "Professional Work Reports™",
+                                    "PDF work completion reports",
+                                    "Payroll visibility",
+                                    "20 photos per Work Order",
+                                    "Advanced operational reporting",
+                                ],
+                            },
+                        ].map((plan) => {
+                            const isCurrent = plan.key === currentPlan.key;
+
+                            return (
+                                <article
+                                    key={plan.key}
+                                    style={{
+                                        border: isCurrent
+                                            ? "1px solid #2563eb"
+                                            : "1px solid #e5e7eb",
+                                        borderRadius: 16,
+                                        background: isCurrent
+                                            ? "linear-gradient(180deg, #eff6ff 0%, #ffffff 100%)"
+                                            : "#ffffff",
+                                        padding: 16,
+                                        boxShadow: isCurrent
+                                            ? "0 10px 24px rgba(37, 99, 235, 0.12)"
+                                            : "0 1px 2px rgba(16,24,40,0.04)",
+                                    }}
+                                >
+                                    <div
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "space-between",
+                                            alignItems: "flex-start",
+                                            gap: 10,
+                                            marginBottom: 10,
+                                        }}
+                                    >
+                                        <div>
+                                            <div
+                                                style={{
+                                                    fontSize: 18,
+                                                    fontWeight: 900,
+                                                    color: "#111827",
+                                                    letterSpacing: "-0.02em",
+                                                }}
+                                            >
+                                                {plan.name}
+                                            </div>
+
+                                            <div
+                                                style={{
+                                                    marginTop: 4,
+                                                    fontSize: 14,
+                                                    fontWeight: 800,
+                                                    color: "#2563eb",
+                                                }}
+                                            >
+                                                {plan.price}
+                                            </div>
+                                        </div>
+
+                                        <span
+                                            style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                minHeight: 28,
+                                                padding: "0 10px",
+                                                borderRadius: 999,
+                                                background: isCurrent ? "#2563eb" : "#eff6ff",
+                                                color: isCurrent ? "#ffffff" : "#2563eb",
+                                                fontSize: 11,
+                                                fontWeight: 850,
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            {isCurrent ? "Current plan" : plan.badge}
+                                        </span>
+                                    </div>
+
+                                    <ul
+                                        style={{
+                                            margin: 0,
+                                            padding: 0,
+                                            listStyle: "none",
+                                            display: "grid",
+                                            gap: 8,
+                                        }}
+                                    >
+                                        {plan.features.map((feature) => (
+                                            <li
+                                                key={feature}
+                                                style={{
+                                                    display: "flex",
+                                                    gap: 8,
+                                                    alignItems: "flex-start",
+                                                    color: "#475569",
+                                                    fontSize: 13,
+                                                    lineHeight: 1.45,
+                                                }}
+                                            >
+                                                <span
+                                                    style={{
+                                                        color: "#16a34a",
+                                                        fontWeight: 900,
+                                                    }}
+                                                >
+                                                    ✓
+                                                </span>
+                                                <span>{feature}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </article>
+                            );
+                        })}
+                    </div>
+
+                    <div
+                        style={{
+                            marginTop: 14,
+                            padding: "12px 14px",
+                            borderRadius: 14,
+                            background: "#f8fafc",
+                            border: "1px solid #e5e7eb",
+                            color: "#475569",
+                            fontSize: 13,
+                            lineHeight: 1.5,
+                        }}
+                    >
+                        Plan changes are managed by ManosRemotas support during this pilot stage. Contact support when a company is ready to upgrade.
+                    </div>
+                </SectionCard>
+                <SectionCard
                     title="Numbering & Defaults"
                     description="Core defaults used when creating invoices and work orders."
                 >

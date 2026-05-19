@@ -8,6 +8,8 @@ import { useAuthState } from "@/hooks/useAuthState";
 import { useActiveCompany } from "@/hooks/useActiveCompany";
 import { hasPlanFeature } from "@/lib/features/entitlements";
 import { MR_THEME } from "@/lib/theme";
+import LockedFeatureCard from "@/app/components/LockedFeatureCard";
+
 
 type WorkOrderRow = {
     work_order_id: string;
@@ -193,7 +195,8 @@ export default function EditWorkReportPage() {
     }, [activeCompanyId, draftStorageKey, workOrderId]);
 
     useEffect(() => {
-        if (authLoading || isLoadingCompany) return;
+        if (authLoading || isLoadingCompany)
+            return;
 
         if (!user) {
             router.replace("/auth");
@@ -211,10 +214,8 @@ export default function EditWorkReportPage() {
             setError("Only owner/admin can edit Professional Work Reports.");
             return;
         }
-
         if (!canUseWorkReport) {
             setLoading(false);
-            setError("Professional Work Reports require the Business plan.");
             return;
         }
 
@@ -368,6 +369,53 @@ export default function EditWorkReportPage() {
         }
 
         router.push(backHref);
+    }
+
+    if (!canUseWorkReport) {
+        return (
+            <main
+                style={{
+                    minHeight: "100vh",
+                    background: MR_THEME.colors.appBg,
+                    padding: "22px 16px 40px",
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: 980,
+                        margin: "0 auto",
+                        display: "grid",
+                        gap: 18,
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => router.push(backHref)}
+                        style={{
+                            border: "none",
+                            background: "transparent",
+                            color: MR_THEME.colors.textSecondary,
+                            fontSize: 13,
+                            fontWeight: 800,
+                            cursor: "pointer",
+                            padding: 0,
+                            justifySelf: "start",
+                        }}
+                    >
+                        ← Back to Work Order
+                    </button>
+
+                    <LockedFeatureCard
+                        eyebrow="Professional Work Reports™"
+                        title="Show your work. Get paid with confidence."
+                        description="Professional Work Reports are available on the Business plan. Upgrade to create customer-facing work completion reports with photo evidence, recommendations, completion statements, and professional PDF downloads."
+                        planLabel="Available on Business"
+                        ctaLabel="View current plan"
+                        ctaHref="/settings/billing"
+                    />
+                </div>
+            </main>
+        );
     }
     return (
         <main

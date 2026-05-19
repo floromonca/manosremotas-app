@@ -8,6 +8,8 @@ import { useAuthState } from "../../../hooks/useAuthState";
 import { MR_THEME } from "@/lib/theme";
 import { canManagePayroll } from "@/lib/security/roles";
 import { hasPlanFeature } from "@/lib/features/entitlements";
+import LockedFeatureCard from "@/app/components/LockedFeatureCard";
+
 import {
     buildPayrollV1Row,
     type PayrollScheduleInput,
@@ -189,9 +191,11 @@ export default function PayrollPage() {
 
     useEffect(() => {
         if (authLoading || isLoadingCompany) return;
-        if (!user) router.replace("/auth");
-        if (user && !canAccessPayroll) router.replace("/my-day");
-    }, [authLoading, canAccessPayroll, isLoadingCompany, router, user]);
+
+        if (!user) {
+            router.replace("/auth");
+        }
+    }, [authLoading, isLoadingCompany, router, user]);
 
     const loadPayroll = useCallback(async () => {
         if (!companyId || !user) return;
@@ -400,7 +404,18 @@ export default function PayrollPage() {
     }
 
     if (!canAccessPayroll) {
-        return <PageState title="Payroll" message="Redirecting to My Day..." />;
+        return (
+            <div style={pageStyle}>
+                <LockedFeatureCard
+                    eyebrow="Payroll"
+                    title="Track labor cost and payroll with confidence."
+                    description="Payroll is available on the Business plan. Upgrade to review worked hours, scheduled hours, pay rates, estimated labor cost, and payroll exceptions in one place."
+                    planLabel="Available on Business"
+                    ctaLabel="View current plan"
+                    ctaHref="/settings/billing"
+                />
+            </div>
+        );
     }
 
     return (

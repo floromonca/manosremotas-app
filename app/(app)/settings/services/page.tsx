@@ -3,8 +3,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { MR_THEME } from "@/lib/theme";
 import { useActiveCompany } from "../../../../hooks/useActiveCompany";
-import { useRouter } from "next/navigation";
 import { hasPlanFeature } from "@/lib/features/entitlements";
+import LockedFeatureCard from "@/app/components/LockedFeatureCard";
 import {
     createServiceCatalogItem,
     fetchServiceCatalogItems,
@@ -42,7 +42,6 @@ const emptyForm: ServiceFormState = {
 };
 
 export default function ServicesSettingsPage() {
-    const router = useRouter();
 
     const {
         companyId,
@@ -68,12 +67,6 @@ export default function ServicesSettingsPage() {
             "service_catalog"
         );
 
-    useEffect(() => {
-        if (!canAccessServices) {
-            router.replace("/settings/company");
-        }
-    }, [canAccessServices, router]);
-
     const loadItems = useCallback(async () => {
         if (!companyId || !canAccessServices) {
             setItems([]);
@@ -93,7 +86,7 @@ export default function ServicesSettingsPage() {
         } finally {
             setLoading(false);
         }
-    }, [companyId]);
+    }, [companyId, canAccessServices]);
 
     useEffect(() => {
         void loadItems();
@@ -298,7 +291,35 @@ export default function ServicesSettingsPage() {
             alert(e?.message || "Could not update service status.");
         }
     }
-
+    if (!canAccessServices) {
+        return (
+            <main
+                style={{
+                    minHeight: "100vh",
+                    background: MR_THEME.colors.appBg,
+                    padding: "22px 16px 40px",
+                }}
+            >
+                <div
+                    style={{
+                        maxWidth: 980,
+                        margin: "0 auto",
+                        display: "grid",
+                        gap: 18,
+                    }}
+                >
+                    <LockedFeatureCard
+                        eyebrow="Service Catalog"
+                        title="Build work orders faster with reusable services."
+                        description="Service Catalog and CSV Import are available on Pro and Business. Upgrade to create reusable service items, standardize units and pricing, and speed up work order creation for your team."
+                        planLabel="Available on Pro and Business"
+                        ctaLabel="View current plan"
+                        ctaHref="/settings/billing"
+                    />
+                </div>
+            </main>
+        );
+    }
     return (
         <div style={{ display: "grid", gap: 18 }}>
             <section style={cardStyle}>
