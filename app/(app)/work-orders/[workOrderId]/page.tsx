@@ -1245,26 +1245,55 @@ export default function WorkOrderDetailPage() {
                                             </p>
                                         </div>
 
-                                        <a
-                                            href={`/api/work-orders/${encodeURIComponent(workOrderId)}/report/html?mode=preview`}
+                                        <div
                                             style={{
-                                                display: "inline-flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                minHeight: 40,
-                                                padding: "0 14px",
-                                                borderRadius: 12,
-                                                background: MR_THEME.colors.primary,
-                                                color: "#ffffff",
-                                                fontSize: 13,
-                                                fontWeight: 800,
-                                                textDecoration: "none",
-                                                whiteSpace: "nowrap",
-                                                boxShadow: "0 8px 18px rgba(37, 99, 235, 0.18)",
+                                                display: "flex",
+                                                gap: 10,
+                                                flexWrap: "wrap",
                                             }}
                                         >
-                                            Preview Report
-                                        </a>
+                                            <a
+                                                href={`/work-orders/${encodeURIComponent(workOrderId)}/report/edit`}
+                                                style={{
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    minHeight: 40,
+                                                    padding: "0 14px",
+                                                    borderRadius: 12,
+                                                    border: `1px solid ${MR_THEME.colors.border}`,
+                                                    background: "#ffffff",
+                                                    color: MR_THEME.colors.textPrimary,
+                                                    fontSize: 13,
+                                                    fontWeight: 800,
+                                                    textDecoration: "none",
+                                                    whiteSpace: "nowrap",
+                                                }}
+                                            >
+                                                Edit Report
+                                            </a>
+
+                                            <a
+                                                href={`/api/work-orders/${encodeURIComponent(workOrderId)}/report/html?mode=preview`}
+                                                style={{
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    minHeight: 40,
+                                                    padding: "0 14px",
+                                                    borderRadius: 12,
+                                                    background: MR_THEME.colors.primary,
+                                                    color: "#ffffff",
+                                                    fontSize: 13,
+                                                    fontWeight: 800,
+                                                    textDecoration: "none",
+                                                    whiteSpace: "nowrap",
+                                                    boxShadow: "0 8px 18px rgba(37, 99, 235, 0.18)",
+                                                }}
+                                            >
+                                                Preview Report
+                                            </a>
+                                        </div>
                                     </div>
                                 </section>
                             ) : null}
