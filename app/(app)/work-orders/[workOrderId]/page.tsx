@@ -1249,9 +1249,11 @@ export default function WorkOrderDetailPage() {
 
                                             <div
                                                 style={{
-                                                    display: "flex",
+                                                    display: "grid",
+                                                    gridTemplateColumns: "1fr",
                                                     gap: 10,
-                                                    flexWrap: "wrap",
+                                                    width: "100%",
+                                                    maxWidth: 360,
                                                 }}
                                             >
                                                 <a
@@ -1270,6 +1272,7 @@ export default function WorkOrderDetailPage() {
                                                         fontWeight: 800,
                                                         textDecoration: "none",
                                                         whiteSpace: "nowrap",
+                                                        width: "100%",
                                                     }}
                                                 >
                                                     Edit Report
@@ -1290,10 +1293,32 @@ export default function WorkOrderDetailPage() {
                                                         fontWeight: 800,
                                                         textDecoration: "none",
                                                         whiteSpace: "nowrap",
+                                                        width: "100%",
                                                         boxShadow: "0 8px 18px rgba(37, 99, 235, 0.18)",
                                                     }}
                                                 >
                                                     Preview Report
+                                                </a>
+                                                <a
+                                                    href={`/api/work-orders/${encodeURIComponent(workOrderId)}/report/pdf`}
+                                                    style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        justifyContent: "center",
+                                                        minHeight: 40,
+                                                        padding: "0 14px",
+                                                        borderRadius: 12,
+                                                        background: "#111827",
+                                                        color: "#ffffff",
+                                                        fontSize: 13,
+                                                        fontWeight: 800,
+                                                        textDecoration: "none",
+                                                        whiteSpace: "nowrap",
+                                                        width: "100%",
+                                                        boxShadow: "0 8px 18px rgba(17, 24, 39, 0.16)",
+                                                    }}
+                                                >
+                                                    Download PDF
                                                 </a>
                                             </div>
                                         </div>
